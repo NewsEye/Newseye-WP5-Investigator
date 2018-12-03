@@ -5,7 +5,6 @@ import assistant.analysis as aa
 import threading
 import time
 import uuid
-import math
 
 
 class SystemCore(object):
@@ -45,7 +44,7 @@ class SystemCore(object):
         return self._current_users.get(user_id)['query']
 
     def set_query(self, user_id, query):
-        # If the query has already been made earlier, change the state to one corresponding to the query
+        # If the query has already been made earlier, change the state to the one corresponding to the query
         state = self.find_query(user_id, query)
         if state:
             self.set_state(user_id, state)

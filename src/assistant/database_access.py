@@ -28,11 +28,3 @@ class DatabaseAPI(object):
         async with session.get(url) as response:
             return await response.json()
 
-    async def test_multiquery(self, queries):
-        tasks = []
-        async with aiohttp.ClientSession() as session:
-            for query in queries:
-                tasks.append(self.ai_query(session, query))
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-        print("Queries finished, returning results")
-        return results

@@ -1,7 +1,5 @@
 from service import AssistantService
 import sys
-import threading
-import time
 import argparse
 from flask import Flask, redirect, url_for, request, jsonify, session
 from flask_cors import CORS
@@ -62,7 +60,7 @@ def query():
 
 
 @app.route('/api/state/<string:state_id>')
-def getState(state_id):
+def get_state(state_id):
     if 'user_id' not in session:
         return 'You are not logged in', 401
     user_id = session['user_id']
