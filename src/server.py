@@ -73,7 +73,6 @@ def passthrough():
         return 'You are not logged in', 401
     user_id = session['user_id']
     query = request.args.to_dict(flat=False)
-    query['q'] = query.get('q', [''])[0]
     try:
         service.core.set_query(user_id, query)
         result = service.core.run_query(user_id, threaded=False, switch_state=False)
@@ -89,7 +88,6 @@ def quick_query():
         return 'You are not logged in', 401
     user_id = session['user_id']
     query = request.args.to_dict(flat=False)
-    query['q'] = query.get('q', [''])[0]
     try:
         service.core.set_query(user_id, query)
         result = service.core.run_query(user_id)

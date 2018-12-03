@@ -21,10 +21,20 @@ class DatabaseAPI(object):
         params = self.default_params.copy()
         params.update(query)
         print("Log, running query: {}".format(params))
-        async with session.get(url=self.baseUri, params=params) as response:
+        async with session.get(url=self.baseUri, params=self.fix_query_for_aiohttp(params)) as response:
             return await response.json()
 
     async def fetch(self, session, url):
         async with session.get(url) as response:
             return await response.json()
 
+    def fix_query_for_aiohttp(self, query):
+        new_query = []
+        for key in query.keys():
+            if type(query[key]) is list:
+                new_query.extend([(key, value) for value in query[key]])
+            else:
+                new_query.append((key, query[key]))
+        # new_query = [(key, value) for key in query.keys() for value in query[key]]
+        print(new_query)
+        return new_query
