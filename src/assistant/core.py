@@ -6,6 +6,7 @@ import threading
 import time
 import uuid
 import assistant.config as conf
+import pandas as pd
 
 
 class SystemCore(object):
@@ -168,21 +169,26 @@ class SystemCore(object):
         for query in queries:
             query.update(last_query)
         self.set_query(user_id, queries)
-        return self.run_multiquery(user_id)
-
-        # start_year = args.get('start_year')
-        # end_year = args.get('end_year')
-        # if start_year is None or end_year is None:
-        #     raise TypeError("Invalid arguments for the chosen tool")
-        # state, history = itemgetter('state', 'history')(self._current_users.get(user_id))
-        # # Choose the intervals for the analysis
-        # if end_year - start_year > 40:
-        #     skip = 10
-        # elif end_year - start_year > 20:
-        #     skip = 5
-        # else:
-        #     skip = 1
-        # slots = [{}] * math.ceil((end_year - start_year + 1) / skip)
+        result_ids = self.run_multiquery(user_id)
+        t_counts = []
+        for id in result_ids:
+            query, query_results = itemgetter('last_query', 'query_results')(state_history.get(id))
+            year = query['f[{}][]'.format(conf.PUB_YEAR_FACET)]
+            total_hits = query_results['meta']['pages']['total_count']
+            for item in query_results['included']:
+                if item['id'] == conf.TOPIC_FACET and item['type'] == 'facet':
+                    t_counts.extend([[year, topic['attributes']['value'], topic['attributes']['hits'], topic['attributes']['hits'] / total_hits] for topic in item['attributes']['items']])
+                    break
+            else:
+                raise TypeError("Query results don't contain required facet '{}'".format(conf.TOPIC_FACET))
+        df = pd.DataFrame(t_counts, columns=['year', 'topic', 'count', 'rel_count'])
+        abs_counts = df.pivot(index='topic', columns='year',values='count').fillna(0)
+        rel_counts = df.pivot(index='topic', columns='year',values='rel_count').fillna(0)
+        current_state.analysis_results['topic_analysis'] = {
+            'absolute_counts': abs_counts.to_dict(orient='index'),
+            'relative_counts': rel_counts.to_dict(orient='index')
+        }
+        return current_state
 
     async def async_query(self, state):
         delay = state.last_query.pop('test_delay', [0])[0]
@@ -220,12 +226,14 @@ class SystemCore(object):
         asyncio.set_event_loop(asyncio.new_event_loop())
         results = self.run(self.async_multiquery(current_query))
         print("Updating history")
+        result_ids = []
         for i, query in enumerate(current_query):
             new_state = State(state_id=self.get_unique_id(state_history), last_query=query, parent_id=current_state.id)
+            result_ids.append(new_state.id)
             new_state.query_results = results[i]
             state_history[new_state.id] = new_state
             current_state.add_child(new_state.id)
-        return current_state
+        return result_ids
 
     async def async_multiquery(self, queries):
         tasks = []
