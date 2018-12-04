@@ -5,6 +5,7 @@ import assistant.analysis as aa
 import threading
 import time
 import uuid
+import assistant.config as conf
 
 
 class SystemCore(object):
@@ -156,14 +157,14 @@ class SystemCore(object):
         if query_results is None:
             raise TypeError("No query results available for analysis")
         for item in query_results['included']:
-            if item['id'] == 'pub_date' and item['type'] == 'facet':
+            if item['id'] == conf.PUB_YEAR_FACET and item['type'] == 'facet':
                 pub_dates = [(date['attributes']['value'], date['attributes']['hits']) for date in item['attributes']['items']]
                 break
         else:
-            raise TypeError("Query results don't contain required facet 'pub_date'")
+            raise TypeError("Query results don't contain required facet {}".format(conf.PUB_YEAR_FACET))
         pub_dates.sort()
         last_query = current_state.last_query
-        queries = [{'f[pub_date][]': item[0]} for item in pub_dates]
+        queries = [{'f[{}][]'.format(conf.PUB_YEAR_FACET): item[0]} for item in pub_dates]
         for query in queries:
             query.update(last_query)
         self.set_query(user_id, queries)
