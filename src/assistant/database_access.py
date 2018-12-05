@@ -38,3 +38,12 @@ class DatabaseAPI(object):
         # new_query = [(key, value) for key in query.keys() for value in query[key]]
         print(new_query)
         return new_query
+
+    async def async_multiquery(self, queries):
+        tasks = []
+        async with aiohttp.ClientSession() as session:
+            for query in queries:
+                tasks.append(self.ai_query(session, query))
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+        print("Queries finished, returning results")
+        return results
