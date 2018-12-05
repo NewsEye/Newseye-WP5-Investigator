@@ -155,7 +155,7 @@ class SystemCore(object):
                 current_query
             ]
         asyncio.set_event_loop(asyncio.new_event_loop())
-        results = self.run(self._database_api.async_multiquery(current_query))
+        results = self.run(self._database_api.async_query(current_query))
         print("Updating history")
         result_ids = []
         for i, query in enumerate(current_query):
@@ -177,12 +177,15 @@ class SystemCore(object):
         }
         if delay:
             time.sleep(int(delay))
-        result = self._database_api.run_query(state.last_query)
+        asyncio.set_event_loop(asyncio.new_event_loop())
+        result = self.run(self._database_api.async_query(state.last_query))
         state.query_results = result
 
     def blocking_query(self, state):
         state.last_query.pop('test_delay', None)
-        state.query_results = self._database_api.run_query(state.last_query)
+        asyncio.set_event_loop(asyncio.new_event_loop())
+        result = self.run(self._database_api.async_query(state.last_query))
+        state.query_results = result
 
     def run_analysis(self, user_id, args):
         tool_name = args.get('tool')
