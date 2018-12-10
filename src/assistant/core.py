@@ -85,18 +85,6 @@ class SystemCore(object):
                 queue.insert(0, child)
         return tree
 
-    # def add_keyword(self, user_id, keyword):
-    #     self._current_users.get(user_id)['query']['q'].append(keyword)
-    #
-    # def remove_keyword(self, user_id, keyword):
-    #     self._current_users.get(user_id)['query']['q'].remove(keyword)
-    #
-    # def set_facet(self, user_id, facet, value):
-    #     self._current_users.get(user_id)['query'][facet] = value
-    #
-    # def remove_facet(self, user_id, facet):
-    #     self._current_users.get(user_id)['query'].pop(facet)
-
     def clear_query(self, user_id):
         self.set_query(user_id, {
             'q': '',
