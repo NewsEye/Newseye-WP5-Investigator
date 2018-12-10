@@ -90,41 +90,6 @@ class SystemCore(object):
             'q': '',
         })
 
-    def run_query(self, user_id, switch_state=True, threaded=True):
-        current_query, current_state, state_history = itemgetter('query', 'state', 'history')(self._current_users.get(user_id))
-        if current_state.last_query and current_query == current_state.last_query:
-            return current_state
-        new_state = State(state_id=self.get_unique_id(state_history), last_query=current_query, parent_id=current_state.id)
-        # If switch_state is False, the new state is not stored anywhere and is forgotten after the query results are returned
-        if switch_state:
-            state_history[new_state.id] = new_state
-            current_state.add_child(new_state.id)
-        if threaded:
-            t = threading.Thread(target=self.threaded_query, args=[new_state])
-            t.setDaemon(False)
-            t.start()
-            time.sleep(5)
-        else:
-            self.blocking_query(new_state)
-        if switch_state:
-            self.set_state(user_id, new_state)
-        return new_state
-
-    async def async_query(self, state):
-        delay = state.last_query.pop('test_delay', [0])[0]
-        estimate = 10
-        if delay:
-            estimate += int(delay)
-        state.query_results = {
-            'message': 'Still running',
-            'time_estimate': estimate
-        }
-        if delay:
-            await asyncio.sleep(int(delay))
-        result = await self._database_api.ai_query(state.last_query)
-        print("Query done. Result: {}".format(result))
-        state.query_results = result
-
     @staticmethod
     def run(task=None, loop=None):
         if loop is None:
@@ -134,46 +99,78 @@ class SystemCore(object):
         else:
             return loop.run_until_complete(task)
 
-    # TODO: Refactor to handle both single and multiple queries with the same threaded function
-
-    def run_multiquery(self, user_id, switch_state=True, threaded=True):
+    def run_query(self, user_id, switch_state=True, threaded=True, return_type='state', store_results=True):
         current_query, current_state, state_history = itemgetter('query', 'state', 'history')(self._current_users.get(user_id))
-        if type(current_query) is not list:
-            current_query = [
-                current_query
-            ]
-        asyncio.set_event_loop(asyncio.new_event_loop())
-        results = self.run(self._database_api.async_query(current_query))
-        print("Updating history")
+        if current_state.last_query and current_query == current_state.last_query:
+            if return_type == 'state':
+                return [current_state]
+            elif return_type == 'id':
+                return [current_state.id]
+            else:
+                raise TypeError("Invalid parameter value for return_type: {}. Use either 'state' or 'id'")
+
+        query_is_a_list = type(current_query) is list
+        if query_is_a_list:
+            querylist = current_query
+        else:
+            querylist = [current_query]
+
+        new_states = []
         result_ids = []
-        for i, query in enumerate(current_query):
+
+        for query in querylist:
             new_state = State(state_id=self.get_unique_id(state_history), last_query=query, parent_id=current_state.id)
             result_ids.append(new_state.id)
-            new_state.query_results = results[i]
-            state_history[new_state.id] = new_state
-            current_state.add_child(new_state.id)
-        return result_ids
+            new_states.append(new_state)
 
-    def threaded_query(self, state):
-        delay = state.last_query.pop('test_delay', [0])[0]
-        estimate = 10
-        if delay:
-            estimate += int(delay)
-        state.query_results = {
-            'message': 'Still running',
-            'time_estimate': estimate
-        }
-        if delay:
-            time.sleep(int(delay))
-        asyncio.set_event_loop(asyncio.new_event_loop())
-        result = self.run(self._database_api.async_query(state.last_query))
-        state.query_results = result
+            # If store_results is False, the new state is not stored anywhere and is forgotten after the query results are returned
+            if store_results:
+                state_history[new_state.id] = new_state
+                current_state.add_child(new_state.id)
 
-    def blocking_query(self, state):
-        state.last_query.pop('test_delay', None)
+            # If for some reason the query is run in the main thread, we should ignore the test_delay parameter
+            if not threaded:
+                new_state.last_query.pop('test_delay', None)
+
+            # Todo: proper delay estimates
+            delay = new_state.last_query.get('test_delay', [0])[0]
+            estimate = 5
+            if delay:
+                estimate += int(delay)
+            new_state.query_results = {
+                'message': 'Still running',
+                'time_remaining': estimate
+            }
+        if threaded:
+            t = threading.Thread(target=self.query_thread, args=[new_states])
+            t.setDaemon(False)
+            t.start()
+            time.sleep(2)
+        else:
+            self.query_thread(new_states)
+        if switch_state:
+            self.set_state(user_id, new_states[0])
+        if return_type == 'state':
+            return new_states
+        elif return_type == 'id':
+            return result_ids
+        else:
+            raise TypeError("Invalid parameter value for return_type: {}. Use either 'state' or 'id'")
+
+    def query_thread(self, states):
+        if type(states) is list:
+            statelist = states
+        else:
+            statelist = [states]
+        # Todo: Move the delay stuff into database_access
+        delay = [state.last_query.pop('test_delay', [0])[0] for state in statelist]
+        if delay[0]:
+            time.sleep(int(delay[0]))
+        queries = [state.last_query for state in statelist]
         asyncio.set_event_loop(asyncio.new_event_loop())
-        result = self.run(self._database_api.async_query(state.last_query))
-        state.query_results = result
+        results = self.run(self._database_api.async_query(queries))
+        for i, state in enumerate(statelist):
+            state.query_results = results[i]
 
     def run_analysis(self, user_id, args):
         tool_name = args.get('tool')

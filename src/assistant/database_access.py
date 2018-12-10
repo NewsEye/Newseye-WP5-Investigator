@@ -14,8 +14,7 @@ class DatabaseAPI(object):
         async with session.get(url=self.baseUri, params=self.fix_query_for_aiohttp(params)) as response:
             return await response.json()
 
-    # Runs the query/queries using aiohttp. If a single query is given, the return value is a dict containing the
-    # result. If queries is a list, the return value is a list containing the results in the corresponding order.
+    # Runs the query/queries using aiohttp. The return value is a list containing the results in the corresponding order.
     async def async_query(self, queries):
         query_is_a_list = type(queries) is list
         if not query_is_a_list:
@@ -29,10 +28,10 @@ class DatabaseAPI(object):
                 tasks.append(self.fetch(session, params))
             results = await asyncio.gather(*tasks, return_exceptions=True)
         print("Queries finished, returning results")
-        if not query_is_a_list:
-            results = results[0]
         return results
 
+    # Unlike the requests package, aiohttp doesn't support key: [value_list] pairs for defining multiple values for
+    # a single parameter. Instead, a list of (key, value) tuples is used.
     def fix_query_for_aiohttp(self, query):
         new_query = []
         for key in query.keys():

@@ -60,11 +60,13 @@ def query():
 
 
 @app.route('/api/state/<string:state_id>')
-def get_state(state_id):
+def change_state(state_id):
     if 'user_id' not in session:
         return 'You are not logged in', 401
     user_id = session['user_id']
-    return jsonify(service.core.get_state(user_id, state_id))
+    new_state = service.core.get_state(user_id, state_id)
+    service.core.set_state(user_id, new_state)
+    return jsonify(new_state)
 
 
 @app.route('/catalog.json')
@@ -75,7 +77,7 @@ def passthrough():
     query = request.args.to_dict(flat=False)
     try:
         service.core.set_query(user_id, query)
-        result = service.core.run_query(user_id, threaded=False, switch_state=False)
+        result = service.core.run_query(user_id, switch_state=False, store_results=False)
     except TypeError:
         session.pop('user_id')
         return 'You are not logged in', 401
@@ -90,14 +92,15 @@ def quick_query():
     query = request.args.to_dict(flat=False)
     try:
         service.core.set_query(user_id, query)
-        result = service.core.run_query(user_id)
+        results = service.core.run_query(user_id)
     except TypeError:
         session.pop('user_id')
         print(session)
         return 'You are not logged in', 401
-    if 'message' in result.query_results.keys():
-        return jsonify(result), 202
-    return jsonify(result)
+    for result in results:
+        if 'message' in result.query_results.keys():
+            return jsonify(results), 202
+    return jsonify(results)
 
 
 @app.route('/api/analysis')
@@ -165,7 +168,7 @@ def test_multiquery():
         return 'You are not logged in', 401
     user_id = session['user_id']
     service.core.set_query(user_id, test_query)
-    return jsonify(service.core.run_multiquery(user_id))
+    return jsonify(service.core.run_query(user_id))
 
 
 @app.route('/test/analysis/topic')
