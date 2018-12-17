@@ -1,6 +1,4 @@
 from service import AssistantService
-import sys
-import argparse
 from flask import Flask, redirect, url_for, request, jsonify, session
 from flask_cors import CORS
 
@@ -9,27 +7,21 @@ from flask_cors import CORS
 # START INIT
 #
 
-# CLI parameters
-parser = argparse.ArgumentParser(description='Run the Assistant server.')
-parser.add_argument('port', type=int, default=8080, help='port number to attach to')
-args = parser.parse_args()
-sys.argv = sys.argv[0:1]
-
 # Logging
-import logging
-formatter = logging.Formatter(fmt='%(asctime)s - %(levelname)s - %(module)s - %(message)s')
-handler = logging.StreamHandler()
-handler.setFormatter(formatter)
-log = logging.getLogger('root')
-log.setLevel(logging.INFO)
-#log.setLevel(5) # Enable for way too much logging, even more than DEBUG
-log.addHandler(handler)
+# import logging
+# formatter = logging.Formatter(fmt='%(asctime)s - %(levelname)s - %(module)s - %(message)s')
+# handler = logging.StreamHandler()
+# handler.setFormatter(formatter)
+# log = logging.getLogger('root')
+# log.setLevel(logging.INFO)
+# #log.setLevel(5) # Enable for way too much logging, even more than DEBUG
+# log.addHandler(handler)
 
 # Flask
 app = Flask(__name__)
 app.secret_key = '1234'
 
-cors = CORS(app)
+# cors = CORS(app)
 
 service = AssistantService()
 
@@ -41,120 +33,139 @@ service = AssistantService()
 
 @app.route('/api/query', methods=['POST', 'GET', 'DELETE'])
 def query():
-    if 'user_id' not in session:
+    if 'username' not in session:
         return 'You are not logged in', 401
-    user_id = session['user_id']
+    username = session['username']
     if request.method == 'GET':
-        return jsonify(service.core.get_query(user_id))
+        return jsonify(service.core.get_query(username))
     elif request.method == 'POST':
         new_query = request.get_json()
         if not _is_valid_query(new_query):
             return 'Invalid query', 400
         if 'q' not in new_query.keys():
             new_query['q'] = ''
-        service.core.set_query(user_id, new_query)
-        return jsonify(service.core.get_query(user_id))
+        service.core.set_query(username, new_query)
+        return jsonify(service.core.get_query(username))
     elif request.method == 'DELETE':
-        service.core.clear_query(user_id)
+        service.core.clear_query(username)
         return '', 204
 
 
 @app.route('/api/state/<string:state_id>')
 def change_state(state_id):
-    if 'user_id' not in session:
+    if 'username' not in session:
         return 'You are not logged in', 401
-    user_id = session['user_id']
-    new_state = service.core.get_state(user_id, state_id)
-    service.core.set_state(user_id, new_state)
+    username = session['username']
+    new_state = service.core.get_state(username, state_id)
+    service.core.set_state(username, new_state)
     return jsonify(new_state)
 
 
 @app.route('/catalog.json')
 def passthrough():
-    if 'user_id' not in session:
+    if 'username' not in session:
         return 'You are not logged in', 401
-    user_id = session['user_id']
+    username = session['username']
     query = request.args.to_dict(flat=False)
     try:
-        service.core.set_query(user_id, query)
-        result = service.core.run_query(user_id, switch_state=False, store_results=False)
+        result = service.core.run_query(username, query, switch_state=False, store_results=False)
     except TypeError:
-        session.pop('user_id')
+        session.pop('username')
         return 'You are not logged in', 401
     return jsonify(result.query_results)
 
 
 @app.route('/search')
 def quick_query():
-    if 'user_id' not in session:
+    if 'username' not in session:
         return 'You are not logged in', 401
-    user_id = session['user_id']
+    username = session['username']
     query = request.args.to_dict(flat=False)
     try:
-        service.core.set_query(user_id, query)
-        results = service.core.run_query(user_id)
-    except TypeError:
-        session.pop('user_id')
-        print(session)
-        return 'You are not logged in', 401
-    for result in results:
-        if 'message' in result.query_results.keys():
-            return jsonify(results), 202
-    return jsonify(results)
+        results = service.core.run_query(username, query)
+    except Exception:
+        print(Exception)
+        return 'Something went wrong...', 500
+    try:
+        for result in results:
+            if 'message' in result.query_results.keys():
+                return jsonify(results), 202
+        return jsonify(results)
+    except Exception:
+        print(Exception)
+        return 'Something went wrong...', 500
 
 
 @app.route('/api/analysis')
 def analyze():
-    if 'user_id' not in session:
+    if 'username' not in session:
         return 'You are not logged in', 401
-    user_id = session['user_id']
+    username = session['username']
     try:
-        current_state = service.core.run_analysis(user_id, request.args)
+        current_state = service.core.run_analysis(username, request.args)
+        return jsonify(current_state)
     except TypeError:
         print(TypeError)
         return 'Invalid number of arguments for the chosen tool', 400
     except Exception:
         print(Exception)
         return 'Something went wrong...', 500
-    return jsonify(current_state)
 
 
 @app.route('/api/login')
 def login():
+    if 'username' in session:
+        return 'User {} already logged in!'.format(session['username']), 401
     username = request.args.get('username')
     if username is None:
         return "Missing parameter: username", 400
-    session['user_id'] = username
+    session['username'] = username
     try:
-        service.core.add_user(session['user_id'])
-    except TypeError:
-        return 'You are already logged in', 403
+        last_login = service.core.login_user(username)
+    except IndexError:
+        return 'Invalid username {}!'.format(username), 401
     except Exception:
         print(Exception)
-        return 'Something went wrong', 500
-    return 'Welcome {}'.format(username), 200
+        return 'Something went wrong...', 500
+    return 'Welcome, {}. Last login: {}'.format(username, last_login), 200
+
+
+@app.route('/api/add_user')
+def add_user():
+    if 'username' not in session:
+        return 'You are not logged in', 401
+    username = session['username']
+    new_user = request.args.get('new_user')
+    if new_user is None:
+        return "Missing parameter: new_user", 400
+    try:
+        service.core.add_user(username, new_user)
+        return 'User {} created'.format(new_user), 200
+    except TypeError:
+        return 'Cannot add user {}: username already in use!'.format(new_user), 400
+    except ValueError:
+        # Todo: fix this as well when adding proper admin users!
+        return "Only user 'jariavik' can add new users!", 401
+    except Exception:
+        print(Exception)
+        return 'Something went wrong...', 500
 
 
 # Logout. Ignores all parameters.
 @app.route('/api/logout')
 def logout():
-    if 'user_id' not in session:
+    if 'username' not in session:
         return 'You are not logged in', 401
-    try:
-        service.core.forget_user(session['user_id'])
-    except Exception:
-        print(Exception)
-        return 'Something went wrong', 500
-    session.pop('user_id', None)
-    return 'Goodbye', 200
+    username = session.pop('username')
+    return 'Goodbye, {}'.format(username), 200
 
 
 @app.route('/api/history')
 def get_history():
-    if 'user_id' not in session:
+    if 'username' not in session:
         return 'You are not logged in', 401
-    user_id = session['user_id']
-    history = service.core.get_history(user_id)
+    username = session['username']
+    history = service.core.get_history(username)
     return jsonify(history)
 
 
@@ -164,19 +175,18 @@ def test_multiquery():
         {'q': 'lighthouse'},
         {'q': 'ghost'}
     ]
-    if 'user_id' not in session:
+    if 'username' not in session:
         return 'You are not logged in', 401
-    user_id = session['user_id']
-    service.core.set_query(user_id, test_query)
-    return jsonify(service.core.run_query(user_id))
+    username = session['username']
+    return jsonify(service.core.run_query(username, test_query))
 
 
 @app.route('/test/analysis/topic')
 def test_topic_analysis():
-    if 'user_id' not in session:
+    if 'username' not in session:
         return 'You are not logged in', 401
-    user_id = session['user_id']
-    return jsonify(service.core.topic_analysis(user_id))
+    username = session['username']
+    return jsonify(service.core.topic_analysis(username))
 
 
 def _empty_query():
@@ -193,9 +203,7 @@ def _is_valid_query(query):
 
 
 def main():
-    log.info("Starting with options port={}".format(args.port))
-    app.run(host='0.0.0.0', port=args.port)
-    log.info("Stopping")
+    app.run(host='0.0.0.0')
 
 
 if __name__ == '__main__':
