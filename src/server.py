@@ -72,7 +72,7 @@ def passthrough():
     except TypeError:
         session.pop('username')
         return 'You are not logged in', 401
-    return jsonify(result.query_results)
+    return jsonify(result.result)
 
 
 @app.route('/search')
@@ -88,7 +88,7 @@ def quick_query():
         return 'Something went wrong...', 500
     try:
         for result in results:
-            if 'message' in result.query_results.keys():
+            if 'message' in result.result.keys():
                 return jsonify(results), 202
         return jsonify(results)
     except Exception:

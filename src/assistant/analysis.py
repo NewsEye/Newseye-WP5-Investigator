@@ -10,7 +10,7 @@ TOOL_ARGS = {
 
 
 def extract_facets(current_state):
-    result = current_state.query_results
+    result = current_state.result
     facets = {}
     for feature in result['included']:
         if feature['type'] != 'facet':
@@ -18,7 +18,7 @@ def extract_facets(current_state):
         values = []
         for item in feature['attributes']['items']:
             values.append((item['attributes']['label'], item['attributes']['hits']))
-        facets[feature['id']] = values
+        facets[feature['query_id']] = values
     current_state.analysis_results['extract_facets'] = facets
 
 
