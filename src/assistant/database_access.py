@@ -81,7 +81,7 @@ class PSQLAPI(object):
                     WHERE username = %s;
                 """, [time, username])
 
-    def add_query(self, username, query, parent_id=None, query_result={'message': 'Not yet ready'}):
+    def add_query(self, username, query, parent_id=None, query_result={'message': 'Still running'}):
         query_id = uuid.uuid4()
         while True:
             try:
@@ -96,22 +96,22 @@ class PSQLAPI(object):
                 query_id = uuid.uuid4()
         return query_id
 
-    def find_query(self, username, query):
+    def find_queries(self, username, queries):
         with self._conn as conn:
             with conn.cursor() as curs:
                 curs.execute("""
-                    SELECT query_id FROM queries
+                    SELECT query_id, query, parent_id, result FROM queries
                     WHERE
-                        query = %s
+                        query IN %s
                         AND
                         user_id = (
                             SELECT user_id FROM users WHERE username = %s
                         );
-                """, [Json(query), username])
+                """, [tuple([Json(query) for query in queries]), username])
                 result = curs.fetchall()
         if not result:
             return None
-        return [item[0] for item in result]
+        return result
 
     def set_current_query(self, username, query_id):
         with self._conn as conn:
@@ -215,3 +215,11 @@ class PSQLAPI(object):
                     FROM (VALUES %s) AS data (query_id, result)
                     WHERE queries.query_id = data.query_id 
                 """, [(item['query_id'], Json(item['result'])) for item in query_list], template='(%s::uuid, %s::json)')
+
+    def add_analysis(self, query_id, analysis_type, results):
+        with self._conn as conn:
+            with conn.cursor() as curs:
+                curs.execute("""
+                    INSERT INTO analysis (query_id, analysis_type, analysis_result)
+                    SELECT %s, %s, %s
+                """, (query_id, analysis_type, Json(results)))
