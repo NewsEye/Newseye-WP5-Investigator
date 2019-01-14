@@ -189,12 +189,6 @@ def test_topic_analysis():
     return jsonify(service.core.topic_analysis(username))
 
 
-def _empty_query():
-    return {
-        'q': '',
-    }
-
-
 def _is_valid_query(query):
     for key in query.keys():
         if type(query[key]) != list:
