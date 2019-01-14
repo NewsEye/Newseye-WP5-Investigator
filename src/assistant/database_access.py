@@ -216,10 +216,40 @@ class PSQLAPI(object):
                     WHERE queries.query_id = data.query_id 
                 """, [(item['query_id'], Json(item['result'])) for item in query_list], template='(%s::uuid, %s::json)')
 
-    def add_analysis(self, query_id, analysis_type, results):
+    def add_analysis(self, query_id, results):
         with self._conn as conn:
             with conn.cursor() as curs:
                 curs.execute("""
                     INSERT INTO analysis (query_id, analysis_type, analysis_result)
                     SELECT %s, %s, %s
-                """, (query_id, analysis_type, Json(results)))
+                """, (query_id, results['analysis_type'], Json(results['analysis_result'])))
+
+    def get_analysis_by_query(self, query_id, analysis_type):
+        with self._conn as conn:
+            with conn.cursor() as curs:
+                curs.execute("""
+                    SELECT analysis_type, analysis_result FROM analysis
+                    WHERE query_id = %s AND analysis_type = %s;
+                """, [query_id, analysis_type])
+                analysis = curs.fetchone()
+        if not analysis:
+            return None
+        return dict(zip(['analysis_type', 'analysis_result'], analysis))
+
+    def get_user_analysis(self, username):
+        with self._conn as conn:
+            with conn.cursor() as curs:
+                curs.execute("""
+                    SELECT query_id, analysis_type, analysis_result FROM analysis
+                    WHERE query_id IN (
+                        SELECT query_id from queries
+                            WHERE 
+                                user_id IN (
+                                    SELECT user_id FROM users WHERE username = %s
+                                )
+                    );
+                """, [username])
+                analysis = curs.fetchall()
+        if not analysis:
+            return None
+        return [dict(zip(['query_id', 'analysis_type', 'analysis_result'], item)) for item in analysis]

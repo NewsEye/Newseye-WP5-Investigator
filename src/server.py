@@ -102,8 +102,8 @@ def analyze():
         return 'You are not logged in', 401
     username = session['username']
     try:
-        current_state = service.core.run_analysis(username, request.args)
-        return jsonify(current_state)
+        result = service.core.run_analysis(username, request.args)
+        return jsonify(result)
     except TypeError:
         print(TypeError)
         return 'Invalid number of arguments for the chosen tool', 400

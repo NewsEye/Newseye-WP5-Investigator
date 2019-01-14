@@ -201,12 +201,12 @@ class SystemCore(object):
         req_args = aa.TOOL_ARGS[tool_name]
         if len(args) != len(req_args) + 1:
             raise TypeError("Invalid number of arguments for the chosen tool")
-        current_state = itemgetter('state')(self._current_users.get(username))
-        tool_args = [current_state]
+        current_query = self._PSQL_api.get_current_query(username)
+        tool_args = [self._PSQL_api, current_query]
         for arg_name in req_args:
             tool_args.append(args.get(arg_name))
-        aa.TOOL_LIST[tool_name](*tool_args)
-        return current_state
+        analysis_result = aa.TOOL_LIST[tool_name](*tool_args)
+        return analysis_result
 
     def topic_analysis(self, username):
         current_query = self._PSQL_api.get_current_query(username)
@@ -241,8 +241,11 @@ class SystemCore(object):
         abs_counts = df.pivot(index='topic', columns='year',values='count').fillna(0)
         rel_counts = df.pivot(index='topic', columns='year',values='rel_count').fillna(0)
         analysis_results = {
-            'absolute_counts': abs_counts.to_dict(orient='index'),
-            'relative_counts': rel_counts.to_dict(orient='index')
+            'analysis_type': 'topic_analysis',
+            'analysis_result': {
+                'absolute_counts': abs_counts.to_dict(orient='index'),
+                'relative_counts': rel_counts.to_dict(orient='index')
+            }
         }
-        self._PSQL_api.add_analysis(current_query['query_id'], 'topic_analysis', analysis_results)
+        self._PSQL_api.add_analysis(current_query['query_id'], analysis_results)
         return analysis_results
