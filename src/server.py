@@ -172,8 +172,8 @@ def get_history():
 @app.route('/test/multiquery')
 def test_multiquery():
     test_query = [
-        {'q': 'lighthouse'},
-        {'q': 'ghost'}
+        {'q': ['lighthouse']},
+        {'q': ['ghost']}
     ]
     if 'username' not in session:
         return 'You are not logged in', 401
