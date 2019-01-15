@@ -77,6 +77,8 @@ class SystemCore(object):
         if not make_tree:
             return queries
         tree = {'root': {'children': []}}
+        if not queries:
+            return tree
         for item in queries.values():
             parent = item['parent_id']
             if parent:
