@@ -89,9 +89,9 @@ class PSQLAPI(object):
                 with self._conn as conn:
                     with conn.cursor() as curs:
                         curs.execute("""
-                            INSERT INTO queries (query_id, user_id, query, parent_id, result)
-                            SELECT %s, user_id, %s, %s, %s FROM users WHERE username = %s;
-                        """, [query_id, Json(query), parent_id, Json(query_result), username])
+                            INSERT INTO history (item_id, item_type, item_parameters, parent_id, result, user_id)
+                            SELECT %s, %s, %s, %s, %s, user_id FROM users WHERE username = %s;
+                        """, [query_id, "Query", Json(query), parent_id, Json(query_result), username])
                         break
             except psycopg2.IntegrityError:
                 query_id = uuid.uuid4()
@@ -101,9 +101,9 @@ class PSQLAPI(object):
         with self._conn as conn:
             with conn.cursor() as curs:
                 curs.execute("""
-                    SELECT query_id, query, parent_id, result FROM queries
+                    SELECT item_id, item_parameters, parent_id, result FROM history
                     WHERE
-                        query IN %s
+                        item_parameters IN %s
                         AND
                         user_id = (
                             SELECT user_id FROM users WHERE username = %s
@@ -119,7 +119,7 @@ class PSQLAPI(object):
             with conn.cursor() as curs:
                 curs.execute("""
                     UPDATE users
-                    SET current_query = %s
+                    SET current_item = %s
                     WHERE username = %s;
                 """, [query_id, username])
 
@@ -127,7 +127,7 @@ class PSQLAPI(object):
         with self._conn as conn:
             with conn.cursor() as curs:
                 curs.execute("""
-                    SELECT current_query
+                    SELECT current_item
                     FROM users
                     WHERE username = %s;
                 """, [username])
@@ -140,9 +140,9 @@ class PSQLAPI(object):
         with self._conn as conn:
             with conn.cursor() as curs:
                 curs.execute("""
-                    SELECT query_id, query, result, parent_id FROM queries
-                    WHERE query_id = (
-                        SELECT current_query
+                    SELECT item_id, item_parameters, result, parent_id FROM history
+                    WHERE item_id = (
+                        SELECT current_item
                         FROM users
                         WHERE username = %s
                     );
@@ -156,9 +156,9 @@ class PSQLAPI(object):
         with self._conn as conn:
             with conn.cursor() as curs:
                 curs.execute("""
-                    SELECT query_id, query, result, parent_id FROM queries
+                    SELECT item_id, item_parameters, result, parent_id FROM history
                     WHERE 
-                        query_id = %s
+                        item_id = %s
                         AND
                         user_id = (
                             SELECT user_id FROM users WHERE username = %s
@@ -169,13 +169,16 @@ class PSQLAPI(object):
             return None
         return dict(zip(['query_id', 'query', 'result', 'parent_id'], query))
 
+    # TODO: Replace by get_user_history()??
     def get_user_queries(self, username):
         with self._conn as conn:
             with conn.cursor() as curs:
                 curs.execute("""
-                    SELECT query_id, query, result, parent_id FROM queries
-                    WHERE 
-                        user_id IN (
+                    SELECT item_id, item_parameters, result, parent_id FROM history
+                    WHERE
+                        item_type = 'Query'
+                        AND 
+                        user_id = (
                             SELECT user_id FROM users WHERE username = %s
                         );
                 """, [username])
@@ -188,18 +191,18 @@ class PSQLAPI(object):
         return history
 
     def add_queries(self, query_list):
-        query_list = [(item['username'], Json(item['query']), item['parent_id'], Json(item['result'])) for item in query_list]
+        query_list = [('Query', item['username'], Json(item['query']), item['parent_id'], Json(item['result'])) for item in query_list]
         id_list = [uuid.uuid4() for item in query_list]
         while True:
             try:
                 with self._conn as conn:
                     with conn.cursor() as curs:
                         execute_values(curs, """
-                            INSERT INTO queries (query_id, user_id, query, parent_id, result)
-                            SELECT query_id, user_id, query, parent_id, result 
-                            FROM users INNER JOIN (VALUES %s) AS data (query_id, username, query, parent_id, result)
+                            INSERT INTO history (item_id, item_type, item_parameters, parent_id, result, user_id)
+                            SELECT item_id, item_type, item_parameters, parent_id, result, user_id
+                            FROM users INNER JOIN (VALUES %s) AS data (item_id, item_type, username, item_parameters, parent_id, result)
                             ON users.username = data.username
-                        """, [(i, *q) for i, q in zip(id_list, query_list)], template='(%s::uuid, %s, %s::jsonb, %s::uuid, %s::json)')
+                        """, [(i, *q) for i, q in zip(id_list, query_list)], template='(%s::uuid, %s, %s, %s::jsonb, %s::uuid, %s::json)')
                         break
             except psycopg2.IntegrityError:
                 id_list = [uuid.uuid4() for item in query_list]
@@ -211,26 +214,28 @@ class PSQLAPI(object):
         with self._conn as conn:
             with conn.cursor() as curs:
                 execute_values(curs, """
-                    UPDATE queries
-                    SET result = data.result
-                    FROM (VALUES %s) AS data (query_id, result)
-                    WHERE queries.query_id = data.query_id 
+                    UPDATE history
+                    SET result = data.result,
+                        last_updated = NOW()
+                    FROM (VALUES %s) AS data (item_id, result)
+                    WHERE history.item_id = data.item_id 
                 """, [(item['query_id'], Json(item['result'])) for item in query_list], template='(%s::uuid, %s::json)')
 
-    def add_analysis(self, query_id, results):
+    def add_analysis(self, username, query_id, results):
         with self._conn as conn:
             with conn.cursor() as curs:
                 curs.execute("""
-                    INSERT INTO analysis (query_id, analysis_type, analysis_result)
-                    SELECT %s, %s, %s
-                """, (query_id, results['analysis_type'], Json(results['analysis_result'])))
+                    INSERT INTO history (item_type, parent_id, result, user_id)
+                    SELECT %s, %s, %s, user_id
+                    FROM users WHERE username = %s
+                """, (results['analysis_type'], query_id, Json(results['analysis_result']), username))
 
     def get_analysis_by_query(self, query_id, analysis_type):
         with self._conn as conn:
             with conn.cursor() as curs:
                 curs.execute("""
-                    SELECT analysis_type, analysis_result FROM analysis
-                    WHERE query_id = %s AND analysis_type = %s;
+                    SELECT item_type, result FROM history
+                    WHERE parent_id = %s AND item_type = %s;
                 """, [query_id, analysis_type])
                 analysis = curs.fetchone()
         if not analysis:
@@ -241,13 +246,11 @@ class PSQLAPI(object):
         with self._conn as conn:
             with conn.cursor() as curs:
                 curs.execute("""
-                    SELECT query_id, analysis_type, analysis_result FROM analysis
-                    WHERE query_id IN (
-                        SELECT query_id from queries
-                            WHERE 
-                                user_id IN (
-                                    SELECT user_id FROM users WHERE username = %s
-                                )
+                    SELECT parent_id, item_type, result FROM history
+                    WHERE item_type != 'Query'
+                    AND
+                    user_id IN (
+                        SELECT user_id FROM users WHERE username = %s
                     );
                 """, [username])
                 analysis = curs.fetchall()

@@ -25,7 +25,7 @@ def extract_facets(PSQLAPI, query):
         'analysis_type': 'facet_counts',
         'analysis_result': facets
     }
-    PSQLAPI.add_analysis(query['query_id'], analysis_result)
+    PSQLAPI.add_analysis(query['username'], query['query_id'], analysis_result)
     return analysis_result
 
 
@@ -39,6 +39,6 @@ def common_topics(PSQLAPI, query, n):
         'analysis_type': 'common_topics',
         'analysis_result': topics
     }
-    PSQLAPI.add_analysis(query['query_id'], analysis_result)
+    PSQLAPI.add_analysis(query['username'], query['query_id'], analysis_result)
     return analysis_result
 

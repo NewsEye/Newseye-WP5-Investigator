@@ -253,5 +253,5 @@ class SystemCore(object):
                 'relative_counts': rel_counts.to_dict(orient='index')
             }
         }
-        self._PSQL_api.add_analysis(current_query['query_id'], analysis_results)
+        self._PSQL_api.add_analysis(username, current_query['query_id'], analysis_results)
         return analysis_results
