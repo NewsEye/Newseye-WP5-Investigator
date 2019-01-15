@@ -103,6 +103,8 @@ class PSQLAPI(object):
                 curs.execute("""
                     SELECT item_id, item_parameters, parent_id, result FROM history
                     WHERE
+                        item_type = 'Query'
+                        AND
                         item_parameters IN %s
                         AND
                         user_id = (
@@ -114,7 +116,7 @@ class PSQLAPI(object):
             return None
         return result
 
-    def set_current_query(self, username, query_id):
+    def set_current_task(self, username, query_id):
         with self._conn as conn:
             with conn.cursor() as curs:
                 curs.execute("""
@@ -123,7 +125,7 @@ class PSQLAPI(object):
                     WHERE username = %s;
                 """, [query_id, username])
 
-    def get_current_query_id(self, username):
+    def get_current_task_id(self, username):
         with self._conn as conn:
             with conn.cursor() as curs:
                 curs.execute("""
@@ -136,7 +138,7 @@ class PSQLAPI(object):
             return None
         return current_query_id[0]
 
-    def get_current_query(self, username):
+    def get_current_task(self, username):
         with self._conn as conn:
             with conn.cursor() as curs:
                 curs.execute("""
@@ -190,9 +192,9 @@ class PSQLAPI(object):
             history[item[0]] = dict(zip(['task_id', 'task_parameters', 'result', 'parent_id'], item))
         return history
 
-    def add_queries(self, query_list):
-        query_list = [('Query', item['username'], Json(item['task_parameters']), item['parent_id'], Json(item['result'])) for item in query_list]
-        id_list = [uuid.uuid4() for item in query_list]
+    def add_tasks(self, task_list):
+        task_list = [(item['task_type'], item['username'], Json(item['task_parameters']), item['parent_id'], Json(item['result'])) for item in task_list]
+        id_list = [uuid.uuid4() for item in task_list]
         while True:
             try:
                 with self._conn as conn:
@@ -202,10 +204,10 @@ class PSQLAPI(object):
                             SELECT item_id, item_type, item_parameters, parent_id, result, user_id
                             FROM users INNER JOIN (VALUES %s) AS data (item_id, item_type, username, item_parameters, parent_id, result)
                             ON users.username = data.username
-                        """, [(i, *q) for i, q in zip(id_list, query_list)], template='(%s::uuid, %s, %s, %s::jsonb, %s::uuid, %s::json)')
+                        """, [(i, *q) for i, q in zip(id_list, task_list)], template='(%s::uuid, %s, %s, %s::jsonb, %s::uuid, %s::json)')
                         break
             except psycopg2.IntegrityError:
-                id_list = [uuid.uuid4() for item in query_list]
+                id_list = [uuid.uuid4() for item in task_list]
             except Exception:
                 print(Exception)
         return id_list

@@ -36,25 +36,26 @@ class SystemCore(object):
             new_id = uuid.uuid4()
         return new_id
 
-    def get_query(self, username):
-        return self._PSQL_api.get_current_query(username)
+    def get_task(self, username):
+        return self._PSQL_api.get_current_task(username)
 
     def set_query(self, username, query):
         """
-        Set the currently active query for the given user.
-        :param username:
-        :param query:
-        :return:
+        Set the currently active task for the given user.
+        :param username: The user affected by the method.
+        :param query: A query that is to be set as the current task. If a task corresponding to the query doesn't exist,
+        one will be created, but not executed. If multiple corresponding tasks exist, one of them will be selected.
+        :return: The task_id for the Task corresponding to query
         """
 
-        query_ids = self._PSQL_api.find_query(username, query)
-        if query_ids:
-            query_id = query_ids[0]
+        task_ids = self._PSQL_api.find_query(username, query)
+        if task_ids:
+            task_id = task_ids[0]
         else:
-            # # Otherwise, set the query as the current query for the user
-            query_id = self._PSQL_api.add_query(username, query)
-        self._PSQL_api.set_current_query(username, query_id)
-        return query_id
+            # If a task corresponding to the query doesn't exist, generate one adding it to the database.
+            task_id = self._PSQL_api.add_query(username, query)
+        self._PSQL_api.set_current_task(username, task_id)
+        return task_id
 
     # def find_query(self, username, query):
     #     for key, state in self._current_users[username]['history'].items():
@@ -79,20 +80,20 @@ class SystemCore(object):
         tree = {'root': {'children': []}}
         if not queries:
             return tree
-        for item in queries.values():
-            parent = item['parent_id']
+        for task in queries.values():
+            parent = task['parent_id']
             if parent:
                 if 'children' not in queries[parent].keys():
                     queries[parent]['children'] = []
-                queries[parent]['children'].append(item)
+                queries[parent]['children'].append(task)
             else:
-                tree['root']['children'].append(item)
+                tree['root']['children'].append(task)
         if analysis:
-            for item in analysis:
-                query_id = item['parent_id']
-                if 'analysis' not in queries[query_id].keys():
-                    queries[query_id]['analysis'] = []
-                queries[query_id]['analysis'].append(item)
+            for task in analysis:
+                parent_id = task['parent_id']
+                if 'analysis' not in queries[parent_id].keys():
+                    queries[parent_id]['analysis'] = []
+                queries[parent_id]['analysis'].append(task)
         return tree
 
     # def clear_query(self, username):
@@ -109,105 +110,97 @@ class SystemCore(object):
         else:
             return loop.run_until_complete(task)
 
-    def run_query(self, username, query, switch_query=False, threaded=True, return_dict=True):
+    def run_query_task(self, username, queries, switch_task=False, threaded=True, return_task=True):
         """
-        Runs query for the user defined by username.
-        Parameters:
-            switch_query: if set to True updates the current_query value for the user. If multiple queries are run in parallel, the current_query will be set to the first query
-            in the list.
-            threaded: If True, the query is run in a separate thread. Otherwise the query is run in the main thread.
-            return_dict: If True, the query returns a dict (or dicts) containing the query and its result.
-                         Otherwise only the query_id (or query_ids) is returned.
-            Note: return_dict=False in combination with store_results=False results is useless, since the results are not
-                  stored and therefore cannot be retrieved afterwards using the query_id.
+        Generate tasks from queries and execute them.
+        :param username: the user who is requesting the queries
+        :param queries: a single query or a list of queries
+        :param switch_task: If true, the current task for the user will be updated to the one generated. If multiple
+        queries are run in parallel, the current task will not be updated.
+        :param threaded: If true, the queries will be run in a separate thread. If set to false, no response will be
+        sent to the user until the queries are finished, regardless of how long they take. When set to true, if the
+        queries take a long time to complete, the user will get a reply showing that the queries are still running, and
+        they can retrieve the results at a later time.
+        :param return_task: If true, the task object (or a list of task objects) is returned to the user in json format.
+        If false, only the task_id (or a list of task_ids) is returned
+        :return: A list of task_objects or task_ids corresponding to the queries.
         """
-        query_is_a_list = type(query) is list
-        if query_is_a_list:
-            querylist = query
-        else:
-            querylist = [query]
+        if type(queries) is not list:
+            queries = [queries]
 
-        current_query_id = self._PSQL_api.get_current_query_id(username)
+        current_task_id = self._PSQL_api.get_current_task_id(username)
 
         # Todo: delay estimates
 
         # ToDo: Add timeouts for the results: timestamps are already stored, simply rerun the query if the timestamp is too old.
         # Todo: Better to pass the whole results list to the threaded part and do the selection of the queries to be re-executed there,
         # ToDO: based on whether the result exists and how old it is?
-        existing_results = self._PSQL_api.find_queries(username, querylist)
+        existing_results = self._PSQL_api.find_queries(username, queries)
 
         if existing_results:
-            q_id, q, p_id, res = list(zip(*existing_results))
+            task_ids, old_queries, parent_ids, old_results = list(zip(*existing_results))
         else:
-            q_id, q, p_id, res = [[]] * 4
+            task_ids, old_queries, parent_ids, old_results = [[]] * 4
 
-        new_queries = []
-        results = []
-        for query in querylist:
+        new_tasks = []
+        tasks = []
+        for query in queries:
             try:
-                i = q.index(query)
-                task = Task(task_id=q_id[i], task_type='Query', task_parameters=query, parent_id=p_id[i], username=username, result=res[i])
+                i = old_queries.index(query)
+                task = Task(task_id=task_ids[i], task_type='Query', task_parameters=query, parent_id=parent_ids[i], username=username, result=old_results[i])
             except ValueError:
-                task = Task(task_type='Query', task_parameters=query, parent_id=current_query_id, username=username, result=conf.UNFINISHED_TASK_RESULT)
-                new_queries.append(task)
-            results.append(task)
+                task = Task(task_type='Query', task_parameters=query, parent_id=current_task_id, username=username, result=conf.UNFINISHED_TASK_RESULT)
+                new_tasks.append(task)
+            tasks.append(task)
 
-        new_query_ids = self._PSQL_api.add_queries(new_queries)
+        new_task_ids = self._PSQL_api.add_tasks(new_tasks)
 
-        # Add the correct ids to new_queries
-        for i, query in enumerate(new_queries):
-            query['task_id'] = new_query_ids[i]
+        # Add the correct ids to new_tasks
+        for i, task in enumerate(new_tasks):
+            task['task_id'] = new_task_ids[i]
 
-        # Run the queries
-        if len(new_queries) > 0:
+        # If there are new tasks, run them
+        if len(new_tasks) > 0:
 
-            # If the queries are run as threaded
+            # If the tasks are run as threaded
             if threaded:
-                t = threading.Thread(target=self.query_thread, args=[new_queries])
+                t = threading.Thread(target=self.task_thread, args=[new_tasks])
                 t.setDaemon(False)
                 t.start()
-                time.sleep(4)
+                time.sleep(3)
             else:
-                self.query_thread(new_queries)
+                self.task_thread(new_tasks)
 
-        if switch_query:
-            self._PSQL_api.set_current_query(username, results[0]['task_id'])
-        if return_dict:
-            return results
+        if switch_task:
+            self._PSQL_api.set_current_task(username, tasks[0]['task_id'])
+        if return_task:
+            return tasks
         else:
-            return [item['task_id'] for item in results]
+            return [item['task_id'] for item in tasks]
 
-    def query_thread(self, queries):
-        # Todo: add separate query_started and query_finished timestamps
-        if type(queries) is list:
-            querylist = queries
-        else:
-            querylist = [queries]
+    def task_thread(self, tasks):
+        if type(tasks) is not list:
+            tasks = [tasks]
+        queries = [task['task_parameters'] for task in tasks]
         # Todo: Move the delay stuff into database_access
-        delay = [query['task_parameters'].pop('test_delay', [0])[0] for query in querylist]
+        delay = [query.pop('test_delay', [0])[0] for query in queries]
         if delay[0]:
             time.sleep(int(delay[0]))
-        queries = [query['task_parameters'] for query in querylist]
         asyncio.set_event_loop(asyncio.new_event_loop())
         results = self.run(self._blacklight_api.async_query(queries))
-        for i, query in enumerate(querylist):
-            query['result'] = results[i]
+        for i, task in enumerate(tasks):
+            task['result'] = results[i]
 
         # Store the results to database
         print("Got the query results: storing into database")
-        self._PSQL_api.update_results(querylist)
-
-    # ToDo: Combine the analysis and query tables as one table containing both types??
-    # Then the current_query field would point to the latest query or analysis run. Also, splitting a result into subqueries
-    # e.g. based on time could be seen as a query/analysis of it's own, with a corresponding id (and the result field
-    # containing the ids of the subqueries), and the analysis tools could be simply passed the id of the splitting result
+        self._PSQL_api.update_results(tasks)
 
     def run_analysis(self, username, args):
         tool_name = args.get('tool')
         req_args = aa.TOOL_ARGS[tool_name]
         if len(args) != len(req_args) + 1:
             raise TypeError("Invalid number of arguments for the chosen tool")
-        current_query = self._PSQL_api.get_current_query(username)
+        current_query = self._PSQL_api.get_current_task(username)
         tool_args = [self._PSQL_api, current_query]
         for arg_name in req_args:
             tool_args.append(args.get(arg_name))
@@ -215,7 +208,7 @@ class SystemCore(object):
         return analysis_result
 
     def topic_analysis(self, username):
-        current_query = self._PSQL_api.get_current_query(username)
+        current_query = self._PSQL_api.get_current_task(username)
         query_results = current_query['result']
         if query_results is None or query_results == conf.UNFINISHED_TASK_RESULT:
             raise TypeError("No query results available for analysis")
@@ -230,8 +223,7 @@ class SystemCore(object):
         queries = [{'f[{}][]'.format(conf.PUB_YEAR_FACET): item[0]} for item in pub_dates]
         for query in queries:
             query.update(last_query)
-#        self.set_query(username, queries)
-        result_ids = self.run_query(username, queries, return_dict=False, threaded=False)
+        result_ids = self.run_query_task(username, queries, return_task=False, threaded=False)
         t_counts = []
         for id in result_ids:
             query, query_results = itemgetter('task_parameters', 'result')(self._PSQL_api.get_query_by_id(username, id))
