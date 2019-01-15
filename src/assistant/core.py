@@ -18,8 +18,8 @@ class SystemCore(object):
 
     def add_user(self, username, new_username):
         # Todo: add user types + limit user creation etc. to admins
-        # Only user 'jariavik' can add new users at the moment
-        if username == 'jariavik':
+        # Only user 'admin' can add new users at the moment
+        if username == 'admin':
             self._PSQL_api.add_user(new_username)
         else:
             raise ValueError()

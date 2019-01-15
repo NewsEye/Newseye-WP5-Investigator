@@ -145,7 +145,7 @@ def add_user():
         return 'Cannot add user {}: username already in use!'.format(new_user), 400
     except ValueError:
         # Todo: fix this as well when adding proper admin users!
-        return "Only user 'jariavik' can add new users!", 401
+        return "Only user 'admin' can add new users!", 401
     except Exception:
         print(Exception)
         return 'Something went wrong...', 500
