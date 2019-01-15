@@ -1,4 +1,4 @@
-from assistant.query import Query
+from assistant.task import Task
 from assistant.database_access import *
 from operator import itemgetter
 import assistant.analysis as aa
@@ -89,7 +89,7 @@ class SystemCore(object):
                 tree['root']['children'].append(item)
         if analysis:
             for item in analysis:
-                query_id = item['query_id']
+                query_id = item['parent_id']
                 if 'analysis' not in queries[query_id].keys():
                     queries[query_id]['analysis'] = []
                 queries[query_id]['analysis'].append(item)
@@ -146,17 +146,17 @@ class SystemCore(object):
         for query in querylist:
             try:
                 i = q.index(query)
-                query_object = Query(query_id=q_id[i], query=query, parent_id=p_id[i], username=username, result=res[i])
+                task = Task(task_id=q_id[i], task_type='Query', task_parameters=query, parent_id=p_id[i], username=username, result=res[i])
             except ValueError:
-                query_object = Query(query=query, parent_id=current_query_id, username=username, result=conf.UNFINISHED_TASK_RESULT)
-                new_queries.append(query_object)
-            results.append(query_object)
+                task = Task(task_type='Query', task_parameters=query, parent_id=current_query_id, username=username, result=conf.UNFINISHED_TASK_RESULT)
+                new_queries.append(task)
+            results.append(task)
 
         new_query_ids = self._PSQL_api.add_queries(new_queries)
 
         # Add the correct ids to new_queries
         for i, query in enumerate(new_queries):
-            query['query_id'] = new_query_ids[i]
+            query['task_id'] = new_query_ids[i]
 
         # Run the queries
         if len(new_queries) > 0:
@@ -171,11 +171,11 @@ class SystemCore(object):
                 self.query_thread(new_queries)
 
         if switch_query:
-            self._PSQL_api.set_current_query(username, results[0]['query_id'])
+            self._PSQL_api.set_current_query(username, results[0]['task_id'])
         if return_dict:
             return results
         else:
-            return [item['query_id'] for item in results]
+            return [item['task_id'] for item in results]
 
     def query_thread(self, queries):
         # Todo: add separate query_started and query_finished timestamps
@@ -184,14 +184,14 @@ class SystemCore(object):
         else:
             querylist = [queries]
         # Todo: Move the delay stuff into database_access
-        delay = [query.query.pop('test_delay', [0])[0] for query in querylist]
+        delay = [query['task_parameters'].pop('test_delay', [0])[0] for query in querylist]
         if delay[0]:
             time.sleep(int(delay[0]))
-        queries = [query.query for query in querylist]
+        queries = [query['task_parameters'] for query in querylist]
         asyncio.set_event_loop(asyncio.new_event_loop())
         results = self.run(self._blacklight_api.async_query(queries))
         for i, query in enumerate(querylist):
-            query.result = results[i]
+            query['result'] = results[i]
 
         # Store the results to database
         print("Got the query results: storing into database")
@@ -226,7 +226,7 @@ class SystemCore(object):
         else:
             raise TypeError("Query results don't contain required facet {}".format(conf.PUB_YEAR_FACET))
         pub_dates.sort()
-        last_query = current_query['query']
+        last_query = current_query['task_parameters']
         queries = [{'f[{}][]'.format(conf.PUB_YEAR_FACET): item[0]} for item in pub_dates]
         for query in queries:
             query.update(last_query)
@@ -234,7 +234,7 @@ class SystemCore(object):
         result_ids = self.run_query(username, queries, return_dict=False, threaded=False)
         t_counts = []
         for id in result_ids:
-            query, query_results = itemgetter('query', 'result')(self._PSQL_api.get_query_by_id(username, id))
+            query, query_results = itemgetter('task_parameters', 'result')(self._PSQL_api.get_query_by_id(username, id))
             year = query['f[{}][]'.format(conf.PUB_YEAR_FACET)]
             total_hits = query_results['meta']['pages']['total_count']
             for item in query_results['included']:
@@ -253,5 +253,5 @@ class SystemCore(object):
                 'relative_counts': rel_counts.to_dict(orient='index')
             }
         }
-        self._PSQL_api.add_analysis(username, current_query['query_id'], analysis_results)
+        self._PSQL_api.add_analysis(username, current_query['task_id'], analysis_results)
         return analysis_results

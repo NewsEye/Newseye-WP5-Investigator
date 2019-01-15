@@ -25,12 +25,12 @@ def extract_facets(PSQLAPI, query):
         'analysis_type': 'facet_counts',
         'analysis_result': facets
     }
-    PSQLAPI.add_analysis(query['username'], query['query_id'], analysis_result)
+    PSQLAPI.add_analysis(query['username'], query['task_id'], analysis_result)
     return analysis_result
 
 
 def common_topics(PSQLAPI, query, n):
-    facet_counts = PSQLAPI.get_analysis_by_query(query['query_id'], 'facet_counts')
+    facet_counts = PSQLAPI.get_analysis_by_query(query['task_id'], 'facet_counts')
     if facet_counts is None:
         facet_counts = extract_facets(PSQLAPI, query)
     facet_counts = facet_counts['analysis_result']
@@ -39,6 +39,6 @@ def common_topics(PSQLAPI, query, n):
         'analysis_type': 'common_topics',
         'analysis_result': topics
     }
-    PSQLAPI.add_analysis(query['username'], query['query_id'], analysis_result)
+    PSQLAPI.add_analysis(query['username'], query['task_id'], analysis_result)
     return analysis_result
 

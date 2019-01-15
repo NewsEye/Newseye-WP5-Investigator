@@ -150,7 +150,7 @@ class PSQLAPI(object):
                 current_query = curs.fetchone()
         if not current_query:
             return None
-        return dict(zip(['query_id', 'query', 'result', 'parent_id'], current_query))
+        return dict(zip(['task_id', 'task_parameters', 'result', 'parent_id'], current_query))
 
     def get_query_by_id(self, username, query_id):
         with self._conn as conn:
@@ -167,7 +167,7 @@ class PSQLAPI(object):
                 query = curs.fetchone()
         if not query:
             return None
-        return dict(zip(['query_id', 'query', 'result', 'parent_id'], query))
+        return dict(zip(['task_id', 'task_parameters', 'result', 'parent_id'], query))
 
     # TODO: Replace by get_user_history()??
     def get_user_queries(self, username):
@@ -187,11 +187,11 @@ class PSQLAPI(object):
             return None
         history = {}
         for item in queries:
-            history[item[0]] = dict(zip(['query_id', 'query', 'result', 'parent_id'], item))
+            history[item[0]] = dict(zip(['task_id', 'task_parameters', 'result', 'parent_id'], item))
         return history
 
     def add_queries(self, query_list):
-        query_list = [('Query', item['username'], Json(item['query']), item['parent_id'], Json(item['result'])) for item in query_list]
+        query_list = [('Query', item['username'], Json(item['task_parameters']), item['parent_id'], Json(item['result'])) for item in query_list]
         id_list = [uuid.uuid4() for item in query_list]
         while True:
             try:
@@ -219,7 +219,7 @@ class PSQLAPI(object):
                         last_updated = NOW()
                     FROM (VALUES %s) AS data (item_id, result)
                     WHERE history.item_id = data.item_id 
-                """, [(item['query_id'], Json(item['result'])) for item in query_list], template='(%s::uuid, %s::json)')
+                """, [(item['task_id'], Json(item['result'])) for item in query_list], template='(%s::uuid, %s::json)')
 
     def add_analysis(self, username, query_id, results):
         with self._conn as conn:
@@ -256,4 +256,4 @@ class PSQLAPI(object):
                 analysis = curs.fetchall()
         if not analysis:
             return None
-        return [dict(zip(['query_id', 'analysis_type', 'analysis_result'], item)) for item in analysis]
+        return [dict(zip(['parent_id', 'analysis_type', 'analysis_result'], item)) for item in analysis]
