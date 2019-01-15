@@ -128,9 +128,6 @@ class SystemCore(object):
         current_query_id = self._PSQL_api.get_current_query_id(username)
 
         # Todo: delay estimates
-        default_result = {
-            'message': 'Still running',
-        }
 
         # ToDo: Add timeouts for the results: timestamps are already stored, simply rerun the query if the timestamp is too old.
         # Todo: Better to pass the whole results list to the threaded part and do the selection of the queries to be re-executed there,
@@ -149,7 +146,7 @@ class SystemCore(object):
                 i = q.index(query)
                 query_object = Query(query_id=q_id[i], query=query, parent_id=p_id[i], username=username, result=res[i])
             except ValueError:
-                query_object = Query(query=query, parent_id=current_query_id, username=username, result=default_result)
+                query_object = Query(query=query, parent_id=current_query_id, username=username, result=conf.UNFINISHED_TASK_RESULT)
                 new_queries.append(query_object)
             results.append(query_object)
 
@@ -218,7 +215,7 @@ class SystemCore(object):
     def topic_analysis(self, username):
         current_query = self._PSQL_api.get_current_query(username)
         query_results = current_query['result']
-        if query_results is None or query_results.get('message', '') == 'Still running':
+        if query_results is None or query_results == conf.UNFINISHED_TASK_RESULT:
             raise TypeError("No query results available for analysis")
         for item in query_results['included']:
             if item['id'] == conf.PUB_YEAR_FACET and item['type'] == 'facet':

@@ -3,6 +3,7 @@ import aiohttp
 import psycopg2
 from psycopg2.extras import Json, execute_values, register_uuid
 import uuid
+import assistant.config as conf
 
 
 class BlacklightAPI(object):
@@ -81,7 +82,7 @@ class PSQLAPI(object):
                     WHERE username = %s;
                 """, [time, username])
 
-    def add_query(self, username, query, parent_id=None, query_result={'message': 'Still running'}):
+    def add_query(self, username, query, parent_id=None, query_result=conf.UNFINISHED_TASK_RESULT):
         query_id = uuid.uuid4()
         while True:
             try:
