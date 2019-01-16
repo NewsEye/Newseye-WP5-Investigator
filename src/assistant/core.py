@@ -48,9 +48,9 @@ class SystemCore(object):
         :return: The task_id for the Task corresponding to query
         """
 
-        task_ids = self._PSQL_api.find_query(username, query)
-        if task_ids:
-            task_id = task_ids[0]
+        existing_results = self._PSQL_api.find_tasks(username, [('query', query)])
+        if existing_results:
+            task_id = list(zip(*existing_results))[0][0]
         else:
             # If a task corresponding to the query doesn't exist, generate one adding it to the database.
             task_id = self._PSQL_api.add_query(username, query)
@@ -125,17 +125,41 @@ class SystemCore(object):
         If false, only the task_id (or a list of task_ids) is returned
         :return: A list of task_objects or task_ids corresponding to the queries.
         """
+        tasks = self.generate_tasks(username, queries)
+
+        # If the tasks are run as threaded
+        if threaded:
+            t = threading.Thread(target=self.query_thread, args=[tasks])
+            t.setDaemon(False)
+            t.start()
+            time.sleep(3)
+        else:
+            self.query_thread(tasks)
+
+        if switch_task:
+            self._PSQL_api.set_current_task(username, tasks[0]['task_id'])
+        if return_task:
+            return tasks
+        else:
+            return [item['task_id'] for item in tasks]
+
+    def generate_tasks(self, username, queries):
+
         if type(queries) is not list:
             queries = [queries]
 
+        # If queries contains dictionaries, assume they are of type 'query' and fix the format
+        if type(queries[0]) is dict:
+            queries = [('query', item) for item in queries]
+        elif type(queries[0]) is not tuple:
+            raise ValueError
+
+        # ToDo: need to check that this is a correct type. For now we'll assume that it is.
         current_task_id = self._PSQL_api.get_current_task_id(username)
 
-        # Todo: delay estimates
-
-        # ToDo: Add timeouts for the results: timestamps are already stored, simply rerun the query if the timestamp is too old.
-        # Todo: Better to pass the whole results list to the threaded part and do the selection of the queries to be re-executed there,
-        # ToDO: based on whether the result exists and how old it is?
-        existing_results = self._PSQL_api.find_queries(username, queries)
+        # Todo: check whether this works with analysis_results as well now
+        # ToDo: change this so we get the query tuples instead of just the task_parameters part??
+        existing_results = self._PSQL_api.find_tasks(username, queries)
 
         if existing_results:
             task_ids, old_queries, parent_ids, old_results = list(zip(*existing_results))
@@ -144,12 +168,15 @@ class SystemCore(object):
 
         new_tasks = []
         tasks = []
+
         for query in queries:
             try:
-                i = old_queries.index(query)
-                task = Task(task_id=task_ids[i], task_type='Query', task_parameters=query, parent_id=parent_ids[i], username=username, result=old_results[i])
+                i = old_queries.index(query[1])
+                task = Task(task_id=task_ids[i], task_type=query[0], task_parameters=query[1], parent_id=parent_ids[i],
+                            username=username, result=old_results[i])
             except ValueError:
-                task = Task(task_type='Query', task_parameters=query, parent_id=current_task_id, username=username, result=conf.UNFINISHED_TASK_RESULT)
+                task = Task(task_type=query[0], task_parameters=query[1], parent_id=current_task_id, username=username,
+                            result=conf.UNFINISHED_TASK_RESULT)
                 new_tasks.append(task)
             tasks.append(task)
 
@@ -159,41 +186,37 @@ class SystemCore(object):
         for i, task in enumerate(new_tasks):
             task['task_id'] = new_task_ids[i]
 
-        # If there are new tasks, run them
-        if len(new_tasks) > 0:
+        return tasks
 
-            # If the tasks are run as threaded
-            if threaded:
-                t = threading.Thread(target=self.task_thread, args=[new_tasks])
-                t.setDaemon(False)
-                t.start()
-                time.sleep(3)
-            else:
-                self.task_thread(new_tasks)
+    def query_thread(self, tasks):
 
-        if switch_task:
-            self._PSQL_api.set_current_task(username, tasks[0]['task_id'])
-        if return_task:
-            return tasks
-        else:
-            return [item['task_id'] for item in tasks]
+        # Todo: delay estimates
+        # ToDo: Add timeouts for the results: timestamps are already stored, simply rerun the query if the timestamp is too old.
+        # Todo: Better to pass the whole results list to the threaded part and do the selection of the queries to be re-executed there,
+        # ToDO: based on whether the result exists and how old it is?
 
-    def task_thread(self, tasks):
-        if type(tasks) is not list:
-            tasks = [tasks]
-        queries = [task['task_parameters'] for task in tasks]
-        # Todo: Move the delay stuff into database_access
-        delay = [query.pop('test_delay', [0])[0] for query in queries]
+        tasks_to_run = [task for task in tasks if task['result'] == conf.UNFINISHED_TASK_RESULT]
+
+        queries_to_run = [task['task_parameters'] for task in tasks_to_run]
+
+        if len(queries_to_run) == 0:
+            print("All query results already found in the local database")
+            return
+
+        # Todo: Move the delay stuff into database_access?
+        delay = [query.pop('test_delay', [0])[0] for query in queries_to_run]
         if delay[0]:
             time.sleep(int(delay[0]))
+
         asyncio.set_event_loop(asyncio.new_event_loop())
-        results = self.run(self._blacklight_api.async_query(queries))
-        for i, task in enumerate(tasks):
+        results = self.run(self._blacklight_api.async_query(queries_to_run))
+
+        for i, task in enumerate(tasks_to_run):
             task['result'] = results[i]
 
-        # Store the results to database
+        # Store the new results to the database
         print("Got the query results: storing into database")
-        self._PSQL_api.update_results(tasks)
+        self._PSQL_api.update_results(tasks_to_run)
 
     def run_analysis(self, username, args):
         tool_name = args.get('tool')

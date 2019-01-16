@@ -97,20 +97,22 @@ class PSQLAPI(object):
                 query_id = uuid.uuid4()
         return query_id
 
-    def find_queries(self, username, queries):
+    def find_tasks(self, username, queries):
         with self._conn as conn:
             with conn.cursor() as curs:
-                curs.execute("""
-                    SELECT item_id, item_parameters, parent_id, result FROM history
-                    WHERE
-                        item_type = 'Query'
-                        AND
-                        item_parameters IN %s
-                        AND
-                        user_id = (
-                            SELECT user_id FROM users WHERE username = %s
-                        );
-                """, [tuple([Json(query) for query in queries]), username])
+                execute_values(curs, """
+                    SELECT item_id, h.item_parameters, parent_id, result
+                    FROM (SELECT item_id, item_type, item_parameters, parent_id, result, username, history.created_on, history.last_updated
+                        FROM history
+                        INNER JOIN users
+                        ON history.user_id = users.user_id
+                    ) AS h
+                    INNER JOIN
+                    (VALUES %s) AS data (item_type, item_parameters, username)
+                    ON h.item_type = data.item_type
+                    AND h.item_parameters = data.item_parameters
+                    AND h.username = data.username
+                """, [(query[0], Json(query[1]), username) for query in queries], template='(%s, %s::jsonb, %s)')
                 result = curs.fetchall()
         if not result:
             return None

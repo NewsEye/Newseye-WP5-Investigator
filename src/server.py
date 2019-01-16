@@ -82,7 +82,7 @@ def quick_query():
     username = session['username']
     query = request.args.to_dict(flat=False)
     try:
-        results = service.core.run_query(username, query)
+        results = service.core.run_query_task(username, query)
     except Exception:
         print(Exception)
         return 'Something went wrong...', 500
@@ -178,7 +178,7 @@ def test_multiquery():
     if 'username' not in session:
         return 'You are not logged in', 401
     username = session['username']
-    return jsonify(service.core.run_query(username, test_query))
+    return jsonify(service.core.run_query_task(username, test_query))
 
 
 @app.route('/test/analysis/topic')
