@@ -91,7 +91,7 @@ class PSQLAPI(object):
                         curs.execute("""
                             INSERT INTO history (item_id, item_type, item_parameters, parent_id, result, user_id)
                             SELECT %s, %s, %s, %s, %s, user_id FROM users WHERE username = %s;
-                        """, [query_id, "Query", Json(query), parent_id, Json(query_result), username])
+                        """, [query_id, "query", Json(query), parent_id, Json(query_result), username])
                         break
             except psycopg2.IntegrityError:
                 query_id = uuid.uuid4()
@@ -180,7 +180,7 @@ class PSQLAPI(object):
                 curs.execute("""
                     SELECT item_id, item_parameters, result, parent_id FROM history
                     WHERE
-                        item_type = 'Query'
+                        item_type = 'query'
                         AND 
                         user_id = (
                             SELECT user_id FROM users WHERE username = %s
@@ -251,7 +251,7 @@ class PSQLAPI(object):
             with conn.cursor() as curs:
                 curs.execute("""
                     SELECT parent_id, item_type, result FROM history
-                    WHERE item_type != 'Query'
+                    WHERE item_type != 'query'
                     AND
                     user_id IN (
                         SELECT user_id FROM users WHERE username = %s
