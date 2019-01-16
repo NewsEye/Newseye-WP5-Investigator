@@ -77,7 +77,7 @@ class SystemCore(object):
         analysis = self._PSQL_api.get_user_analysis(username)
         if not make_tree:
             return queries
-        tree = {'root': {'children': []}}
+        tree = {'root': []}
         if not queries:
             return tree
         for task in queries.values():
@@ -87,7 +87,7 @@ class SystemCore(object):
                     queries[parent]['children'] = []
                 queries[parent]['children'].append(task)
             else:
-                tree['root']['children'].append(task)
+                tree['root'].append(task)
         if analysis:
             for task in analysis:
                 parent_id = task['parent_id']
