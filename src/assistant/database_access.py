@@ -173,15 +173,12 @@ class PSQLAPI(object):
             return None
         return dict(zip(['task_id', 'task_parameters', 'result', 'parent_id'], query))
 
-    # TODO: Replace by get_user_history()??
-    def get_user_queries(self, username):
+    def get_user_history(self, username):
         with self._conn as conn:
             with conn.cursor() as curs:
                 curs.execute("""
-                    SELECT item_id, item_parameters, result, parent_id FROM history
+                    SELECT item_id, item_type, item_parameters, result, parent_id FROM history
                     WHERE
-                        item_type = 'query'
-                        AND 
                         user_id = (
                             SELECT user_id FROM users WHERE username = %s
                         );
@@ -191,7 +188,7 @@ class PSQLAPI(object):
             return None
         history = {}
         for item in queries:
-            history[item[0]] = dict(zip(['task_id', 'task_parameters', 'result', 'parent_id'], item))
+            history[item[0]] = dict(zip(['task_id', 'task_type', 'task_parameters', 'result', 'parent_id'], item))
         return history
 
     def add_tasks(self, task_list):
@@ -245,19 +242,3 @@ class PSQLAPI(object):
         if not analysis:
             return None
         return dict(zip(['analysis_type', 'analysis_result'], analysis))
-
-    def get_user_analysis(self, username):
-        with self._conn as conn:
-            with conn.cursor() as curs:
-                curs.execute("""
-                    SELECT parent_id, item_type, result FROM history
-                    WHERE item_type != 'query'
-                    AND
-                    user_id IN (
-                        SELECT user_id FROM users WHERE username = %s
-                    );
-                """, [username])
-                analysis = curs.fetchall()
-        if not analysis:
-            return None
-        return [dict(zip(['parent_id', 'analysis_type', 'analysis_result'], item)) for item in analysis]

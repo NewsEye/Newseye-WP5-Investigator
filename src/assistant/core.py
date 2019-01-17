@@ -73,27 +73,25 @@ class SystemCore(object):
     #     self._current_users.get(username)['state'] = state
 
     def get_history(self, username, make_tree=True):
-        queries = self._PSQL_api.get_user_queries(username)
-        analysis = self._PSQL_api.get_user_analysis(username)
+        history = self._PSQL_api.get_user_history(username)
         if not make_tree:
-            return queries
+            return history
         tree = {'root': []}
-        if not queries:
+        if not history:
             return tree
-        for task in queries.values():
+        for task in history.values():
             parent = task['parent_id']
             if parent:
-                if 'children' not in queries[parent].keys():
-                    queries[parent]['children'] = []
-                queries[parent]['children'].append(task)
+                if task['task_type'] == 'query':
+                    if 'children' not in history[parent].keys():
+                        history[parent]['children'] = []
+                    history[parent]['children'].append(task)
+                else:
+                    if 'analysis' not in history[parent].keys():
+                        history[parent]['analysis'] = []
+                    history[parent]['analysis'].append(task)
             else:
                 tree['root'].append(task)
-        if analysis:
-            for task in analysis:
-                parent_id = task['parent_id']
-                if 'analysis' not in queries[parent_id].keys():
-                    queries[parent_id]['analysis'] = []
-                queries[parent_id]['analysis'].append(task)
         return tree
 
     # def clear_query(self, username):
