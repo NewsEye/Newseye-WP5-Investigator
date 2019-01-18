@@ -157,32 +157,34 @@ class SystemCore(object):
 
         # Todo: check whether this works with analysis_results as well now
         # ToDo: change this so we get the query tuples instead of just the task_parameters part??
-        existing_results = self._PSQL_api.find_tasks(username, queries)
+        existing_results = self._PSQL_api.find_existing_results(queries)
 
         if existing_results:
-            task_ids, old_queries, parent_ids, old_results = list(zip(*existing_results))
+            query_types, old_queries, old_results = list(zip(*existing_results))
         else:
-            task_ids, old_queries, parent_ids, old_results = [[]] * 4
+            query_types, old_queries, old_results = [[]] * 3
 
-        new_tasks = []
         tasks = []
+        new_queries = []
 
         for query in queries:
             try:
                 i = old_queries.index(query[1])
-                task = Task(task_id=task_ids[i], task_type=query[0], task_parameters=query[1], parent_id=parent_ids[i],
+                task = Task(task_type=query[0], task_parameters=query[1], parent_id=current_task_id,
                             username=username, result=old_results[i])
             except ValueError:
                 task = Task(task_type=query[0], task_parameters=query[1], parent_id=current_task_id, username=username,
                             result=conf.UNFINISHED_TASK_RESULT)
-                new_tasks.append(task)
+                new_queries.append(task)
             tasks.append(task)
 
-        new_task_ids = self._PSQL_api.add_tasks(new_tasks)
+        if new_queries:
+            self._PSQL_api.add_queries(new_queries)
+        task_ids = self._PSQL_api.add_tasks(tasks)
 
-        # Add the correct ids to new_tasks
-        for i, task in enumerate(new_tasks):
-            task['task_id'] = new_task_ids[i]
+        # Add the correct ids to tasks
+        for i, task in enumerate(tasks):
+            task['task_id'] = task_ids[i]
 
         return tasks
 
@@ -193,6 +195,7 @@ class SystemCore(object):
         # Todo: Better to pass the whole results list to the threaded part and do the selection of the queries to be re-executed there,
         # ToDO: based on whether the result exists and how old it is?
 
+        # Todo: Differentiate between currently running tasks and tasks that haven't been started yet
         tasks_to_run = [task for task in tasks if task['result'] == conf.UNFINISHED_TASK_RESULT]
 
         queries_to_run = [task['task_parameters'] for task in tasks_to_run]
@@ -200,11 +203,6 @@ class SystemCore(object):
         if len(queries_to_run) == 0:
             print("All query results already found in the local database")
             return
-
-        # Todo: Move the delay stuff into database_access?
-        delay = [query.pop('test_delay', [0])[0] for query in queries_to_run]
-        if delay[0]:
-            time.sleep(int(delay[0]))
 
         asyncio.set_event_loop(asyncio.new_event_loop())
         results = self.run(self._blacklight_api.async_query(queries_to_run))

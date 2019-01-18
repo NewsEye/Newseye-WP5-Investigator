@@ -82,21 +82,23 @@ class PSQLAPI(object):
                     WHERE username = %s;
                 """, [time, username])
 
-    def add_query(self, username, query, parent_id=None, query_result=conf.UNFINISHED_TASK_RESULT):
-        query_id = uuid.uuid4()
+    # ToDo: Should we add a row into task_results as well? Or is this whole method even necessary?
+    def add_query(self, username, query, parent_id=None):
+        task_id = uuid.uuid4()
         while True:
             try:
                 with self._conn as conn:
                     with conn.cursor() as curs:
                         curs.execute("""
-                            INSERT INTO history (item_id, item_type, item_parameters, parent_id, result, user_id)
-                            SELECT %s, %s, %s, %s, %s, user_id FROM users WHERE username = %s;
-                        """, [query_id, "query", Json(query), parent_id, Json(query_result), username])
+                            INSERT INTO user_history (item_id, user_id, parent_id, task_type, task_parameters)
+                            SELECT %s, user_id, %s, %s, %s FROM users WHERE username = %s;
+                        """, [task_id, parent_id, "query", Json(query), username])
                         break
             except psycopg2.IntegrityError:
-                query_id = uuid.uuid4()
-        return query_id
+                task_id = uuid.uuid4()
+        return task_id
 
+    # ToDo: Fix this to work with the new database
     def find_tasks(self, username, queries):
         with self._conn as conn:
             with conn.cursor() as curs:
@@ -118,14 +120,30 @@ class PSQLAPI(object):
             return None
         return result
 
-    def set_current_task(self, username, query_id):
+    def find_existing_results(self, queries):
+        with self._conn as conn:
+            with conn.cursor() as curs:
+                execute_values(curs, """
+                    UPDATE task_results tr
+                    SET last_accessed = NOW()
+                    FROM (VALUES %s) AS data (task_type, task_parameters)
+                    WHERE tr.task_type = data.task_type
+                    AND tr.task_parameters = data.task_parameters
+                    RETURNING tr.task_type, tr.task_parameters, tr.task_result
+                """, [(query[0], Json(query[1])) for query in queries], template='(%s, %s::jsonb)')
+                result = curs.fetchall()
+        if not result:
+            return None
+        return result
+
+    def set_current_task(self, username, task_id):
         with self._conn as conn:
             with conn.cursor() as curs:
                 curs.execute("""
                     UPDATE users
                     SET current_item = %s
                     WHERE username = %s;
-                """, [query_id, username])
+                """, [task_id, username])
 
     def get_current_task_id(self, username):
         with self._conn as conn:
@@ -140,6 +158,7 @@ class PSQLAPI(object):
             return None
         return current_query_id[0]
 
+    # ToDo: Fix to work with the new database
     def get_current_task(self, username):
         with self._conn as conn:
             with conn.cursor() as curs:
@@ -156,6 +175,7 @@ class PSQLAPI(object):
             return None
         return dict(zip(['task_id', 'task_parameters', 'result', 'parent_id'], current_query))
 
+    # ToDo: Fix to work with the new database
     def get_query_by_id(self, username, query_id):
         with self._conn as conn:
             with conn.cursor() as curs:
@@ -177,7 +197,11 @@ class PSQLAPI(object):
         with self._conn as conn:
             with conn.cursor() as curs:
                 curs.execute("""
-                    SELECT item_id, item_type, item_parameters, result, parent_id FROM history
+                    SELECT item_id, h.task_type, h.task_parameters, task_result, parent_id 
+                    FROM user_history h
+                    INNER JOIN task_results tr
+                    ON h.task_type = tr.task_type
+                    AND h.task_parameters = tr.task_parameters
                     WHERE
                         user_id = (
                             SELECT user_id FROM users WHERE username = %s
@@ -199,11 +223,13 @@ class PSQLAPI(object):
                 with self._conn as conn:
                     with conn.cursor() as curs:
                         execute_values(curs, """
-                            INSERT INTO history (item_id, item_type, item_parameters, parent_id, result, user_id)
-                            SELECT item_id, item_type, item_parameters, parent_id, result, user_id
-                            FROM users INNER JOIN (VALUES %s) AS data (item_id, item_type, username, item_parameters, parent_id, result)
+                            INSERT INTO user_history (item_id, task_type, task_parameters, parent_id, user_id)
+                            SELECT item_id, task_type, task_parameters, parent_id, user_id
+                            FROM users INNER JOIN (VALUES %s) AS data (item_id, task_type, username, task_parameters, parent_id, result)
                             ON users.username = data.username
+                            RETURNING item_id
                         """, [(i, *q) for i, q in zip(id_list, task_list)], template='(%s::uuid, %s, %s, %s::jsonb, %s::uuid, %s::json)')
+                        id_list2 = curs.fetchall()
                         break
             except psycopg2.IntegrityError:
                 id_list = [uuid.uuid4() for item in task_list]
@@ -211,17 +237,38 @@ class PSQLAPI(object):
                 print(Exception)
         return id_list
 
-    def update_results(self, query_list):
+    def add_queries(self, task_list):
+        task_list = [(item['task_type'], Json(item['task_parameters']), Json(item['result'])) for item in task_list]
+        while True:
+            try:
+                with self._conn as conn:
+                    with conn.cursor() as curs:
+                        execute_values(curs, """
+                            INSERT INTO task_results (task_type, task_parameters, task_result)
+                            SELECT task_type, task_parameters, result
+                            FROM (VALUES %s) AS data (task_type, task_parameters, result)
+                        """, task_list, template='(%s, %s::jsonb, %s::json)')
+                        break
+            except psycopg2.IntegrityError:
+                # Todo: make sure that this works without having to call some rollback method
+                pass
+            except Exception:
+                print(Exception)
+
+    def update_results(self, task_list):
         with self._conn as conn:
             with conn.cursor() as curs:
                 execute_values(curs, """
-                    UPDATE history
-                    SET result = data.result,
-                        last_updated = NOW()
-                    FROM (VALUES %s) AS data (item_id, result)
-                    WHERE history.item_id = data.item_id 
-                """, [(item['task_id'], Json(item['result'])) for item in query_list], template='(%s::uuid, %s::json)')
+                    UPDATE task_results tr
+                    SET task_result = data.result,
+                        last_updated = NOW(), 
+                        last_accessed = NOW()
+                    FROM (VALUES %s) AS data (task_type, task_parameters, result)
+                    WHERE tr.task_type = data.task_type
+                    AND tr.task_parameters = data.task_parameters 
+                """, [(item['task_type'], Json(item['task_parameters']), Json(item['result'])) for item in task_list], template='(%s, %s::jsonb, %s::json)')
 
+    # ToDo: Fix to work with the new database
     def add_analysis(self, username, query_id, results):
         with self._conn as conn:
             with conn.cursor() as curs:
@@ -231,6 +278,7 @@ class PSQLAPI(object):
                     FROM users WHERE username = %s
                 """, (results['analysis_type'], query_id, Json(results['analysis_result']), username))
 
+    # ToDo: Fix to work with the new database
     def get_analysis_by_query(self, query_id, analysis_type):
         with self._conn as conn:
             with conn.cursor() as curs:
