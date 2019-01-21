@@ -141,7 +141,7 @@ class PSQLAPI(object):
             with conn.cursor() as curs:
                 curs.execute("""
                     UPDATE users
-                    SET current_item = %s
+                    SET current_task = %s
                     WHERE username = %s
                 """, [task_id, username])
 
@@ -149,31 +149,36 @@ class PSQLAPI(object):
         with self._conn as conn:
             with conn.cursor() as curs:
                 curs.execute("""
-                    SELECT current_item
+                    SELECT current_task
                     FROM users
                     WHERE username = %s
                 """, [username])
-                current_query_id = curs.fetchone()
-        if not current_query_id:
+                current_task_id = curs.fetchone()
+        if not current_task_id:
             return None
-        return current_query_id[0]
+        return current_task_id[0]
 
-    # ToDo: Fix to work with the new database
     def get_current_task(self, username):
         with self._conn as conn:
             with conn.cursor() as curs:
                 curs.execute("""
-                    SELECT item_id, item_parameters, result, parent_id FROM history
-                    WHERE item_id = (
-                        SELECT current_item
+                    UPDATE task_results r
+                    SET last_accessed = NOW()
+                    FROM task_history h
+                    INNER JOIN r
+                    ON h.task_type = r.task_type
+                    AND h.task_parameters = r.task_parameters
+                    WHERE task_id = (
+                        SELECT current_task
                         FROM users
                         WHERE username = %s
                     )
+                    RETURNING task_id, h.task_type, h.task_parameters, task_result, parent_id
                 """, [username])
-                current_query = curs.fetchone()
-        if not current_query:
+                current_task = curs.fetchone()
+        if not current_task:
             return None
-        return dict(zip(['task_id', 'task_parameters', 'result', 'parent_id'], current_query))
+        return dict(zip(['task_id', 'task_type', 'task_parameters', 'task_result', 'parent_id'], current_task))
 
     # ToDo: Fix to work with the new database
     def get_query_by_id(self, username, query_id):
@@ -193,15 +198,16 @@ class PSQLAPI(object):
             return None
         return dict(zip(['task_id', 'task_parameters', 'result', 'parent_id'], query))
 
+    # TODO: Should this update the last_accessed field??
     def get_user_history(self, username):
         with self._conn as conn:
             with conn.cursor() as curs:
                 curs.execute("""
-                    SELECT item_id, h.task_type, h.task_parameters, task_result, parent_id 
-                    FROM user_history h
-                    INNER JOIN task_results tr
-                    ON h.task_type = tr.task_type
-                    AND h.task_parameters = tr.task_parameters
+                    SELECT task_id, h.task_type, h.task_parameters, task_result, parent_id 
+                    FROM task_history h
+                    INNER JOIN task_results r
+                    ON h.task_type = r.task_type
+                    AND h.task_parameters = r.task_parameters
                     WHERE
                         user_id = (
                             SELECT user_id FROM users WHERE username = %s
@@ -212,24 +218,22 @@ class PSQLAPI(object):
             return None
         history = {}
         for item in queries:
-            history[item[0]] = dict(zip(['task_id', 'task_type', 'task_parameters', 'result', 'parent_id'], item))
+            history[item[0]] = dict(zip(['task_id', 'task_type', 'task_parameters', 'task_result', 'parent_id'], item))
         return history
 
     def add_tasks(self, task_list):
-        task_list = [(item['task_type'], item['username'], Json(item['task_parameters']), item['parent_id'], Json(item['result'])) for item in task_list]
-        id_list = [uuid.uuid4() for item in task_list]
+        task_list = [(task['task_type'], task['username'], Json(task['task_parameters']), task['parent_id']) for task in task_list]
+        id_list = [uuid.uuid4() for task in task_list]
         while True:
             try:
                 with self._conn as conn:
                     with conn.cursor() as curs:
                         execute_values(curs, """
-                            INSERT INTO user_history (item_id, task_type, task_parameters, parent_id, user_id)
-                            SELECT item_id, task_type, task_parameters, parent_id, user_id
-                            FROM users INNER JOIN (VALUES %s) AS data (item_id, task_type, username, task_parameters, parent_id, result)
+                            INSERT INTO task_history (task_id, task_type, task_parameters, parent_id, user_id)
+                            SELECT task_id, task_type, task_parameters, parent_id, user_id
+                            FROM users INNER JOIN (VALUES %s) AS data (task_id, task_type, username, task_parameters, parent_id)
                             ON users.username = data.username
-                            RETURNING item_id
-                        """, [(i, *q) for i, q in zip(id_list, task_list)], template='(%s::uuid, %s, %s, %s::jsonb, %s::uuid, %s::json)')
-                        id_list2 = curs.fetchall()
+                        """, [(i, *q) for i, q in zip(id_list, task_list)], template='(%s::uuid, %s, %s, %s::jsonb, %s::uuid)')
                         break
             except psycopg2.IntegrityError:
                 id_list = [uuid.uuid4() for item in task_list]
@@ -238,15 +242,15 @@ class PSQLAPI(object):
         return id_list
 
     def add_queries(self, task_list):
-        task_list = [(item['task_type'], Json(item['task_parameters']), Json(item['result'])) for item in task_list]
+        task_list = [(item['task_type'], Json(item['task_parameters']), Json(item['task_result'])) for item in task_list]
         while True:
             try:
                 with self._conn as conn:
                     with conn.cursor() as curs:
                         execute_values(curs, """
                             INSERT INTO task_results (task_type, task_parameters, task_result)
-                            SELECT task_type, task_parameters, result
-                            FROM (VALUES %s) AS data (task_type, task_parameters, result)
+                            SELECT task_type, task_parameters, task_result
+                            FROM (VALUES %s) AS data (task_type, task_parameters, task_result)
                         """, task_list, template='(%s, %s::jsonb, %s::json)')
                         break
             except psycopg2.IntegrityError:
@@ -260,13 +264,13 @@ class PSQLAPI(object):
             with conn.cursor() as curs:
                 execute_values(curs, """
                     UPDATE task_results tr
-                    SET task_result = data.result,
+                    SET task_result = data.task_result,
                         last_updated = NOW(), 
                         last_accessed = NOW()
-                    FROM (VALUES %s) AS data (task_type, task_parameters, result)
+                    FROM (VALUES %s) AS data (task_type, task_parameters, task_result)
                     WHERE tr.task_type = data.task_type
                     AND tr.task_parameters = data.task_parameters 
-                """, [(item['task_type'], Json(item['task_parameters']), Json(item['result'])) for item in task_list], template='(%s, %s::jsonb, %s::json)')
+                """, [(task['task_type'], Json(task['task_parameters']), Json(task['task_result'])) for task in task_list], template='(%s, %s::jsonb, %s::json)')
 
     # ToDo: Fix to work with the new database
     def add_analysis(self, username, query_id, results):

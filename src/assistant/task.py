@@ -6,11 +6,11 @@ class Task(dict):
 
     __delattr__ = dict.__delitem__
 
-    def __init__(self, task_id=None, task_type=None, task_parameters=None, result=None, parent_id=None, username=None, created_on=None, last_updated=None):
+    def __init__(self, task_id=None, task_type=None, task_parameters=None, task_result=None, parent_id=None, username=None, created_on=None, last_updated=None):
         self['task_id'] = task_id
         self['task_type'] = task_type
         self['task_parameters'] = task_parameters
-        self['result'] = result
+        self['task_result'] = task_result
         self['parent_id'] = parent_id
         self['username'] = username
         self['created_on'] = created_on

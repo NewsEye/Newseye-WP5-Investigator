@@ -88,7 +88,7 @@ def quick_query():
         return 'Something went wrong...', 500
     try:
         for result in results:
-            if 'message' in result.result.keys():
+            if 'message' in result['task_result'].keys():
                 return jsonify(results), 202
         return jsonify(results)
     except Exception:
