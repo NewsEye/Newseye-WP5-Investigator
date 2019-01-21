@@ -243,7 +243,7 @@ class SystemCore(object):
         result_ids = self.run_query_task(username, queries, return_task=False, threaded=False)
         t_counts = []
         for id in result_ids:
-            query, query_results = itemgetter('task_parameters', 'result')(self._PSQL_api.get_query_by_id(username, id))
+            query, query_results = itemgetter('task_parameters', 'task_result')(self._PSQL_api.get_task_by_id(username, id))
             year = query['f[{}][]'.format(conf.PUB_YEAR_FACET)]
             total_hits = query_results['meta']['pages']['total_count']
             for item in query_results['included']:

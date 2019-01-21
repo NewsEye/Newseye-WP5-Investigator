@@ -180,23 +180,28 @@ class PSQLAPI(object):
             return None
         return dict(zip(['task_id', 'task_type', 'task_parameters', 'task_result', 'parent_id'], current_task))
 
-    # ToDo: Fix to work with the new database
-    def get_query_by_id(self, username, query_id):
+    def get_task_by_id(self, username, task_id):
         with self._conn as conn:
             with conn.cursor() as curs:
                 curs.execute("""
-                    SELECT item_id, item_parameters, result, parent_id FROM history
-                    WHERE 
-                        item_id = %s
-                        AND
-                        user_id = (
-                            SELECT user_id FROM users WHERE username = %s
-                        )
-                """, [query_id, username])
+                    UPDATE task_results r
+                    SET last_accessed = NOW()
+                    FROM task_history h
+                    INNER JOIN r
+                    ON h.task_type = r.task_type
+                    AND h.task_parameters = r.task_parameters
+                    WHERE task_id = %s
+                    AND user_id = (
+                        SELECT user_id
+                        FROM users
+                        WHERE username = %s
+                    )
+                    RETURNING task_id, h.task_type, h.task_parameters, task_result, parent_id
+                """, [task_id, username])
                 query = curs.fetchone()
         if not query:
             return None
-        return dict(zip(['task_id', 'task_parameters', 'result', 'parent_id'], query))
+        return dict(zip(['task_id', 'task_type', 'task_parameters', 'task_result', 'parent_id'], query))
 
     # TODO: Should this update the last_accessed field??
     def get_user_history(self, username):
