@@ -236,9 +236,7 @@ class PSQLAPI(object):
                         """, [(i, *q) for i, q in zip(id_list, task_list)], template='(%s::uuid, %s, %s, %s::jsonb, %s::uuid)')
                         break
             except psycopg2.IntegrityError:
-                id_list = [uuid.uuid4() for item in task_list]
-            except Exception:
-                print(Exception)
+                id_list = [uuid.uuid4() for task in task_list]
         return id_list
 
     def add_queries(self, task_list):
@@ -256,8 +254,6 @@ class PSQLAPI(object):
             except psycopg2.IntegrityError:
                 # Todo: make sure that this works without having to call some rollback method
                 pass
-            except Exception:
-                print(Exception)
 
     def update_results(self, task_list):
         with self._conn as conn:
