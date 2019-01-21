@@ -39,23 +39,23 @@ class SystemCore(object):
     def get_task(self, username):
         return self._PSQL_api.get_current_task(username)
 
-    def set_query(self, username, query):
-        """
-        Set the currently active task for the given user.
-        :param username: The user affected by the method.
-        :param query: A query that is to be set as the current task. If a task corresponding to the query doesn't exist,
-        one will be created, but not executed. If multiple corresponding tasks exist, one of them will be selected.
-        :return: The task_id for the Task corresponding to query
-        """
-
-        existing_results = self._PSQL_api.find_tasks(username, [('query', query)])
-        if existing_results:
-            task_id = list(zip(*existing_results))[0][0]
-        else:
-            # If a task corresponding to the query doesn't exist, generate one adding it to the database.
-            task_id = self._PSQL_api.add_query(username, query)
-        self._PSQL_api.set_current_task(username, task_id)
-        return task_id
+    # def set_query(self, username, query):
+    #     """
+    #     Set the currently active task for the given user.
+    #     :param username: The user affected by the method.
+    #     :param query: A query that is to be set as the current task. If a task corresponding to the query doesn't exist,
+    #     one will be created, but not executed. If multiple corresponding tasks exist, one of them will be selected.
+    #     :return: The task_id for the Task corresponding to query
+    #     """
+    #
+    #     existing_results = self._PSQL_api.find_tasks(username, [('query', query)])
+    #     if existing_results:
+    #         task_id = list(zip(*existing_results))[0][0]
+    #     else:
+    #         # If a task corresponding to the query doesn't exist, generate one adding it to the database.
+    #         task_id = self._PSQL_api.add_query(username, query)
+    #     self._PSQL_api.set_current_task(username, task_id)
+    #     return task_id
 
     # def find_query(self, username, query):
     #     for key, state in self._current_users[username]['history'].items():
@@ -171,10 +171,10 @@ class SystemCore(object):
             try:
                 i = old_queries.index(query[1])
                 task = Task(task_type=query[0], task_parameters=query[1], parent_id=current_task_id,
-                            username=username, result=old_results[i])
+                            username=username, task_result=old_results[i])
             except ValueError:
                 task = Task(task_type=query[0], task_parameters=query[1], parent_id=current_task_id, username=username,
-                            result=conf.UNFINISHED_TASK_RESULT)
+                            task_result=conf.UNFINISHED_TASK_RESULT)
                 new_queries.append(task)
             tasks.append(task)
 
@@ -196,7 +196,7 @@ class SystemCore(object):
         # ToDO: based on whether the result exists and how old it is?
 
         # Todo: Differentiate between currently running tasks and tasks that haven't been started yet
-        tasks_to_run = [task for task in tasks if task['result'] == conf.UNFINISHED_TASK_RESULT]
+        tasks_to_run = [task for task in tasks if task['task_result'] == conf.UNFINISHED_TASK_RESULT]
 
         queries_to_run = [task['task_parameters'] for task in tasks_to_run]
 
@@ -208,7 +208,7 @@ class SystemCore(object):
         results = self.run(self._blacklight_api.async_query(queries_to_run))
 
         for i, task in enumerate(tasks_to_run):
-            task['result'] = results[i]
+            task['task_result'] = results[i]
 
         # Store the new results to the database
         print("Got the query results: storing into database")

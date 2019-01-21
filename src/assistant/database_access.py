@@ -68,7 +68,7 @@ class PSQLAPI(object):
             with conn.cursor() as cur:
                 cur.execute("""
                 SELECT last_login FROM users
-                WHERE username = %s;
+                WHERE username = %s
                 """, [username])
                 last_login = cur.fetchall()
         return last_login[0][0]
@@ -79,46 +79,46 @@ class PSQLAPI(object):
                 curs.execute("""
                     UPDATE users
                     SET last_login = %s
-                    WHERE username = %s;
+                    WHERE username = %s
                 """, [time, username])
 
     # ToDo: Should we add a row into task_results as well? Or is this whole method even necessary?
-    def add_query(self, username, query, parent_id=None):
-        task_id = uuid.uuid4()
-        while True:
-            try:
-                with self._conn as conn:
-                    with conn.cursor() as curs:
-                        curs.execute("""
-                            INSERT INTO user_history (item_id, user_id, parent_id, task_type, task_parameters)
-                            SELECT %s, user_id, %s, %s, %s FROM users WHERE username = %s;
-                        """, [task_id, parent_id, "query", Json(query), username])
-                        break
-            except psycopg2.IntegrityError:
-                task_id = uuid.uuid4()
-        return task_id
+    # def add_query(self, username, query, parent_id=None):
+    #     item_id = uuid.uuid4()
+    #     while True:
+    #         try:
+    #             with self._conn as conn:
+    #                 with conn.cursor() as curs:
+    #                     curs.execute("""
+    #                         INSERT INTO user_history (item_id, user_id, parent_id, task_type, task_parameters)
+    #                         SELECT %s, user_id, %s, %s, %s FROM users WHERE username = %s;
+    #                     """, [item_id, parent_id, "query", Json(query), username])
+    #                     break
+    #         except psycopg2.IntegrityError:
+    #             item_id = uuid.uuid4()
+    #     return item_id
 
     # ToDo: Fix this to work with the new database
-    def find_tasks(self, username, queries):
-        with self._conn as conn:
-            with conn.cursor() as curs:
-                execute_values(curs, """
-                    SELECT item_id, h.item_parameters, parent_id, result
-                    FROM (SELECT item_id, item_type, item_parameters, parent_id, result, username, history.created_on, history.last_updated
-                        FROM history
-                        INNER JOIN users
-                        ON history.user_id = users.user_id
-                    ) AS h
-                    INNER JOIN
-                    (VALUES %s) AS data (item_type, item_parameters, username)
-                    ON h.item_type = data.item_type
-                    AND h.item_parameters = data.item_parameters
-                    AND h.username = data.username
-                """, [(query[0], Json(query[1]), username) for query in queries], template='(%s, %s::jsonb, %s)')
-                result = curs.fetchall()
-        if not result:
-            return None
-        return result
+    # def find_tasks(self, username, queries):
+    #     with self._conn as conn:
+    #         with conn.cursor() as curs:
+    #             execute_values(curs, """
+    #                 SELECT item_id, h.item_parameters, parent_id, result
+    #                 FROM (SELECT item_id, item_type, item_parameters, parent_id, result, username, history.created_on, history.last_updated
+    #                     FROM history
+    #                     INNER JOIN users
+    #                     ON history.user_id = users.user_id
+    #                 ) AS h
+    #                 INNER JOIN
+    #                 (VALUES %s) AS data (item_type, item_parameters, username)
+    #                 ON h.item_type = data.item_type
+    #                 AND h.item_parameters = data.item_parameters
+    #                 AND h.username = data.username
+    #             """, [(query[0], Json(query[1]), username) for query in queries], template='(%s, %s::jsonb, %s)')
+    #             result = curs.fetchall()
+    #     if not result:
+    #         return None
+    #     return result
 
     def find_existing_results(self, queries):
         with self._conn as conn:
@@ -142,7 +142,7 @@ class PSQLAPI(object):
                 curs.execute("""
                     UPDATE users
                     SET current_item = %s
-                    WHERE username = %s;
+                    WHERE username = %s
                 """, [task_id, username])
 
     def get_current_task_id(self, username):
@@ -151,7 +151,7 @@ class PSQLAPI(object):
                 curs.execute("""
                     SELECT current_item
                     FROM users
-                    WHERE username = %s;
+                    WHERE username = %s
                 """, [username])
                 current_query_id = curs.fetchone()
         if not current_query_id:
@@ -168,7 +168,7 @@ class PSQLAPI(object):
                         SELECT current_item
                         FROM users
                         WHERE username = %s
-                    );
+                    )
                 """, [username])
                 current_query = curs.fetchone()
         if not current_query:
@@ -186,7 +186,7 @@ class PSQLAPI(object):
                         AND
                         user_id = (
                             SELECT user_id FROM users WHERE username = %s
-                        );
+                        )
                 """, [query_id, username])
                 query = curs.fetchone()
         if not query:
@@ -205,7 +205,7 @@ class PSQLAPI(object):
                     WHERE
                         user_id = (
                             SELECT user_id FROM users WHERE username = %s
-                        );
+                        )
                 """, [username])
                 queries = curs.fetchall()
         if not queries:
@@ -284,7 +284,7 @@ class PSQLAPI(object):
             with conn.cursor() as curs:
                 curs.execute("""
                     SELECT item_type, result FROM history
-                    WHERE parent_id = %s AND item_type = %s;
+                    WHERE parent_id = %s AND item_type = %s
                 """, [query_id, analysis_type])
                 analysis = curs.fetchone()
         if not analysis:
