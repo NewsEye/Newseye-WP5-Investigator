@@ -11,8 +11,8 @@ TOOL_ARGS = {
 }
 
 
-def extract_facets(PSQLAPI, query):
-    result = query['result']
+def extract_facets(PSQLAPI, task):
+    result = task['task_result']
     facets = {}
     for feature in result['included']:
         if feature['type'] != 'facet':
@@ -25,7 +25,7 @@ def extract_facets(PSQLAPI, query):
         'analysis_type': 'facet_counts',
         'analysis_result': facets
     }
-    PSQLAPI.add_analysis(query['username'], query['task_id'], analysis_result)
+    PSQLAPI.add_analysis(task['username'], task['task_id'], analysis_result)
     return analysis_result
 
 
