@@ -155,21 +155,19 @@ class SystemCore(object):
         # ToDo: need to check that this is a correct type. For now we'll assume that it is.
         current_task_id = self._PSQL_api.get_current_task_id(username)
 
-        # Todo: check whether this works with analysis_results as well now
-        # ToDo: change this so we get the query tuples instead of just the task_parameters part??
         existing_results = self._PSQL_api.find_existing_results(queries)
 
         if existing_results:
-            query_types, old_queries, old_results = list(zip(*existing_results))
+            old_queries, old_results = list(zip(*existing_results))
         else:
-            query_types, old_queries, old_results = [[]] * 3
+            old_queries, old_results = [[]] * 2
 
         tasks = []
         new_queries = []
 
         for query in queries:
             try:
-                i = old_queries.index(query[1])
+                i = old_queries.index(query)
                 task = Task(task_type=query[0], task_parameters=query[1], parent_id=current_task_id,
                             username=username, task_result=old_results[i])
             except ValueError:

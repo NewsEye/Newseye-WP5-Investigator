@@ -134,7 +134,7 @@ class PSQLAPI(object):
                 result = curs.fetchall()
         if not result:
             return None
-        return result
+        return [((item[0], item[1]), item[2]) for item in result]
 
     def set_current_task(self, username, task_id):
         with self._conn as conn:
