@@ -96,6 +96,15 @@ def quick_query():
         return 'Something went wrong...', 500
 
 
+@app.route('/test/analysis/topic')
+def test_topic_analysis():
+    if 'username' not in session:
+        return 'You are not logged in', 401
+    username = session['username']
+    result = service.core.run_query_task(username, ('analysis', {'tool': 'topic_analysis'}))
+    return jsonify(result)
+
+
 @app.route('/api/analysis')
 def analyze():
     if 'username' not in session:
@@ -180,14 +189,6 @@ def test_multiquery():
         return 'You are not logged in', 401
     username = session['username']
     return jsonify(service.core.run_query_task(username, test_query))
-
-
-@app.route('/test/analysis/topic')
-def test_topic_analysis():
-    if 'username' not in session:
-        return 'You are not logged in', 401
-    username = session['username']
-    return jsonify(service.core.topic_analysis(username))
 
 
 def _is_valid_query(query):

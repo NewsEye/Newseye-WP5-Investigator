@@ -1,12 +1,10 @@
 from assistant.task import Task
 from assistant.database_access import *
-from operator import itemgetter
 from assistant.analysis import *
 import threading
 import time
 import uuid
 import assistant.config as conf
-import pandas as pd
 import datetime as dt
 
 
@@ -235,44 +233,3 @@ class SystemCore(object):
         # doubt this would be the case here.
         print("Got the query results: storing into database")
         self._PSQL_api.update_results(tasks_to_run)
-
-    def topic_analysis(self, username):
-        current_query = self._PSQL_api.get_current_task(username)
-        query_results = current_query['result']
-        if query_results is None or query_results == conf.UNFINISHED_TASK_RESULT:
-            raise TypeError("No query results available for analysis")
-        for item in query_results['included']:
-            if item['id'] == conf.PUB_YEAR_FACET and item['type'] == 'facet':
-                pub_dates = [(date['attributes']['value'], date['attributes']['hits']) for date in item['attributes']['items']]
-                break
-        else:
-            raise TypeError("Query results don't contain required facet {}".format(conf.PUB_YEAR_FACET))
-        pub_dates.sort()
-        last_query = current_query['task_parameters']
-        queries = [{'f[{}][]'.format(conf.PUB_YEAR_FACET): item[0]} for item in pub_dates]
-        for query in queries:
-            query.update(last_query)
-        result_ids = self.run_query_task(username, queries, return_task=False, threaded=False)
-        t_counts = []
-        for id in result_ids:
-            query, query_results = itemgetter('task_parameters', 'task_result')(self._PSQL_api.get_task_by_id(username, id))
-            year = query['f[{}][]'.format(conf.PUB_YEAR_FACET)]
-            total_hits = query_results['meta']['pages']['total_count']
-            for item in query_results['included']:
-                if item['id'] == conf.TOPIC_FACET and item['type'] == 'facet':
-                    t_counts.extend([[year, topic['attributes']['value'], topic['attributes']['hits'], topic['attributes']['hits'] / total_hits] for topic in item['attributes']['items']])
-                    break
-            else:
-                raise TypeError("Query results don't contain required facet '{}'".format(conf.TOPIC_FACET))
-        df = pd.DataFrame(t_counts, columns=['year', 'topic', 'count', 'rel_count'])
-        abs_counts = df.pivot(index='topic', columns='year',values='count').fillna(0)
-        rel_counts = df.pivot(index='topic', columns='year',values='rel_count').fillna(0)
-        analysis_results = {
-            'analysis_type': 'topic_analysis',
-            'analysis_result': {
-                'absolute_counts': abs_counts.to_dict(orient='index'),
-                'relative_counts': rel_counts.to_dict(orient='index')
-            }
-        }
-        self._PSQL_api.add_analysis(username, current_query['task_id'], analysis_results)
-        return analysis_results
