@@ -61,7 +61,7 @@ class SystemCore(object):
         else:
             return loop.run_until_complete(task)
 
-    def run_query_task(self, username, queries, switch_task=False, threaded=True, return_task=True):
+    def run_query_task(self, username, queries, switch_task=False, threaded=True, return_task=True, store_results=True):
         """
         Generate tasks from queries and execute them.
         :param username: the user who is requesting the queries
@@ -76,16 +76,16 @@ class SystemCore(object):
         If false, only the task_id (or a list of task_ids) is returned
         :return: A list of task_objects or task_ids corresponding to the queries.
         """
-        tasks = self.generate_tasks(username, queries)
+        tasks = self.generate_tasks(username, queries, store_results)
 
         # If the tasks are run as threaded
         if threaded:
-            t = threading.Thread(target=self.execute_tasks, args=[username, tasks])
+            t = threading.Thread(target=self.execute_tasks, args=[username, tasks, store_results])
             t.setDaemon(False)
             t.start()
             time.sleep(3)
         else:
-            self.execute_tasks(username, tasks)
+            self.execute_tasks(username, tasks, store_results)
 
         if switch_task:
             self._PSQL_api.set_current_task(username, tasks[0]['task_id'])
@@ -94,7 +94,7 @@ class SystemCore(object):
         else:
             return [item['task_id'] for item in tasks]
 
-    def generate_tasks(self, username, queries):
+    def generate_tasks(self, username, queries, store_results):
 
         if type(queries) is not list:
             queries = [queries]
@@ -139,17 +139,19 @@ class SystemCore(object):
                 new_queries.append(task)
             tasks.append(task)
 
-        if new_queries:
+        # This might not be needed at all
+        if new_queries and store_results:
             self._PSQL_api.add_queries(new_queries)
+
         task_ids = self._PSQL_api.add_tasks(tasks)
 
         # Add the correct ids to tasks
-        for i, task in enumerate(tasks):
-            task['task_id'] = task_ids[i]
+        for task, id in zip(tasks, task_ids):
+            task['task_id'] = id
 
         return tasks
 
-    def execute_tasks(self, username, tasks):
+    def execute_tasks(self, username, tasks, store_results):
 
         # Todo: delay estimates
         # ToDo: Add timeouts for the results: timestamps are already stored, simply rerun the query if the timestamp is too old.
@@ -169,21 +171,22 @@ class SystemCore(object):
             # Note: now we are running first all the queries and then all the analysis, which is suboptimal, but
             # I would expect a single tasklist to include only tasks of one type. If this is not the case, then it
             # might be useful to add functionality to run everything in parallel.
-            if len(queries_to_run) > 0:
+            if queries_to_run:
                 query_results = self.run(self._blacklight_api.async_query([task['task_parameters'] for task in queries_to_run]))
-            if len(analysis_to_run) > 0:
+            if analysis_to_run:
                 analysis_results = self.run(self._analysis.async_query(username, [task['task_parameters'] for task in analysis_to_run]))
 
-        for i, task in enumerate(queries_to_run):
-            task['task_result'] = query_results[i]
+        for task, result in zip(queries_to_run, query_results):
+            task['task_result'] = result
 
-        for i, task in enumerate(analysis_to_run):
-            task['task_result'] = analysis_results[i]
+        for task, result in zip(analysis_to_run, analysis_results):
+            task['task_result'] = result
 
         # Store the new results to the database after everything has been finished
         # Todo: Should we offer the option to store results as soon as they are ready? Or do that by default?
         # Speedier results vs. more sql calls. If different tasks in the same query take wildly different amounts of
         # time, it would make sense to store the finished ones immediately instead of waiting for the last one, but I
         # doubt this would be the case here.
-        print("Got the query results: storing into database")
-        self._PSQL_api.update_results(tasks_to_run)
+        if store_results:
+            print("Got the query results: storing into database")
+            self._PSQL_api.update_results(tasks_to_run)
