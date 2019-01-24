@@ -21,7 +21,8 @@ class AnalysisTools(object):
 
     async def async_query(self, username, queries):
         target_ids = [query.get('target_id') for query in queries]
-        target_results = self._db.get_results_by_id(target_ids)  # {target_id: (target_id, result)}
+        # Todo: get rid of the direct database access in here. Perhaps pass the target_results as a parameter from the core?
+        target_results = self._db.get_results_by_id(target_ids)
 
         tasks = []
 
@@ -35,7 +36,7 @@ class AnalysisTools(object):
 
     async def extract_facets(self, username, query, data):
         facets = {}
-        for feature in data[1]['included']:
+        for feature in data['task_result']['included']:
             if feature['type'] != 'facet':
                 continue
             values = []

@@ -194,13 +194,14 @@ class PSQLAPI(object):
                     UPDATE task_results r
                     SET last_accessed = NOW()
                     WHERE result_id IN %s
-                    RETURNING result_id, task_result
+                    RETURNING result_id, task_type, task_parameters, task_result
                 """, [tuple(result_ids)])
                 results = curs.fetchall()
         if not results:
             return None
-        return dict([(result[0].hex, result) for result in results])
+        return dict([(result[0].hex, dict(zip(['result_id', 'task_type', 'task_parameters', 'task_result'], result))) for result in results])
 
+    # Todo: update to same output format as above
     def get_results_by_query(self, queries):
         with self._conn as conn:
             with conn.cursor() as curs:
