@@ -1,7 +1,7 @@
 from assistant.task import Task
 from assistant.database_access import *
 from operator import itemgetter
-import assistant.analysis as aa
+from assistant.analysis import *
 import threading
 import time
 import uuid
@@ -15,6 +15,7 @@ class SystemCore(object):
         # self._current_users = {}
         self._blacklight_api = BlacklightAPI()
         self._PSQL_api = PSQLAPI()
+        self._analysis = AnalysisTools(self, self._PSQL_api)
 
     def add_user(self, username, new_username):
         # Todo: add user types + limit user creation etc. to admins
@@ -127,12 +128,12 @@ class SystemCore(object):
 
         # If the tasks are run as threaded
         if threaded:
-            t = threading.Thread(target=self.query_thread, args=[tasks])
+            t = threading.Thread(target=self.query_thread, args=[username, tasks])
             t.setDaemon(False)
             t.start()
             time.sleep(3)
         else:
-            self.query_thread(tasks)
+            self.query_thread(username, tasks)
 
         if switch_task:
             self._PSQL_api.set_current_task(username, tasks[0]['task_id'])
@@ -153,7 +154,17 @@ class SystemCore(object):
             raise ValueError
 
         # ToDo: need to check that this is a correct type. For now we'll assume that it is.
-        current_task_id = self._PSQL_api.get_current_task_id(username)
+        current_task = self._PSQL_api.get_current_task(username)
+        if current_task:
+            current_task_id = current_task['task_id']
+        else:
+            current_task_id = None
+
+        # Add the id of the result set to be analyzed if it is not specified already
+        for query in queries:
+            if query[0] == 'analysis':
+                if not query[1].get('target_id', None):
+                    query[1]['target_id'] = current_task['result_id'].hex
 
         existing_results = self._PSQL_api.find_existing_results(queries)
 
@@ -186,7 +197,7 @@ class SystemCore(object):
 
         return tasks
 
-    def query_thread(self, tasks):
+    def query_thread(self, username, tasks):
 
         # Todo: delay estimates
         # ToDo: Add timeouts for the results: timestamps are already stored, simply rerun the query if the timestamp is too old.
@@ -195,34 +206,35 @@ class SystemCore(object):
 
         # Todo: Differentiate between currently running tasks and tasks that haven't been started yet
         tasks_to_run = [task for task in tasks if task['task_result'] == conf.UNFINISHED_TASK_RESULT]
+        queries_to_run = [task for task in tasks_to_run if task['task_type'] == 'query']
+        analysis_to_run = [task for task in tasks_to_run if task['task_type'] == 'analysis']
 
-        queries_to_run = [task['task_parameters'] for task in tasks_to_run]
-
-        if len(queries_to_run) == 0:
-            print("All query results already found in the local database")
+        if len(queries_to_run) + len(analysis_to_run) == 0:
+            print("All results already found in the local database")
             return
+        else:
+            asyncio.set_event_loop(asyncio.new_event_loop())
+            # Note: now we are running first all the queries and then all the analysis, which is suboptimal, but
+            # I would expect a single tasklist to include only tasks of one type. If this is not the case, then it
+            # might be useful to add functionality to run everything in parallel.
+            if len(queries_to_run) > 0:
+                query_results = self.run(self._blacklight_api.async_query([task['task_parameters'] for task in queries_to_run]))
+            if len(analysis_to_run) > 0:
+                analysis_results = self.run(self._analysis.async_query(username, [task['task_parameters'] for task in analysis_to_run]))
 
-        asyncio.set_event_loop(asyncio.new_event_loop())
-        results = self.run(self._blacklight_api.async_query(queries_to_run))
+        for i, task in enumerate(queries_to_run):
+            task['task_result'] = query_results[i]
 
-        for i, task in enumerate(tasks_to_run):
-            task['task_result'] = results[i]
+        for i, task in enumerate(analysis_to_run):
+            task['task_result'] = analysis_results[i]
 
-        # Store the new results to the database
+        # Store the new results to the database after everything has been finished
+        # Todo: Should we offer the option to store results as soon as they are ready? Or do that by default?
+        # Speedier results vs. more sql calls. If different tasks in the same query take wildly different amounts of
+        # time, it would make sense to store the finished ones immediately instead of waiting for the last one, but I
+        # doubt this would be the case here.
         print("Got the query results: storing into database")
         self._PSQL_api.update_results(tasks_to_run)
-
-    def run_analysis(self, username, args):
-        tool_name = args.get('tool')
-        req_args = aa.TOOL_ARGS[tool_name]
-        if len(args) != len(req_args) + 1:
-            raise TypeError("Invalid number of arguments for the chosen tool")
-        current_query = self._PSQL_api.get_current_task(username)
-        tool_args = [self._PSQL_api, current_query]
-        for arg_name in req_args:
-            tool_args.append(args.get(arg_name))
-        analysis_result = aa.TOOL_LIST[tool_name](*tool_args)
-        return analysis_result
 
     def topic_analysis(self, username):
         current_query = self._PSQL_api.get_current_task(username)

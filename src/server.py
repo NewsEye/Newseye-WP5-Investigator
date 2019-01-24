@@ -82,7 +82,7 @@ def quick_query():
     username = session['username']
     query = request.args.to_dict(flat=False)
     try:
-        results = service.core.run_query_task(username, query)
+        results = service.core.run_query_task(username, ('query', query))
     except Exception:
         print(Exception)
         return 'Something went wrong...', 500
@@ -102,14 +102,15 @@ def analyze():
         return 'You are not logged in', 401
     username = session['username']
     try:
-        result = service.core.run_analysis(username, request.args)
+        result = service.core.run_query_task(username, ('analysis', request.args.to_dict()))
         return jsonify(result)
+    # Todo: recognize cases where the user's current task is not set causing an error
     except TypeError:
         print(TypeError)
-        return 'Invalid number of arguments for the chosen tool', 400
-    except Exception:
-        print(Exception)
-        return 'Something went wrong...', 500
+        return 'Invalid tool name or invalid number of arguments for the chosen tool', 400
+    # except Exception:
+    #     print(Exception)
+    #     return 'Something went wrong...', 500
 
 
 @app.route('/api/login')

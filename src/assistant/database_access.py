@@ -162,10 +162,10 @@ class PSQLAPI(object):
         with self._conn as conn:
             with conn.cursor() as curs:
                 curs.execute("""
-                    UPDATE task_results r
+                    UPDATE task_results
                     SET last_accessed = NOW()
                     FROM task_history h
-                    INNER JOIN r
+                    INNER JOIN task_results r
                     ON h.task_type = r.task_type
                     AND h.task_parameters = r.task_parameters
                     WHERE task_id = (
@@ -173,12 +173,12 @@ class PSQLAPI(object):
                         FROM users
                         WHERE username = %s
                     )
-                    RETURNING task_id, h.task_type, h.task_parameters, task_result, parent_id
+                    RETURNING task_id, h.task_type, h.task_parameters, r.task_result, r.result_id, parent_id
                 """, [username])
                 current_task = curs.fetchone()
         if not current_task:
             return None
-        return dict(zip(['task_id', 'task_type', 'task_parameters', 'task_result', 'parent_id'], current_task))
+        return dict(zip(['task_id', 'task_type', 'task_parameters', 'task_result', 'result_id', 'parent_id'], current_task))
 
     def get_task_by_id(self, username, task_id):
         with self._conn as conn:
@@ -196,12 +196,26 @@ class PSQLAPI(object):
                         FROM users
                         WHERE username = %s
                     )
-                    RETURNING task_id, h.task_type, h.task_parameters, task_result, parent_id
+                    RETURNING task_id, h.task_type, h.task_parameters, task_result, result_id, parent_id
                 """, [task_id, username])
                 query = curs.fetchone()
         if not query:
             return None
-        return dict(zip(['task_id', 'task_type', 'task_parameters', 'task_result', 'parent_id'], query))
+        return dict(zip(['task_id', 'task_type', 'task_parameters', 'task_result', 'result_id', 'parent_id'], query))
+
+    def get_results_by_id(self, result_ids):
+        with self._conn as conn:
+            with conn.cursor() as curs:
+                curs.execute("""
+                    UPDATE task_results r
+                    SET last_accessed = NOW()
+                    WHERE result_id IN %s
+                    RETURNING result_id, task_result
+                """, [tuple(result_ids)])
+                results = curs.fetchall()
+        if not results:
+            return None
+        return dict([(result[0].hex, result) for result in results])
 
     # TODO: Should this update the last_accessed field??
     def get_user_history(self, username):
@@ -244,6 +258,7 @@ class PSQLAPI(object):
                 id_list = [uuid.uuid4() for task in task_list]
         return id_list
 
+    # Todo: Rename this
     def add_queries(self, task_list):
         task_list = [(item['task_type'], Json(item['task_parameters']), Json(item['task_result'])) for item in task_list]
         while True:
@@ -272,26 +287,3 @@ class PSQLAPI(object):
                     WHERE tr.task_type = data.task_type
                     AND tr.task_parameters = data.task_parameters 
                 """, [(task['task_type'], Json(task['task_parameters']), Json(task['task_result'])) for task in task_list], template='(%s, %s::jsonb, %s::json)')
-
-    # ToDo: Fix to work with the new database
-    def add_analysis(self, username, query_id, results):
-        with self._conn as conn:
-            with conn.cursor() as curs:
-                curs.execute("""
-                    INSERT INTO history (item_type, parent_id, result, user_id)
-                    SELECT %s, %s, %s, user_id
-                    FROM users WHERE username = %s
-                """, (results['analysis_type'], query_id, Json(results['analysis_result']), username))
-
-    # ToDo: Fix to work with the new database
-    def get_analysis_by_query(self, query_id, analysis_type):
-        with self._conn as conn:
-            with conn.cursor() as curs:
-                curs.execute("""
-                    SELECT item_type, result FROM history
-                    WHERE parent_id = %s AND item_type = %s
-                """, [query_id, analysis_type])
-                analysis = curs.fetchone()
-        if not analysis:
-            return None
-        return dict(zip(['analysis_type', 'analysis_result'], analysis))
