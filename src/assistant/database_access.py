@@ -120,22 +120,6 @@ class PSQLAPI(object):
     #         return None
     #     return result
 
-    def find_existing_results(self, queries):
-        with self._conn as conn:
-            with conn.cursor() as curs:
-                execute_values(curs, """
-                    UPDATE task_results tr
-                    SET last_accessed = NOW()
-                    FROM (VALUES %s) AS data (task_type, task_parameters)
-                    WHERE tr.task_type = data.task_type
-                    AND tr.task_parameters = data.task_parameters
-                    RETURNING tr.task_type, tr.task_parameters, tr.task_result
-                """, [(query[0], Json(query[1])) for query in queries], template='(%s, %s::jsonb)')
-                result = curs.fetchall()
-        if not result:
-            return None
-        return [((item[0], item[1]), item[2]) for item in result]
-
     def set_current_task(self, username, task_id):
         with self._conn as conn:
             with conn.cursor() as curs:
@@ -216,6 +200,22 @@ class PSQLAPI(object):
         if not results:
             return None
         return dict([(result[0].hex, result) for result in results])
+
+    def get_results_by_query(self, queries):
+        with self._conn as conn:
+            with conn.cursor() as curs:
+                execute_values(curs, """
+                    UPDATE task_results tr
+                    SET last_accessed = NOW()
+                    FROM (VALUES %s) AS data (task_type, task_parameters)
+                    WHERE tr.task_type = data.task_type
+                    AND tr.task_parameters = data.task_parameters
+                    RETURNING tr.task_type, tr.task_parameters, tr.task_result
+                """, [(query[0], Json(query[1])) for query in queries], template='(%s, %s::jsonb)')
+                result = curs.fetchall()
+        if not result:
+            return None
+        return [((item[0], item[1]), item[2]) for item in result]
 
     # TODO: Should this update the last_accessed field??
     def get_user_history(self, username):

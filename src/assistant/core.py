@@ -166,7 +166,7 @@ class SystemCore(object):
                 if not query[1].get('target_id', None):
                     query[1]['target_id'] = current_task['result_id'].hex
 
-        existing_results = self._PSQL_api.find_existing_results(queries)
+        existing_results = self._PSQL_api.get_results_by_query(queries)
 
         if existing_results:
             old_queries, old_results = list(zip(*existing_results))
