@@ -3,14 +3,12 @@ from assistant.database_access import *
 from assistant.analysis import *
 import threading
 import time
-import uuid
 import assistant.config as conf
 import datetime as dt
 
 
 class SystemCore(object):
     def __init__(self):
-        # self._current_users = {}
         self._blacklight_api = BlacklightAPI()
         self._PSQL_api = PSQLAPI()
         self._analysis = AnalysisTools(self, self._PSQL_api)
@@ -29,47 +27,8 @@ class SystemCore(object):
         self._PSQL_api.set_last_login(username, dt.datetime.now())
         return last_login
 
-    def get_unique_id(self, index):
-        new_id = uuid.uuid4()
-        while new_id in index.keys():
-            new_id = uuid.uuid4()
-        return new_id
-
     def get_task(self, username):
         return self._PSQL_api.get_current_task(username)
-
-    # def set_query(self, username, query):
-    #     """
-    #     Set the currently active task for the given user.
-    #     :param username: The user affected by the method.
-    #     :param query: A query that is to be set as the current task. If a task corresponding to the query doesn't exist,
-    #     one will be created, but not executed. If multiple corresponding tasks exist, one of them will be selected.
-    #     :return: The task_id for the Task corresponding to query
-    #     """
-    #
-    #     existing_results = self._PSQL_api.find_tasks(username, [('query', query)])
-    #     if existing_results:
-    #         task_id = list(zip(*existing_results))[0][0]
-    #     else:
-    #         # If a task corresponding to the query doesn't exist, generate one adding it to the database.
-    #         task_id = self._PSQL_api.add_query(username, query)
-    #     self._PSQL_api.set_current_task(username, task_id)
-    #     return task_id
-
-    # def find_query(self, username, query):
-    #     for key, state in self._current_users[username]['history'].items():
-    #         if state.query == query:
-    #             return state
-    #     return None
-
-    # def get_state(self, username, state_id=None):
-    #     if not state_id:
-    #         return self._current_users.get(username)['state']
-    #     else:
-    #         return self._current_users.get(username)['history'][state_id]
-    #
-    # def set_state(self, username, state):
-    #     self._current_users.get(username)['state'] = state
 
     def get_history(self, username, make_tree=True):
         history = self._PSQL_api.get_user_history(username)
@@ -92,11 +51,6 @@ class SystemCore(object):
             else:
                 tree['root'].append(task)
         return tree
-
-    # def clear_query(self, username):
-    #     self.set_query(username, {
-    #         'q': '',
-    #     })
 
     @staticmethod
     def run(task=None, loop=None):
@@ -126,12 +80,12 @@ class SystemCore(object):
 
         # If the tasks are run as threaded
         if threaded:
-            t = threading.Thread(target=self.query_thread, args=[username, tasks])
+            t = threading.Thread(target=self.execute_tasks, args=[username, tasks])
             t.setDaemon(False)
             t.start()
             time.sleep(3)
         else:
-            self.query_thread(username, tasks)
+            self.execute_tasks(username, tasks)
 
         if switch_task:
             self._PSQL_api.set_current_task(username, tasks[0]['task_id'])
@@ -195,7 +149,7 @@ class SystemCore(object):
 
         return tasks
 
-    def query_thread(self, username, tasks):
+    def execute_tasks(self, username, tasks):
 
         # Todo: delay estimates
         # ToDo: Add timeouts for the results: timestamps are already stored, simply rerun the query if the timestamp is too old.

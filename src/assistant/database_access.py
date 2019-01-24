@@ -3,7 +3,6 @@ import aiohttp
 import psycopg2
 from psycopg2.extras import Json, execute_values, register_uuid
 import uuid
-import assistant.config as conf
 
 
 class BlacklightAPI(object):
@@ -81,44 +80,6 @@ class PSQLAPI(object):
                     SET last_login = %s
                     WHERE username = %s
                 """, [time, username])
-
-    # ToDo: Should we add a row into task_results as well? Or is this whole method even necessary?
-    # def add_query(self, username, query, parent_id=None):
-    #     item_id = uuid.uuid4()
-    #     while True:
-    #         try:
-    #             with self._conn as conn:
-    #                 with conn.cursor() as curs:
-    #                     curs.execute("""
-    #                         INSERT INTO user_history (item_id, user_id, parent_id, task_type, task_parameters)
-    #                         SELECT %s, user_id, %s, %s, %s FROM users WHERE username = %s;
-    #                     """, [item_id, parent_id, "query", Json(query), username])
-    #                     break
-    #         except psycopg2.IntegrityError:
-    #             item_id = uuid.uuid4()
-    #     return item_id
-
-    # ToDo: Fix this to work with the new database
-    # def find_tasks(self, username, queries):
-    #     with self._conn as conn:
-    #         with conn.cursor() as curs:
-    #             execute_values(curs, """
-    #                 SELECT item_id, h.item_parameters, parent_id, result
-    #                 FROM (SELECT item_id, item_type, item_parameters, parent_id, result, username, history.created_on, history.last_updated
-    #                     FROM history
-    #                     INNER JOIN users
-    #                     ON history.user_id = users.user_id
-    #                 ) AS h
-    #                 INNER JOIN
-    #                 (VALUES %s) AS data (item_type, item_parameters, username)
-    #                 ON h.item_type = data.item_type
-    #                 AND h.item_parameters = data.item_parameters
-    #                 AND h.username = data.username
-    #             """, [(query[0], Json(query[1]), username) for query in queries], template='(%s, %s::jsonb, %s)')
-    #             result = curs.fetchall()
-    #     if not result:
-    #         return None
-    #     return result
 
     def set_current_task(self, username, task_id):
         with self._conn as conn:
