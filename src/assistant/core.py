@@ -171,14 +171,13 @@ class SystemCore(object):
             # might be useful to add functionality to run everything in parallel.
             if queries_to_run:
                 query_results = self.run(self._blacklight_api.async_query([task['task_parameters'] for task in queries_to_run]))
+                for task, result in zip(queries_to_run, query_results):
+                    task['task_result'] = result
+
             if analysis_to_run:
                 analysis_results = self.run(self._analysis.async_query(username, [task['task_parameters'] for task in analysis_to_run]))
-
-        for task, result in zip(queries_to_run, query_results):
-            task['task_result'] = result
-
-        for task, result in zip(analysis_to_run, analysis_results):
-            task['task_result'] = result
+                for task, result in zip(analysis_to_run, analysis_results):
+                    task['task_result'] = result
 
         # Store the new results to the database after everything has been finished
         # Todo: Should we offer the option to store results as soon as they are ready? Or do that by default?
