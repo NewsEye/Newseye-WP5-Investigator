@@ -106,17 +106,15 @@ class SystemCore(object):
             raise ValueError
 
         # ToDo: need to check that this is a correct type. For now we'll assume that it is.
-        current_task = self._PSQL_api.get_current_task(username)
-        if current_task:
-            current_task_id = current_task['task_id']
-        else:
-            current_task_id = None
+        current_task_id = self._PSQL_api.get_current_task_id(username)
 
-        # Add the id of the result set to be analyzed if it is not specified already
+        # Add the id of the task with results to be analyzed if it is not specified already
         for query in queries:
             if query[0] == 'analysis':
                 if not query[1].get('target_id', None):
-                    query[1]['target_id'] = current_task['result_id'].hex
+                    query[1]['target_id'] = current_task_id.hex
+                else:
+                    query[1]['target_id'] = query[1]['target_id'].replace('-', '')
 
         existing_results = self._PSQL_api.get_results_by_query(queries)
 

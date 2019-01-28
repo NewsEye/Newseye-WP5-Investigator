@@ -25,7 +25,7 @@ class AnalysisTools(object):
     async def async_query(self, username, queries):
         target_ids = [query.get('target_id') for query in queries]
         # Todo: get rid of the direct database access in here. Perhaps pass the target_results as a parameter from the core?
-        target_results = self._db.get_results_by_id(target_ids)
+        target_results = self._db.get_results_by_task_id(target_ids)
 
         tasks = []
 

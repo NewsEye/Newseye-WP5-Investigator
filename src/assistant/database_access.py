@@ -162,7 +162,29 @@ class PSQLAPI(object):
             return None
         return dict([(result[0].hex, dict(zip(['result_id', 'task_type', 'task_parameters', 'task_result'], result))) for result in results])
 
-    # Todo: update to same output format as above
+    def get_results_by_task_id(self, task_ids):
+        with self._conn as conn:
+            with conn.cursor() as curs:
+                curs.execute("""
+                    UPDATE task_results tr
+                    SET last_accessed = NOW()
+                    FROM (
+                        SELECT h.task_id, h.task_type, h.task_parameters, r.task_result, r.result_id
+                        FROM task_results r
+                        INNER JOIN task_history h
+                        ON r.task_type = h.task_type
+                        AND r.task_parameters = h.task_parameters
+                        WHERE h.task_id IN %s
+                    ) AS e (task_id, task_type, task_parameters, task_result, result_id)
+                    WHERE tr.result_id = e.result_id
+                    RETURNING e.task_id, e.task_type, e.task_parameters, e.task_result
+                """, [tuple(task_ids)])
+                results = curs.fetchall()
+        if not results:
+            return None
+        return dict([(result[0].hex, dict(zip(['task_id', 'task_type', 'task_parameters', 'task_result'], result))) for result in results])
+
+    # Todo: update to same output format as above??
     def get_results_by_query(self, queries):
         with self._conn as conn:
             with conn.cursor() as curs:
