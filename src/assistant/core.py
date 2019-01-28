@@ -107,14 +107,14 @@ class SystemCore(object):
 
         # ToDo: need to check that this is a correct type. For now we'll assume that it is.
         current_task_id = self._PSQL_api.get_current_task_id(username)
+        if current_task_id is None:
+            current_task_id = '00000000-0000-0000-0000-000000000000'
 
         # Add the id of the task with results to be analyzed if it is not specified already
         for query in queries:
             if query[0] == 'analysis':
                 if not query[1].get('target_id', None):
-                    query[1]['target_id'] = current_task_id.hex
-                else:
-                    query[1]['target_id'] = query[1]['target_id'].replace('-', '')
+                    query[1]['target_id'] = str(current_task_id)
 
         existing_results = self._PSQL_api.get_results_by_query(queries)
 

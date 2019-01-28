@@ -160,7 +160,7 @@ class PSQLAPI(object):
                 results = curs.fetchall()
         if not results:
             return None
-        return dict([(result[0].hex, dict(zip(['result_id', 'task_type', 'task_parameters', 'task_result'], result))) for result in results])
+        return dict([(str(result[0]), dict(zip(['result_id', 'task_type', 'task_parameters', 'task_result'], result))) for result in results])
 
     def get_results_by_task_id(self, task_ids):
         with self._conn as conn:
@@ -182,7 +182,7 @@ class PSQLAPI(object):
                 results = curs.fetchall()
         if not results:
             return None
-        return dict([(result[0].hex, dict(zip(['task_id', 'task_type', 'task_parameters', 'task_result'], result))) for result in results])
+        return dict([(str(result[0]), dict(zip(['task_id', 'task_type', 'task_parameters', 'task_result'], result))) for result in results])
 
     # Todo: update to same output format as above??
     def get_results_by_query(self, queries):
