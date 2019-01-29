@@ -116,36 +116,54 @@ class SystemCore(object):
                 if not query[1].get('target_id', None):
                     query[1]['target_id'] = str(current_task_id)
 
-        existing_results = self._PSQL_api.get_results_by_query(queries)
+        old_tasks = self._PSQL_api.get_tasks_by_query(username, queries)
 
-        if existing_results:
-            old_queries, old_results = list(zip(*existing_results))
+        if old_tasks:
+            old_tasks = list(zip(*old_tasks))
         else:
-            old_queries, old_results = [[]] * 2
+            old_tasks = [[]] * 3
+
+        old_results = self._PSQL_api.get_results_by_query(queries)
+
+        if old_results:
+            old_results = list(zip(*old_results))
+        else:
+            old_results = [[]] * 2
 
         tasks = []
-        new_queries = []
+        new_tasks = []
+        new_results = []
 
         for query in queries:
+            task = Task(task_type=query[0], task_parameters=query[1], parent_id=current_task_id, username=username)
             try:
-                i = old_queries.index(query)
-                task = Task(task_type=query[0], task_parameters=query[1], parent_id=current_task_id,
-                            username=username, task_result=old_results[i])
+                i = old_tasks[1].index(query)
+                task['task_id'] = old_tasks[0][i]
+                task['parent_id'] = old_tasks[2][i]
             except ValueError:
-                task = Task(task_type=query[0], task_parameters=query[1], parent_id=current_task_id, username=username,
-                            task_result=conf.UNFINISHED_TASK_RESULT)
-                new_queries.append(task)
+                pass
+            try:
+                i = old_results[0].index(query)
+                task['task_result'] = old_results[1][i]
+            except ValueError:
+                pass
+
             tasks.append(task)
+            if task['task_id'] is None:
+                new_tasks.append(task)
+            if task['task_result'] is None:
+                new_results.append(task)
+                task['task_result'] = conf.UNFINISHED_TASK_RESULT
 
-        # This might not be needed at all
-        if new_queries and store_results:
-            self._PSQL_api.add_queries(new_queries)
+        if new_results:
+            self._PSQL_api.add_results(new_results)
 
-        task_ids = self._PSQL_api.add_tasks(tasks)
+        if new_tasks:
+            new_task_ids = self._PSQL_api.add_tasks(new_tasks)
 
-        # Add the correct ids to tasks
-        for task, id in zip(tasks, task_ids):
-            task['task_id'] = id
+            # Add the correct ids to tasks
+            for task, id in zip(new_tasks, new_task_ids):
+                task['task_id'] = id
 
         return tasks
 

@@ -184,6 +184,30 @@ class PSQLAPI(object):
             return None
         return dict([(str(result[0]), dict(zip(['task_id', 'task_type', 'task_parameters', 'task_result'], result))) for result in results])
 
+    def get_tasks_by_query(self, username, queries):
+        with self._conn as conn:
+            with conn.cursor() as curs:
+                execute_values(curs, """
+                    UPDATE task_history th
+                    SET last_accessed = NOW()
+                    FROM (
+                        SELECT h.task_id, h.task_type, h.task_parameters, h.parent_id, data.username
+                        FROM task_history h
+                        INNER JOIN (VALUES %s) AS data (username, task_type, task_parameters)
+                        ON h.task_type = data.task_type
+                        AND h.task_parameters = data.task_parameters
+                        AND h.user_id = (
+                            SELECT user_id FROM users WHERE users.username = data.username
+                        )
+                    ) AS e (task_id, task_type, task_parameters, parent_id, username)
+                    WHERE e.task_id = th.task_id
+                    RETURNING e.task_id, e.task_type, e.task_parameters, e.parent_id
+                """, [(username, query[0], Json(query[1])) for query in queries], template='(%s, %s, %s::jsonb)')
+                tasks = curs.fetchall()
+        if not tasks:
+            return None
+        return [(task[0], (task[1], task[2]), task[3]) for task in tasks]
+
     # Todo: update to same output format as above??
     def get_results_by_query(self, queries):
         with self._conn as conn:
@@ -243,7 +267,7 @@ class PSQLAPI(object):
         return id_list
 
     # Todo: Rename this
-    def add_queries(self, task_list):
+    def add_results(self, task_list):
         task_list = [(item['task_type'], Json(item['task_parameters']), Json(item['task_result'])) for item in task_list]
         while True:
             try:
