@@ -119,7 +119,7 @@ class SystemCore(object):
                 elif not query[1].get('target_id', None):
                     query[1]['target_id'] = str(current_task_id)
 
-        old_tasks = self._PSQL_api.get_tasks_by_query(username, queries)
+        old_tasks = self._PSQL_api.get_user_tasks_by_query(username, queries)
 
         if old_tasks:
             old_tasks = list(zip(*old_tasks))

@@ -184,7 +184,7 @@ class PSQLAPI(object):
             return None
         return dict([(str(result[0]), dict(zip(['task_id', 'task_type', 'task_parameters', 'task_result'], result))) for result in results])
 
-    def get_tasks_by_query(self, username, queries):
+    def get_user_tasks_by_query(self, username, queries):
         with self._conn as conn:
             with conn.cursor() as curs:
                 execute_values(curs, """
