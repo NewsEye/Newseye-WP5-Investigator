@@ -121,10 +121,21 @@ def analyze():
         try:
             arguments = request.json
             username = arguments.pop('username')
-            result = service.core.run_query_task(username, ('analysis', arguments))
-            return jsonify(result)
+            task_ids = service.core.run_query_task(username, ('analysis', arguments), return_task=False)
+            arguments['username'] = username
+            arguments['task_id'] = task_ids[0]
+            return jsonify(arguments)
         except Exception:
             return 'Something went wrong...', 500
+
+
+@app.route('/api/analysis/<string:task_id>')
+def get_results(task_id):
+    try:
+        result = service.core.get_results(task_id)
+        return jsonify(result[task_id])
+    except TypeError:
+        return 'Invalid task_id', 400
 
 
 @app.route('/api/login')

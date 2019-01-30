@@ -218,3 +218,12 @@ class SystemCore(object):
                     task['task_parameters'].pop('target_id')
             print("Got the query results: storing into database")
             self._PSQL_api.update_results(tasks_to_run)
+
+    def get_results(self, task_ids):
+        if type(task_ids) is not list:
+            task_ids = [task_ids]
+        results = self._PSQL_api.get_results_by_task_id(task_ids)
+        if results:
+            return results
+        else:
+            raise TypeError

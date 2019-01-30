@@ -169,20 +169,20 @@ class PSQLAPI(object):
                     UPDATE task_results tr
                     SET last_accessed = NOW()
                     FROM (
-                        SELECT h.task_id, h.task_type, h.task_parameters, r.task_result, r.result_id
+                        SELECT h.task_id, h.task_type, h.task_parameters, r.task_result, r.result_id, r.created_on, r.last_updated, r.last_accessed
                         FROM task_results r
                         INNER JOIN task_history h
                         ON r.task_type = h.task_type
                         AND r.task_parameters = h.task_parameters
                         WHERE h.task_id IN %s
-                    ) AS e (task_id, task_type, task_parameters, task_result, result_id)
+                    ) AS e (task_id, task_type, task_parameters, task_result, result_id, created_on, last_updated, last_accessed)
                     WHERE tr.result_id = e.result_id
-                    RETURNING e.task_id, e.task_type, e.task_parameters, e.task_result
+                    RETURNING e.task_id, e.task_type, e.task_parameters, e.task_result, e.created_on, e.last_updated, e.last_accessed
                 """, [tuple(task_ids)])
                 results = curs.fetchall()
         if not results:
             return None
-        return dict([(str(result[0]), dict(zip(['task_id', 'task_type', 'task_parameters', 'task_result'], result))) for result in results])
+        return dict([(str(result[0]), dict(zip(['task_id', 'task_type', 'task_parameters', 'task_result', 'created_on', 'last_updated', 'last_accessed'], result))) for result in results])
 
     def get_user_tasks_by_query(self, username, queries):
         with self._conn as conn:
