@@ -17,11 +17,6 @@ class AnalysisTools(object):
 
         self._core = core
 
-    # TODO: 1) retrieve the results using the target_ids for all of the queries in a single psql call
-    #          (use a dict {target_id: result})
-    #       2) generate the async tasks and run them in parallel
-    #       3) return all the analysis results (core takes care of updating them to the psql database)
-
     async def async_query(self, username, queries):
         target_ids = [query.get('target_id') for query in queries]
         # Todo: get rid of the direct database access in here. Perhaps pass the target_results as a parameter from the core?
@@ -49,7 +44,6 @@ class AnalysisTools(object):
         return facets
 
     async def common_topics(self, username, query, data):
-        # ToDO: Check that this works
         facet_counts = self._core.run_query_task(username, ('analysis', {'tool': 'extract_facets', 'target_id': query['target_id']}), threaded=False)[0]
         facet_counts = facet_counts['task_result']
         topics = facet_counts[conf.TOPIC_FACET][:int(query['n'])]

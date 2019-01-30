@@ -105,21 +105,26 @@ def test_topic_analysis():
     return jsonify(result)
 
 
-@app.route('/api/analysis')
+@app.route('/api/analysis', methods=['GET', 'POST'])
 def analyze():
     if 'username' not in session:
         return 'You are not logged in', 401
     username = session['username']
-    try:
-        result = service.core.run_query_task(username, ('analysis', request.args.to_dict()))
-        return jsonify(result)
-    # Todo: recognize cases where the user's current task is not set causing an error
-    except TypeError:
-        print(TypeError)
-        return 'Invalid tool name or invalid number of arguments for the chosen tool', 400
-    # except Exception:
-    #     print(Exception)
-    #     return 'Something went wrong...', 500
+    if request.method == 'GET':
+        try:
+            result = service.core.run_query_task(username, ('analysis', request.args.to_dict()))
+            return jsonify(result)
+        except TypeError:
+            print(TypeError)
+            return 'Invalid tool name or invalid number of arguments for the chosen tool', 400
+    if request.method == 'POST':
+        try:
+            arguments = request.json
+            username = arguments.pop('username')
+            result = service.core.run_query_task(username, ('analysis', arguments))
+            return jsonify(result)
+        except Exception:
+            return 'Something went wrong...', 500
 
 
 @app.route('/api/login')

@@ -2,7 +2,6 @@ from assistant.task import Task
 from assistant.database_access import *
 from assistant.analysis import *
 import threading
-import time
 import assistant.config as conf
 import datetime as dt
 
@@ -83,7 +82,6 @@ class SystemCore(object):
             t = threading.Thread(target=self.execute_tasks, args=[username, tasks, store_results])
             t.setDaemon(False)
             t.start()
-            time.sleep(3)
         else:
             self.execute_tasks(username, tasks, store_results)
 
@@ -110,10 +108,15 @@ class SystemCore(object):
         if current_task_id is None:
             current_task_id = '00000000-0000-0000-0000-000000000000'
 
-        # Add the id of the task with results to be analyzed if it is not specified already
+
+        # Todo: Use _only_ target_queries. If target id is specified, fetch the corresponding queries instead
         for query in queries:
             if query[0] == 'analysis':
-                if not query[1].get('target_id', None):
+                # Ensure that only target_query or target_id is specified
+                if query[1].get('target_query', None):
+                    query[1].pop('target_id', None)
+                # If neither is specified, use the current task_id as the target_id
+                elif not query[1].get('target_id', None):
                     query[1]['target_id'] = str(current_task_id)
 
         old_tasks = self._PSQL_api.get_tasks_by_query(username, queries)
@@ -179,6 +182,12 @@ class SystemCore(object):
         queries_to_run = [task for task in tasks_to_run if task['task_type'] == 'query']
         analysis_to_run = [task for task in tasks_to_run if task['task_type'] == 'analysis']
 
+        # Todo: Improvement to run all the extra queries in parallel
+        for task in analysis_to_run:
+            query = task['task_parameters'].get('target_query', None)
+            if query:
+                task['task_parameters']['target_id'] = str(self.run_query_task(username, query, threaded=False, return_task=False)[0])
+
         if len(queries_to_run) + len(analysis_to_run) == 0:
             print("All results already found in the local database")
             return
@@ -203,5 +212,9 @@ class SystemCore(object):
         # time, it would make sense to store the finished ones immediately instead of waiting for the last one, but I
         # doubt this would be the case here.
         if store_results:
+            # If the target_query is specified in the task, do not store the target_id
+            for task in tasks_to_run:
+                if task['task_parameters'].get('target_query', None):
+                    task['task_parameters'].pop('target_id')
             print("Got the query results: storing into database")
             self._PSQL_api.update_results(tasks_to_run)
