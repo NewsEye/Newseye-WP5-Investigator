@@ -112,12 +112,19 @@ class SystemCore(object):
         # Todo: Use _only_ target_queries. If target id is specified, fetch the corresponding queries instead
         for query in queries:
             if query[0] == 'analysis':
-                # Ensure that only target_query or target_id is specified
-                if query[1].get('target_query', None):
-                    query[1].pop('target_id', None)
-                # If neither is specified, use the current task_id as the target_id
-                elif not query[1].get('target_id', None):
-                    query[1]['target_id'] = str(current_task_id)
+                target_query = query[1].get('target_query', None)
+                if not target_query:
+                    target_id = query[1].get('target_id', None)
+                    if target_id:
+                        target_query = self._PSQL_api.get_results_by_task_id(target_id)[target_id]['task_parameters']
+                        query[1]['target_query'] = target_query
+
+                    # If neither is specified, use an empty query as the target_query
+                    else:
+                        query[1]['target_query'] = {'q': []}
+
+                # Remove the target_id parameters
+                query[1].pop('target_id', None)
 
         old_tasks = self._PSQL_api.get_user_tasks_by_query(username, queries)
 
@@ -174,8 +181,6 @@ class SystemCore(object):
 
         # Todo: delay estimates
         # ToDo: Add timeouts for the results: timestamps are already stored, simply rerun the query if the timestamp is too old.
-        # Todo: Better to pass the whole results list to the threaded part and do the selection of the queries to be re-executed there,
-        # ToDO: based on whether the result exists and how old it is?
 
         # Todo: Differentiate between currently running tasks and tasks that haven't been started yet
         tasks_to_run = [task for task in tasks if task['task_result'] == conf.UNFINISHED_TASK_RESULT]
@@ -183,8 +188,13 @@ class SystemCore(object):
         analysis_to_run = [task for task in tasks_to_run if task['task_type'] == 'analysis']
 
         # Todo: Improvement to run all the extra queries in parallel
+        # Todo: use generate_tasks() to generate the extra query tasks, and add them to tasks_to_run and queries_to_run
+        # ToDo: Then remember to make sure that the query results are stored to the database before running the analysis
+        # ToDo: tasks and adjust the code to use only queries instead of target_ids: just send the query results to the
+        # ToDo: analysis tasks
         for task in analysis_to_run:
             query = task['task_parameters'].get('target_query', None)
+            # This is stupid, need to avoid the whole target_id thing completely
             if query:
                 task['task_parameters']['target_id'] = str(self.run_query_task(username, query, threaded=False, return_task=False)[0])
 
