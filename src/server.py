@@ -122,9 +122,9 @@ def analyze():
             arguments = request.json
             username = arguments.pop('username')
             task_ids = service.core.run_query_task(username, ('analysis', arguments), return_task=False)
-            arguments['username'] = username
-            arguments['task_id'] = task_ids[0]
-            return jsonify(arguments)
+            response = {'task_id': task_ids[0], 'username': username}
+            response.update(arguments)
+            return jsonify(response)
         except Exception:
             return 'Something went wrong...', 500
 
