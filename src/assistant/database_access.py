@@ -163,6 +163,8 @@ class PSQLAPI(object):
         return dict([(str(result[0]), dict(zip(['result_id', 'task_type', 'task_parameters', 'task_result'], result))) for result in results])
 
     def get_results_by_task_id(self, task_ids):
+        if type(task_ids) is not list:
+            task_ids = [task_ids]
         with self._conn as conn:
             with conn.cursor() as curs:
                 curs.execute("""
