@@ -200,24 +200,29 @@ class SystemCore(object):
                 query_results = self.run(self._blacklight_api.async_query([task['task_parameters'] for task in queries_to_run]))
                 for task, result in zip(queries_to_run, query_results):
                     task['task_result'] = result
+                if store_results:
+                    self.store_results(queries_to_run)
 
             if analysis_to_run:
                 analysis_results = self.run(self._analysis.async_query(username, [task['task_parameters'] for task in analysis_to_run]))
                 for task, result in zip(analysis_to_run, analysis_results):
                     task['task_result'] = result
+                if store_results:
+                    self.store_results(analysis_to_run)
 
+    def store_results(self, tasks):
         # Store the new results to the database after everything has been finished
         # Todo: Should we offer the option to store results as soon as they are ready? Or do that by default?
         # Speedier results vs. more sql calls. If different tasks in the same query take wildly different amounts of
         # time, it would make sense to store the finished ones immediately instead of waiting for the last one, but I
         # doubt this would be the case here.
-        if store_results:
-            # If the target_query is specified in the task, do not store the target_id
-            for task in tasks_to_run:
-                if task['task_parameters'].get('target_query', None):
-                    task['task_parameters'].pop('target_id')
-            print("Got the query results: storing into database")
-            self._PSQL_api.update_results(tasks_to_run)
+
+        # If the target_query is specified in the task, do not store the target_id
+        for task in tasks:
+            if task['task_parameters'].get('target_query', None):
+                task['task_parameters'].pop('target_id')
+        print("Storing results into database")
+        self._PSQL_api.update_results(tasks)
 
     def get_results(self, task_ids):
         if type(task_ids) is not list:
