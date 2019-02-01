@@ -29,7 +29,7 @@ class BlacklightAPI(object):
                 params.update(query)
                 print("Log, appending query: {}".format(params))
                 tasks.append(self.fetch(session, params))
-            results = await asyncio.gather(*tasks, return_exceptions=True)
+            results = await asyncio.gather(*tasks)
         print("Queries finished, returning results")
         return results
 

@@ -28,7 +28,7 @@ class AnalysisTools(object):
             tool_name = query.get('tool')
             tasks.append(self._TOOL_LIST[tool_name](username, query, target_results[target_id]))
 
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        results = await asyncio.gather(*tasks)
         print("Queries finished, returning results")
         return results
 
