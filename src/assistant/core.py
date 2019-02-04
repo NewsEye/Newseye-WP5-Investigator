@@ -105,8 +105,8 @@ class SystemCore(object):
 
         # ToDo: need to check that this is a correct type. For now we'll assume that it is.
         current_task_id = self._PSQL_api.get_current_task_id(username)
-        if current_task_id is None:
-            current_task_id = '00000000-0000-0000-0000-000000000000'
+        # if current_task_id is None:
+        #     current_task_id = '00000000-0000-0000-0000-000000000000'
 
 
         # Todo: Use _only_ target_queries. If target id is specified, fetch the corresponding queries instead

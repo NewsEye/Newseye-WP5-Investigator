@@ -262,9 +262,6 @@ class PSQLAPI(object):
                             SELECT task_id, task_type, task_parameters, parent_id, user_id
                             FROM users INNER JOIN (VALUES %s) AS data (task_id, task_type, username, task_parameters, parent_id)
                             ON users.username = data.username
-                            ON CONFLICT ON CONSTRAINT task_history_user_id_parent_id_task_type_task_parameters_key
-                            DO UPDATE
-                            SET created_on = NOW()
                         """, [(i, *q) for i, q in zip(id_list, task_list)], template='(%s::uuid, %s, %s, %s::jsonb, %s::uuid)')
                         break
             except psycopg2.IntegrityError:
