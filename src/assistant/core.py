@@ -2,6 +2,7 @@ from assistant.task import Task
 from assistant.database_access import *
 from assistant.analysis import *
 import threading
+import time
 import assistant.config as conf
 import datetime as dt
 
@@ -82,6 +83,7 @@ class SystemCore(object):
             t = threading.Thread(target=self.execute_tasks, args=[username, tasks, store_results])
             t.setDaemon(False)
             t.start()
+            time.sleep(1)
         else:
             self.execute_tasks(username, tasks, store_results)
 
@@ -105,8 +107,6 @@ class SystemCore(object):
 
         # ToDo: need to check that this is a correct type. For now we'll assume that it is.
         current_task_id = self._PSQL_api.get_current_task_id(username)
-        # if current_task_id is None:
-        #     current_task_id = '00000000-0000-0000-0000-000000000000'
 
 
         # Todo: Use _only_ target_queries. If target id is specified, fetch the corresponding queries instead
@@ -126,12 +126,13 @@ class SystemCore(object):
                 # Remove the target_id parameters
                 query[1].pop('target_id', None)
 
+        # (task_id, query, task_status, parent_id)
         old_tasks = self._PSQL_api.get_user_tasks_by_query(username, queries)
 
         if old_tasks:
             old_tasks = list(zip(*old_tasks))
         else:
-            old_tasks = [[]] * 3
+            old_tasks = [[]] * 4
 
         old_results = self._PSQL_api.get_results_by_query(queries)
 
@@ -149,7 +150,8 @@ class SystemCore(object):
             try:
                 i = old_tasks[1].index(query)
                 task['task_id'] = old_tasks[0][i]
-                task['parent_id'] = old_tasks[2][i]
+                task['parent_id'] = old_tasks[3][i]
+                task['task_status'] = old_tasks[2][i]
             except ValueError:
                 pass
             try:
@@ -163,7 +165,6 @@ class SystemCore(object):
                 new_tasks.append(task)
             if task['task_result'] is None:
                 new_results.append(task)
-                task['task_result'] = conf.UNFINISHED_TASK_RESULT
 
         if new_results:
             self._PSQL_api.add_results(new_results)
@@ -182,10 +183,13 @@ class SystemCore(object):
         # Todo: delay estimates
         # ToDo: Add timeouts for the results: timestamps are already stored, simply rerun the query if the timestamp is too old.
 
-        # Todo: Differentiate between currently running tasks and tasks that haven't been started yet
-        tasks_to_run = [task for task in tasks if task['task_result'] == conf.UNFINISHED_TASK_RESULT]
+        tasks_to_run = [task for task in tasks if task['task_status'] == 'created']
         queries_to_run = [task for task in tasks_to_run if task['task_type'] == 'query']
         analysis_to_run = [task for task in tasks_to_run if task['task_type'] == 'analysis']
+
+        for task in tasks_to_run:
+            task['task_status'] = 'running'
+        self._PSQL_api.update_status(username, tasks_to_run)
 
         # Todo: Improvement to run all the extra queries in parallel
         # Todo: use generate_tasks() to generate the extra query tasks, and add them to tasks_to_run and queries_to_run
@@ -210,17 +214,19 @@ class SystemCore(object):
                 query_results = self.run(self._blacklight_api.async_query([task['task_parameters'] for task in queries_to_run]))
                 for task, result in zip(queries_to_run, query_results):
                     task['task_result'] = result
+                    task['task_status'] = 'finished'
                 if store_results:
-                    self.store_results(queries_to_run)
+                    self.store_results(username, queries_to_run)
 
             if analysis_to_run:
                 analysis_results = self.run(self._analysis.async_query(username, [task['task_parameters'] for task in analysis_to_run]))
                 for task, result in zip(analysis_to_run, analysis_results):
                     task['task_result'] = result
+                    task['task_status'] = 'finished'
                 if store_results:
-                    self.store_results(analysis_to_run)
+                    self.store_results(username, analysis_to_run)
 
-    def store_results(self, tasks):
+    def store_results(self, username, tasks):
         # Store the new results to the database after everything has been finished
         # Todo: Should we offer the option to store results as soon as they are ready? Or do that by default?
         # Speedier results vs. more sql calls. If different tasks in the same query take wildly different amounts of
@@ -232,7 +238,7 @@ class SystemCore(object):
             if task['task_parameters'].get('target_query', None):
                 task['task_parameters'].pop('target_id')
         print("Storing results into database")
-        self._PSQL_api.update_results(tasks)
+        self._PSQL_api.update_results(username, tasks)
 
     def get_results(self, task_ids):
         if type(task_ids) is not list:
