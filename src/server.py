@@ -51,16 +51,6 @@ def query():
         return '', 204
 
 
-@app.route('/api/state/<string:state_id>')
-def change_state(state_id):
-    if 'username' not in session:
-        return 'You are not logged in', 401
-    username = session['username']
-    new_state = service.core.get_state(username, state_id)
-    service.core.set_state(username, new_state)
-    return jsonify(new_state)
-
-
 @app.route('/catalog.json')
 def passthrough():
     if 'username' not in session:

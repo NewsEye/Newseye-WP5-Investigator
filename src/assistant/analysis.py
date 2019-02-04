@@ -17,6 +17,8 @@ class AnalysisTools(object):
 
         self._core = core
 
+
+    # TODO: The API for retrieving descriptions of available tools,
     async def async_query(self, username, queries):
         target_ids = [query.get('target_id') for query in queries]
         # Todo: get rid of the direct database access in here. Perhaps pass the target_results as a parameter from the core?

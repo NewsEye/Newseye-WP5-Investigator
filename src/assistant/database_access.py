@@ -125,43 +125,6 @@ class PSQLAPI(object):
             return None
         return dict(zip(['task_id', 'task_type', 'task_parameters', 'task_status', 'task_result', 'parent_id'], current_task))
 
-    def get_task_by_id(self, username, task_id):
-        with self._conn as conn:
-            with conn.cursor() as curs:
-                curs.execute("""
-                    UPDATE task_results r
-                    SET last_accessed = NOW()
-                    FROM task_history h
-                    INNER JOIN r
-                    ON h.task_type = r.task_type
-                    AND h.task_parameters = r.task_parameters
-                    WHERE task_id = %s
-                    AND user_id = (
-                        SELECT user_id
-                        FROM users
-                        WHERE username = %s
-                    )
-                    RETURNING task_id, h.task_type, h.task_parameters, task_result, result_id, parent_id
-                """, [task_id, username])
-                query = curs.fetchone()
-        if not query:
-            return None
-        return dict(zip(['task_id', 'task_type', 'task_parameters', 'task_result', 'result_id', 'parent_id'], query))
-
-    def get_results_by_id(self, result_ids):
-        with self._conn as conn:
-            with conn.cursor() as curs:
-                curs.execute("""
-                    UPDATE task_results r
-                    SET last_accessed = NOW()
-                    WHERE result_id IN %s
-                    RETURNING result_id, task_type, task_parameters, task_result
-                """, [tuple(result_ids)])
-                results = curs.fetchall()
-        if not results:
-            return None
-        return dict([(str(result[0]), dict(zip(['result_id', 'task_type', 'task_parameters', 'task_result'], result))) for result in results])
-
     def get_results_by_task_id(self, task_ids):
         if type(task_ids) is not list:
             task_ids = [task_ids]
@@ -268,7 +231,6 @@ class PSQLAPI(object):
                 id_list = [uuid.uuid4() for task in task_list]
         return id_list
 
-    # Todo: Rename this
     def add_results(self, task_list):
         task_list = [(item['task_type'], Json(item['task_parameters']), Json(item['task_result'])) for item in task_list]
         while True:
