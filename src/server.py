@@ -8,14 +8,14 @@ from flask_cors import CORS
 #
 
 # Logging
-# import logging
-# formatter = logging.Formatter(fmt='%(asctime)s - %(levelname)s - %(module)s - %(message)s')
-# handler = logging.StreamHandler()
-# handler.setFormatter(formatter)
-# log = logging.getLogger('root')
-# log.setLevel(logging.INFO)
-# #log.setLevel(5) # Enable for way too much logging, even more than DEBUG
-# log.addHandler(handler)
+import logging
+formatter = logging.Formatter(fmt='%(asctime)s - %(levelname)s - %(module)s - %(message)s')
+handler = logging.StreamHandler()
+handler.setFormatter(formatter)
+log = logging.getLogger('root')
+log.setLevel(logging.DEBUG)
+#log.setLevel(5) # Enable for way too much logging, even more than DEBUG
+log.addHandler(handler)
 
 # Flask
 app = Flask(__name__)
@@ -73,16 +73,16 @@ def quick_query():
     query = request.args.to_dict(flat=False)
     try:
         results = service.core.run_query_task(username, ('query', query))
-    except Exception:
-        print(Exception)
+    except Exception as e:
+        log.exception(e)
         return 'Something went wrong...', 500
     try:
         for result in results:
             if result['task_status'] != 'finished':
                 return jsonify(results), 202
         return jsonify(results)
-    except Exception:
-        print(Exception)
+    except Exception as e:
+        log.exception(e)
         return 'Something went wrong...', 500
 
 
@@ -104,8 +104,8 @@ def analyze():
         try:
             result = service.core.run_query_task(username, ('analysis', request.args.to_dict()))
             return jsonify(result)
-        except TypeError:
-            print(TypeError)
+        except TypeError as e:
+            log.exception(e)
             return 'Invalid tool name or invalid number of arguments for the chosen tool', 400
     if request.method == 'POST':
         try:
@@ -115,7 +115,8 @@ def analyze():
             response = {'task_id': task_ids[0], 'username': username}
             response.update(arguments)
             return jsonify(response)
-        except Exception:
+        except Exception as e:
+            log.exception(e)
             return 'Something went wrong...', 500
 
 
@@ -124,7 +125,8 @@ def get_results(task_id):
     try:
         result = service.core.get_results(task_id)
         return jsonify(result[task_id])
-    except TypeError:
+    except TypeError as e:
+        log.exception(e)
         return 'Invalid task_id', 400
 
 
@@ -138,10 +140,11 @@ def login():
     session['username'] = username
     try:
         last_login = service.core.login_user(username)
-    except IndexError:
+    except IndexError as e:
+        log.exception(e)
         return 'Invalid username {}!'.format(username), 401
-    except Exception:
-        print(Exception)
+    except Exception as e:
+        log.exception(e)
         return 'Something went wrong...', 500
     return 'Welcome, {}. Last login: {}'.format(username, last_login), 200
 
@@ -157,13 +160,15 @@ def add_user():
     try:
         service.core.add_user(username, new_user)
         return 'User {} created'.format(new_user), 200
-    except TypeError:
+    except TypeError as e:
+        log.exception(e)
         return 'Cannot add user {}: username already in use!'.format(new_user), 400
-    except ValueError:
+    except ValueError as e:
+        log.exception(e)
         # Todo: fix this as well when adding proper admin users!
         return "Only user 'admin' can add new users!", 401
-    except Exception:
-        print(Exception)
+    except Exception as e:
+        log.exception(e)
         return 'Something went wrong...', 500
 
 
