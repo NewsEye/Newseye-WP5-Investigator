@@ -46,8 +46,8 @@ class AnalysisTools(object):
         return facets
 
     async def common_topics(self, username, query, data):
-        facet_counts = self._core.run_query_task(username, ('analysis', {'tool': 'extract_facets', 'target_id': query['target_id']}), threaded=False)[0]
-        facet_counts = facet_counts['task_result']
+        facet_counts = await self._core.execute_async_tasks(username, ('analysis', {'tool': 'extract_facets', 'target_id': query['target_id']}))
+        facet_counts = facet_counts[0]['task_result']
         topics = facet_counts[conf.TOPIC_FACET][:int(query['n'])]
         return topics
 
@@ -65,7 +65,7 @@ class AnalysisTools(object):
         queries = [{'f[{}][]'.format(conf.PUB_YEAR_FACET): item[0]} for item in pub_dates]
         for query in queries:
             query.update(last_query)
-        results = self._core.run_query_task(username, queries, threaded=False)
+        results = await self._core.execute_async_tasks(username, queries)
         t_counts = []
         for task in results:
             query, data = itemgetter('task_parameters', 'task_result')(task)

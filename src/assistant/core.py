@@ -5,6 +5,7 @@ import threading
 import time
 import assistant.config as conf
 import datetime as dt
+import asyncio
 
 
 class SystemCore(object):
@@ -52,40 +53,23 @@ class SystemCore(object):
                 tree['root'].append(task)
         return tree
 
-    @staticmethod
-    def run(task=None, loop=None):
-        if loop is None:
-            loop = asyncio.get_event_loop()
-        if task is None:
-            return loop.run_forever()
-        else:
-            return loop.run_until_complete(task)
-
-    def run_query_task(self, username, queries, switch_task=False, threaded=True, return_task=True, store_results=True):
+    def run_query_task(self, username, queries, switch_task=False, return_task=True, store_results=True):
         """
         Generate tasks from queries and execute them.
         :param username: the user who is requesting the queries
         :param queries: a single query or a list of queries
         :param switch_task: If true, the current task for the user will be updated to the one generated. If multiple
         queries are run in parallel, the current task will not be updated.
-        :param threaded: If true, the queries will be run in a separate thread. If set to false, no response will be
-        sent to the user until the queries are finished, regardless of how long they take. When set to true, if the
-        queries take a long time to complete, the user will get a reply showing that the queries are still running, and
-        they can retrieve the results at a later time.
         :param return_task: If true, the task object (or a list of task objects) is returned to the user in json format.
         If false, only the task_id (or a list of task_ids) is returned
         :return: A list of task_objects or task_ids corresponding to the queries.
         """
-        tasks = self.generate_tasks(username, queries, store_results)
+        tasks = self.generate_tasks(username, queries)
 
-        # If the tasks are run as threaded
-        if threaded:
-            t = threading.Thread(target=self.execute_tasks, args=[username, tasks, store_results])
-            t.setDaemon(False)
-            t.start()
-            time.sleep(1)
-        else:
-            self.execute_tasks(username, tasks, store_results)
+        t = threading.Thread(target=self.execute_task_thread, args=[username, tasks, store_results])
+        t.setDaemon(False)
+        t.start()
+        time.sleep(1)
 
         if switch_task:
             self._PSQL_api.set_current_task(username, tasks[0]['task_id'])
@@ -94,7 +78,61 @@ class SystemCore(object):
         else:
             return [item['task_id'] for item in tasks]
 
-    def generate_tasks(self, username, queries, store_results):
+    async def execute_async_tasks(self, username, queries=None, tasks=None, store_results=True, return_tasks=True):
+        if not tasks:
+            tasks = self.generate_tasks(username, queries)
+
+        # Todo: delay estimates: based on old runtime history for similar tasks?
+        # ToDo: Add timeouts for the results: timestamps are already stored, simply rerun the query if the timestamp is too old.
+
+        tasks_to_run = [task for task in tasks if task['task_status'] == 'created']
+        queries_to_run = [task for task in tasks_to_run if task['task_type'] == 'query']
+        analysis_to_run = [task for task in tasks_to_run if task['task_type'] == 'analysis']
+
+        for task in tasks_to_run:
+            task['task_status'] = 'running'
+        self._PSQL_api.update_status(username, tasks_to_run)
+
+        # Todo: Improvement to run all the extra queries in parallel
+        # Todo: use generate_tasks() to generate the extra query tasks, and add them to tasks_to_run and queries_to_run
+        # ToDo: Then remember to make sure that the query results are stored to the database before running the analysis
+        # ToDo: tasks and adjust the code to use only queries instead of target_ids: just send the query results to the
+        # ToDo: analysis tasks
+        for task in analysis_to_run:
+            query = task['task_parameters'].get('target_query', None)
+            # This is stupid, need to avoid the whole target_id thing completely
+            if query:
+                result = await self.execute_async_tasks(username, query, return_tasks=False)
+                task['task_parameters']['target_id'] = str(result[0])
+
+        if len(queries_to_run) + len(analysis_to_run) == 0:
+            print("All results already found in the local database")
+        else:
+            # Note: now we are running first all the queries and then all the analysis, which is suboptimal, but
+            # I would expect a single tasklist to include only tasks of one type. If this is not the case, then it
+            # might be useful to add functionality to run everything in parallel.
+            if queries_to_run:
+                query_results = await self._blacklight_api.async_query([task['task_parameters'] for task in queries_to_run])
+                for task, result in zip(queries_to_run, query_results):
+                    task['task_result'] = result
+                    task['task_status'] = 'finished'
+                if store_results:
+                    self.store_results(username, queries_to_run)
+
+            if analysis_to_run:
+                analysis_results = await self._analysis.async_query(username, [task['task_parameters'] for task in analysis_to_run])
+                for task, result in zip(analysis_to_run, analysis_results):
+                    task['task_result'] = result
+                    task['task_status'] = 'finished'
+                if store_results:
+                    self.store_results(username, analysis_to_run)
+
+        if return_tasks:
+            return tasks
+        else:
+            return [item['task_id'] for item in tasks]
+
+    def generate_tasks(self, username, queries):
 
         if type(queries) is not list:
             queries = [queries]
@@ -107,7 +145,6 @@ class SystemCore(object):
 
         # ToDo: need to check that this is a correct type. For now we'll assume that it is.
         current_task_id = self._PSQL_api.get_current_task_id(username)
-
 
         # Todo: Use _only_ target_queries. If target id is specified, fetch the corresponding queries instead
         for query in queries:
@@ -178,53 +215,10 @@ class SystemCore(object):
 
         return tasks
 
-    def execute_tasks(self, username, tasks, store_results):
+    def execute_task_thread(self, username, tasks, store_results):
 
-        # Todo: delay estimates
-        # ToDo: Add timeouts for the results: timestamps are already stored, simply rerun the query if the timestamp is too old.
-
-        tasks_to_run = [task for task in tasks if task['task_status'] == 'created']
-        queries_to_run = [task for task in tasks_to_run if task['task_type'] == 'query']
-        analysis_to_run = [task for task in tasks_to_run if task['task_type'] == 'analysis']
-
-        for task in tasks_to_run:
-            task['task_status'] = 'running'
-        self._PSQL_api.update_status(username, tasks_to_run)
-
-        # Todo: Improvement to run all the extra queries in parallel
-        # Todo: use generate_tasks() to generate the extra query tasks, and add them to tasks_to_run and queries_to_run
-        # ToDo: Then remember to make sure that the query results are stored to the database before running the analysis
-        # ToDo: tasks and adjust the code to use only queries instead of target_ids: just send the query results to the
-        # ToDo: analysis tasks
-        for task in analysis_to_run:
-            query = task['task_parameters'].get('target_query', None)
-            # This is stupid, need to avoid the whole target_id thing completely
-            if query:
-                task['task_parameters']['target_id'] = str(self.run_query_task(username, query, threaded=False, return_task=False)[0])
-
-        if len(queries_to_run) + len(analysis_to_run) == 0:
-            print("All results already found in the local database")
-            return
-        else:
-            asyncio.set_event_loop(asyncio.new_event_loop())
-            # Note: now we are running first all the queries and then all the analysis, which is suboptimal, but
-            # I would expect a single tasklist to include only tasks of one type. If this is not the case, then it
-            # might be useful to add functionality to run everything in parallel.
-            if queries_to_run:
-                query_results = self.run(self._blacklight_api.async_query([task['task_parameters'] for task in queries_to_run]))
-                for task, result in zip(queries_to_run, query_results):
-                    task['task_result'] = result
-                    task['task_status'] = 'finished'
-                if store_results:
-                    self.store_results(username, queries_to_run)
-
-            if analysis_to_run:
-                analysis_results = self.run(self._analysis.async_query(username, [task['task_parameters'] for task in analysis_to_run]))
-                for task, result in zip(analysis_to_run, analysis_results):
-                    task['task_result'] = result
-                    task['task_status'] = 'finished'
-                if store_results:
-                    self.store_results(username, analysis_to_run)
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(self.execute_async_tasks(username=username, tasks=tasks, store_results=store_results, return_tasks=False))
 
     def store_results(self, username, tasks):
         # Store the new results to the database after everything has been finished
