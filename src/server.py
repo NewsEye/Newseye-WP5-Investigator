@@ -137,15 +137,14 @@ def login():
     username = request.args.get('username')
     if username is None:
         return "Missing parameter: username", 400
-    session['username'] = username
     try:
         last_login = service.core.login_user(username)
     except IndexError as e:
-        log.exception(e)
         return 'Invalid username {}!'.format(username), 401
     except Exception as e:
         log.exception(e)
         return 'Something went wrong...', 500
+    session['username'] = username
     return 'Welcome, {}. Last login: {}'.format(username, last_login), 200
 
 
