@@ -69,7 +69,14 @@ class SystemCore(object):
         t = threading.Thread(target=self.execute_task_thread, args=[username, tasks, store_results])
         t.setDaemon(False)
         t.start()
-        time.sleep(1)
+
+        # Wait until the thread has started the tasks until responding to the user
+        i = 0
+        while i < len(tasks):
+            if tasks[i]['task_status'] == 'created':
+                time.sleep(.5)
+            else:
+                i += 1
 
         if switch_task:
             self._PSQL_api.set_current_task(username, tasks[0]['task_id'])
