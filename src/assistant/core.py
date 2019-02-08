@@ -134,6 +134,8 @@ class SystemCore(object):
 
     def generate_tasks(self, username, queries):
 
+        # TODO: Spot and properly handle duplicate tasks when added within the same request
+
         if type(queries) is not list:
             queries = [queries]
 
@@ -184,23 +186,19 @@ class SystemCore(object):
 
         for query in queries:
             task = Task(task_type=query[0], task_parameters=query[1], parent_id=current_task_id, username=username)
+            tasks.append(task)
+
             try:
                 i = old_tasks[1].index(query)
                 task['task_id'] = old_tasks[0][i]
                 task['parent_id'] = old_tasks[3][i]
                 task['task_status'] = old_tasks[2][i]
             except ValueError:
-                pass
+                new_tasks.append(task)
             try:
                 i = old_results[0].index(query)
                 task['task_result'] = old_results[1][i]
             except ValueError:
-                pass
-
-            tasks.append(task)
-            if task['task_id'] is None:
-                new_tasks.append(task)
-            if task['task_result'] is None:
                 new_results.append(task)
 
         if new_results:
