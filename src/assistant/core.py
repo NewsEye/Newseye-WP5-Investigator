@@ -89,25 +89,25 @@ class SystemCore(object):
         queries_to_run = [task for task in tasks_to_run if task['task_type'] == 'query']
         analysis_to_run = [task for task in tasks_to_run if task['task_type'] == 'analysis']
 
-        for task in tasks_to_run:
-            task['task_status'] = 'running'
-        self._PSQL_api.update_status(username, tasks_to_run)
-
-        # Todo: Improvement to run all the extra queries in parallel
-        # Todo: use generate_tasks() to generate the extra query tasks, and add them to tasks_to_run and queries_to_run
-        # ToDo: Then remember to make sure that the query results are stored to the database before running the analysis
-        # ToDo: tasks and adjust the code to use only queries instead of target_ids: just send the query results to the
-        # ToDo: analysis tasks
-        for task in analysis_to_run:
-            query = task['task_parameters'].get('target_query', None)
-            # This is stupid, need to avoid the whole target_id thing completely
-            if query:
-                result = await self.execute_async_tasks(username, query, return_tasks=False)
-                task['task_parameters']['target_id'] = str(result[0])
-
-        if len(queries_to_run) + len(analysis_to_run) == 0:
+        if not tasks_to_run:
             print("All results already found in the local database")
         else:
+            for task in tasks_to_run:
+                task['task_status'] = 'running'
+            self._PSQL_api.update_status(username, tasks_to_run)
+
+            # Todo: Improvement to run all the extra queries in parallel
+            # Todo: use generate_tasks() to generate the extra query tasks, and add them to tasks_to_run and queries_to_run
+            # ToDo: Then remember to make sure that the query results are stored to the database before running the analysis
+            # ToDo: tasks and adjust the code to use only queries instead of target_ids: just send the query results to the
+            # ToDo: analysis tasks
+            for task in analysis_to_run:
+                query = task['task_parameters'].get('target_query', None)
+                # This is stupid, need to avoid the whole target_id thing completely
+                if query:
+                    result = await self.execute_async_tasks(username, query, return_tasks=False)
+                    task['task_parameters']['target_id'] = str(result[0])
+
             # Note: now we are running first all the queries and then all the analysis, which is suboptimal, but
             # I would expect a single tasklist to include only tasks of one type. If this is not the case, then it
             # might be useful to add functionality to run everything in parallel.
