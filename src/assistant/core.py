@@ -85,6 +85,11 @@ class SystemCore(object):
         else:
             return [item['task_id'] for item in tasks]
 
+    def execute_task_thread(self, username, tasks, store_results):
+
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(self.execute_async_tasks(username=username, tasks=tasks, store_results=store_results, return_tasks=False))
+
     async def execute_async_tasks(self, username, queries=None, tasks=None, store_results=True, return_tasks=True):
         if not tasks:
             tasks = self.generate_tasks(username, queries)
@@ -219,11 +224,6 @@ class SystemCore(object):
                 task['task_id'] = id
 
         return tasks
-
-    def execute_task_thread(self, username, tasks, store_results):
-
-        loop = asyncio.new_event_loop()
-        loop.run_until_complete(self.execute_async_tasks(username=username, tasks=tasks, store_results=store_results, return_tasks=False))
 
     def store_results(self, username, tasks):
         # Store the new results to the database after everything has been finished
