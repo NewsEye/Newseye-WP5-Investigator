@@ -52,7 +52,7 @@ class AnalysisTools(object):
         return topics
 
     async def topic_analysis(self, username, query, data):
-        if data is None or data['task_result'] == conf.UNFINISHED_TASK_RESULT:
+        if data is None or data['task_status'] != 'finished':
             raise TypeError("No query results available for analysis")
         for item in data['task_result']['included']:
             if item['id'] == conf.PUB_YEAR_FACET and item['type'] == 'facet':
