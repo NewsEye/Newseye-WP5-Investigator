@@ -130,7 +130,7 @@ class SystemCore(object):
                     self.store_results(username, queries_to_run)
 
             if analysis_to_run:
-                analysis_results = await self._analysis.async_query(username, [task['task_parameters'] for task in analysis_to_run])
+                analysis_results = await self._analysis.async_analysis(username, analysis_to_run)
                 for task, result in zip(analysis_to_run, analysis_results):
                     task['task_result'] = result
                     task['task_status'] = 'finished'
