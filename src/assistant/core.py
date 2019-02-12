@@ -3,7 +3,6 @@ from assistant.database_access import *
 from assistant.analysis import *
 import threading
 import time
-import assistant.config as conf
 import datetime as dt
 import asyncio
 
@@ -12,7 +11,7 @@ class SystemCore(object):
     def __init__(self):
         self._blacklight_api = BlacklightAPI()
         self._PSQL_api = PSQLAPI()
-        self._analysis = AnalysisTools(self, self._PSQL_api)
+        self._analysis = AnalysisTools(self)
 
     def add_user(self, username, new_username):
         # Todo: add user types + limit user creation etc. to admins
@@ -108,20 +107,19 @@ class SystemCore(object):
                 task['task_status'] = 'running'
             self._PSQL_api.update_status(username, tasks_to_run)
 
-            # Todo: Improvement to run all the extra queries in parallel
-            # Todo: use generate_tasks() to generate the extra query tasks, and add them to tasks_to_run and queries_to_run
-            # ToDo: Then remember to make sure that the query results are stored to the database before running the analysis
-            # ToDo: tasks and adjust the code to use only queries instead of target_ids: just send the query results to the
-            # ToDo: analysis tasks
-            for task in analysis_to_run:
-                query = task['task_parameters'].get('target_query', None)
-                # This is stupid, need to avoid the whole target_id thing completely
-                if query:
-                    result = await self.execute_async_tasks(username, query, return_tasks=False)
-                    task['task_parameters']['target_id'] = str(result[0])
+            # Todo: Possibility of directly sending data instead of target_query for the analysis tasks??
+            # FIX: Send the whole task instead of just the result
+
+            if analysis_to_run:
+                # Fetch the data required by the analysis tasks
+                extra_queries = [task['task_parameters'].get('target_query', None) for task in analysis_to_run]
+                query_results = await self.execute_async_tasks(username, queries=extra_queries)
+
+                for task, result in zip(analysis_to_run, query_results):
+                    task['task_parameters']['data'] = result
 
             # Note: now we are running first all the queries and then all the analysis, which is suboptimal, but
-            # I would expect a single tasklist to include only tasks of one type. If this is not the case, then it
+            # I would expect a single task list to include only tasks of one type. If this is not the case, then it
             # might be useful to add functionality to run everything in parallel.
             if queries_to_run:
                 query_results = await self._blacklight_api.async_query([task['task_parameters'] for task in queries_to_run])
@@ -147,6 +145,7 @@ class SystemCore(object):
     def generate_tasks(self, username, queries):
 
         # TODO: Spot and properly handle duplicate tasks when added within the same request
+        # TODO: Check the following: Does the system use an old result produced by a different user or will it rerun the task, since it is "new"?
 
         if type(queries) is not list:
             queries = [queries]
@@ -160,7 +159,6 @@ class SystemCore(object):
         # ToDo: need to check that this is a correct type. For now we'll assume that it is.
         current_task_id = self._PSQL_api.get_current_task_id(username)
 
-        # Todo: Use _only_ target_queries. If target id is specified, fetch the corresponding queries instead
         for query in queries:
             if query[0] == 'analysis':
                 target_query = query[1].get('target_query', None)
@@ -232,10 +230,10 @@ class SystemCore(object):
         # time, it would make sense to store the finished ones immediately instead of waiting for the last one, but I
         # doubt this would be the case here.
 
-        # If the target_query is specified in the task, do not store the target_id
+        # Do not store the target_id even if one has been temporarily set
         for task in tasks:
-            if task['task_parameters'].get('target_query', None):
-                task['task_parameters'].pop('target_id')
+            task['task_parameters'].pop('target_id', None)
+            task['task_parameters'].pop('data', None)
         print("Storing results into database")
         self._PSQL_api.update_results(username, tasks)
 

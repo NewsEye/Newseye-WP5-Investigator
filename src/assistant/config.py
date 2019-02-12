@@ -1,7 +1,20 @@
 # Configuration parameters:
 
-PUB_YEAR_FACET = 'pub_date_ssim'
+DATABASE_IN_USE = 'demo'
 
-TOPIC_FACET = 'subject_ssim'
+# DATABASE_IN_USE = 'newseye'
 
-UNFINISHED_TASK_RESULT = {'message': 'Still running'}
+if DATABASE_IN_USE == 'demo':
+
+    AVAILABLE_FACETS = {
+        'PUB_YEAR': 'pub_date_ssim',
+        'TOPIC': 'subject_ssim'
+    }
+
+if DATABASE_IN_USE == 'newseye':
+
+    AVAILABLE_FACETS = {
+        'DOCUMENT_LANGUAGE_FACET': 'language_ssi',
+        'NEWSPAPER_NAME_FACET': 'member_of_collection_ids_ssim',
+        'PUB_DATE': 'date_created_dtsi'
+    }
