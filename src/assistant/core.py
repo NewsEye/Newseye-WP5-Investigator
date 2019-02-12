@@ -89,9 +89,9 @@ class SystemCore(object):
         loop = asyncio.new_event_loop()
         loop.run_until_complete(self.execute_async_tasks(username=username, tasks=tasks, store_results=store_results, return_tasks=False))
 
-    async def execute_async_tasks(self, username, queries=None, tasks=None, store_results=True, return_tasks=True):
+    async def execute_async_tasks(self, username, queries=None, tasks=None, store_results=True, return_tasks=True, parent_id=None):
         if not tasks:
-            tasks = self.generate_tasks(username, queries)
+            tasks = self.generate_tasks(username, queries, parent_id=parent_id)
 
         # Todo: delay estimates: based on old runtime history for similar tasks?
         # ToDo: Add timeouts for the results: timestamps are already stored, simply rerun the query if the timestamp is too old.
@@ -142,7 +142,7 @@ class SystemCore(object):
         else:
             return [item['task_id'] for item in tasks]
 
-    def generate_tasks(self, username, queries):
+    def generate_tasks(self, username, queries, parent_id=None):
 
         # TODO: Spot and properly handle duplicate tasks when added within the same request
         # TODO: Check the following: Does the system use an old result produced by a different user or will it rerun the task, since it is "new"?
@@ -157,7 +157,8 @@ class SystemCore(object):
             raise ValueError
 
         # ToDo: need to check that this is a correct type. For now we'll assume that it is.
-        current_task_id = self._PSQL_api.get_current_task_id(username)
+        if not parent_id:
+            parent_id = self._PSQL_api.get_current_task_id(username)
 
         for query in queries:
             if query[0] == 'analysis':
@@ -195,7 +196,7 @@ class SystemCore(object):
         new_results = []
 
         for query in queries:
-            task = Task(task_type=query[0], task_parameters=query[1], parent_id=current_task_id, username=username)
+            task = Task(task_type=query[0], task_parameters=query[1], parent_id=parent_id, username=username)
             tasks.append(task)
 
             try:
