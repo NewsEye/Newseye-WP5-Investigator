@@ -106,7 +106,7 @@ class SystemCore(object):
         else:
             for task in tasks_to_run:
                 task['task_status'] = 'running'
-            self._PSQL_api.update_status(username, tasks_to_run)
+            self._PSQL_api.update_status(tasks_to_run)
 
             # Todo: Possibility of directly sending data instead of target_query for the analysis tasks??
 
@@ -233,7 +233,7 @@ class SystemCore(object):
             task['task_parameters'].pop('target_id', None)
             task.pop('target_task', None)
         print("Storing results into database")
-        self._PSQL_api.add_results(username, tasks)
+        self._PSQL_api.add_results(tasks)
 
     def get_results(self, task_ids):
         if not isinstance(task_ids, list):

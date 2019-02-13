@@ -232,7 +232,7 @@ class PSQLAPI(object):
         return id_list
 
     # TODO: Do we need to update also the parent_ids in some cases???
-    def add_results(self, username, task_list):
+    def add_results(self, task_list):
         with self._conn as conn:
             with conn.cursor() as curs:
                 execute_values(curs, """
@@ -250,17 +250,15 @@ class PSQLAPI(object):
                 execute_values(curs, """
                 UPDATE task_history h
                 SET task_status = data.task_status,
+                    parent_id = data.parent_id,
                     last_updated = NOW(),
                     last_accessed = NOW()
-                FROM users INNER JOIN (VALUES %s) AS data (username, task_type, task_parameters, task_status)
-                    ON users.username = data.username
-                WHERE h.user_id = users.user_id
-                AND h.task_type = data.task_type
-                AND h.task_parameters = data.task_parameters
-                """, [(username, task['task_type'], Json(task['task_parameters']), task['task_status']) for task
-                      in task_list], template='(%s, %s, %s::jsonb, %s)')
+                FROM (VALUES %s) AS data (task_id, task_status, parent_id)
+                WHERE h.task_id = data.task_id
+                """, [(task['task_id'], task['task_status'], task['parent_id']) for task
+                      in task_list], template='(%s::uuid, %s, %s::uuid)')
 
-    def update_status(self, username, task_list):
+    def update_status(self, task_list):
         with self._conn as conn:
             with conn.cursor() as curs:
                 execute_values(curs, """
@@ -268,9 +266,6 @@ class PSQLAPI(object):
                 SET task_status = data.task_status,
                     last_updated = NOW(),
                     last_accessed = NOW()
-                FROM users INNER JOIN (VALUES %s) AS data (username, task_type, task_parameters, task_status)
-                    ON users.username = data.username
-                WHERE h.user_id = users.user_id
-                AND h.task_type = data.task_type
-                AND h.task_parameters = data.task_parameters
-                """, [(username, task['task_type'], Json(task['task_parameters']), task['task_status']) for task in task_list], template='(%s, %s, %s::jsonb, %s)')
+                FROM (VALUES %s) AS data (task_id, task_status)
+                WHERE h.task_id = data.task_id
+                """, [(task['task_id'], task['task_status']) for task in task_list], template='(%s::uuid, %s)')
