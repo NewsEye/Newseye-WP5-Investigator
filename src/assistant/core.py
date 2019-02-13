@@ -69,7 +69,7 @@ class SystemCore(object):
         t.setDaemon(False)
         t.start()
 
-        # Wait until the thread has started the tasks until responding to the user
+        # Wait until the thread has started the tasks before responding to the user
         i = 0
         while i < len(tasks):
             if tasks[i]['task_status'] == 'created':
@@ -95,6 +95,7 @@ class SystemCore(object):
 
         # Todo: delay estimates: based on old runtime history for similar tasks?
         # ToDo: Add timeouts for the results: timestamps are already stored, simply rerun the query if the timestamp is too old.
+        # TODO: Figure out a sensible usage for the task_history timestamps
 
         tasks_to_run = [task for task in tasks if task['task_status'] == 'created']
         queries_to_run = [task for task in tasks_to_run if task['task_type'] == 'query']
@@ -108,7 +109,6 @@ class SystemCore(object):
             self._PSQL_api.update_status(username, tasks_to_run)
 
             # Todo: Possibility of directly sending data instead of target_query for the analysis tasks??
-            # FIX: Send the whole task instead of just the result
 
             if analysis_to_run:
                 # Fetch the data required by the analysis tasks
@@ -145,7 +145,6 @@ class SystemCore(object):
     def generate_tasks(self, username, queries, parent_id=None):
 
         # TODO: Spot and properly handle duplicate tasks when added within the same request
-        # TODO: Check the following: Does the system use an old result produced by a different user or will it rerun the task, since it is "new"?
 
         if not isinstance(queries, list):
             queries = [queries]
@@ -173,16 +172,16 @@ class SystemCore(object):
                     else:
                         query[1]['target_query'] = {'q': []}
 
-                # Remove the target_id parameters
+                # Remove the target_id parameter
                 query[1].pop('target_id', None)
 
-        # (task_id, query, task_status, parent_id)
-        old_tasks = self._PSQL_api.get_user_tasks_by_query(username, queries)
+        # (task_id, query, task_status)
+        old_tasks = self._PSQL_api.get_user_tasks_by_query(username, parent_id, queries)
 
         if old_tasks:
             old_tasks = list(zip(*old_tasks))
         else:
-            old_tasks = [[]] * 4
+            old_tasks = [[]] * 3
 
         old_results = self._PSQL_api.get_results_by_query(queries)
 
@@ -193,7 +192,6 @@ class SystemCore(object):
 
         tasks = []
         new_tasks = []
-        new_results = []
 
         for query in queries:
             task = Task(task_type=query[0], task_parameters=query[1], parent_id=parent_id, username=username)
@@ -202,18 +200,15 @@ class SystemCore(object):
             try:
                 i = old_tasks[1].index(query)
                 task['task_id'] = old_tasks[0][i]
-                task['parent_id'] = old_tasks[3][i]
                 task['task_status'] = old_tasks[2][i]
             except ValueError:
                 new_tasks.append(task)
             try:
                 i = old_results[0].index(query)
+                task['task_status'] = 'finished'
                 task['task_result'] = old_results[1][i]
             except ValueError:
-                new_results.append(task)
-
-        if new_results:
-            self._PSQL_api.add_results(new_results)
+                pass
 
         if new_tasks:
             new_task_ids = self._PSQL_api.add_tasks(new_tasks)
@@ -236,7 +231,7 @@ class SystemCore(object):
             task['task_parameters'].pop('target_id', None)
             task['task_parameters'].pop('data', None)
         print("Storing results into database")
-        self._PSQL_api.update_results(username, tasks)
+        self._PSQL_api.add_results(username, tasks)
 
     def get_results(self, task_ids):
         if not isinstance(task_ids, list):

@@ -148,29 +148,30 @@ class PSQLAPI(object):
             return None
         return dict([(str(result[0]), dict(zip(['task_id', 'task_type', 'task_parameters', 'task_status', 'task_result', 'created_on', 'last_updated', 'last_accessed'], result))) for result in results])
 
-    def get_user_tasks_by_query(self, username, queries):
+    def get_user_tasks_by_query(self, username, parent_id, queries):
         with self._conn as conn:
             with conn.cursor() as curs:
                 execute_values(curs, """
                     UPDATE task_history th
                     SET last_accessed = NOW()
                     FROM (
-                        SELECT h.task_id, h.task_type, h.task_parameters, h.task_status, h.parent_id, data.username
+                        SELECT h.task_id, h.task_type, h.task_parameters, h.task_status, data.username
                         FROM task_history h
-                        INNER JOIN (VALUES %s) AS data (username, task_type, task_parameters)
+                        INNER JOIN (VALUES %s) AS data (username, parent_id, task_type, task_parameters)
                         ON h.task_type = data.task_type
                         AND h.task_parameters = data.task_parameters
+                        AND (h.parent_id = data.parent_id OR (h.parent_id IS NULL AND data.parent_id IS NULL))
                         AND h.user_id = (
                             SELECT user_id FROM users WHERE users.username = data.username
                         )
-                    ) AS e (task_id, task_type, task_parameters, task_status, parent_id, username)
+                    ) AS e (task_id, task_type, task_parameters, task_status, username)
                     WHERE e.task_id = th.task_id
-                    RETURNING e.task_id, e.task_type, e.task_parameters, e.task_status, e.parent_id
-                """, [(username, query[0], Json(query[1])) for query in queries], template='(%s, %s, %s::jsonb)')
+                    RETURNING e.task_id, e.task_type, e.task_parameters, e.task_status
+                """, [(username, parent_id, query[0], Json(query[1])) for query in queries], template='(%s, %s::uuid, %s, %s::jsonb)')
                 tasks = curs.fetchall()
         if not tasks:
             return None
-        return [(task[0], (task[1], task[2]), task[3], task[4]) for task in tasks]
+        return [(task[0], (task[1], task[2]), task[3]) for task in tasks]
 
     # Todo: update to same output format as above??
     def get_results_by_query(self, queries):
@@ -230,33 +231,21 @@ class PSQLAPI(object):
                 id_list = [uuid.uuid4() for task in task_list]
         return id_list
 
-    def add_results(self, task_list):
-        task_list = [(item['task_type'], Json(item['task_parameters']), Json(item['task_result'])) for item in task_list]
-        while True:
-            try:
-                with self._conn as conn:
-                    with conn.cursor() as curs:
-                        execute_values(curs, """
-                            INSERT INTO task_results (task_type, task_parameters, task_result)
-                            SELECT task_type, task_parameters, task_result
-                            FROM (VALUES %s) AS data (task_type, task_parameters, task_result)
-                        """, task_list, template='(%s, %s::jsonb, %s::json)')
-                        break
-            except psycopg2.IntegrityError:
-                pass
-
-    def update_results(self, username, task_list):
+    # TODO: Do we need to update also the parent_ids in some cases???
+    def add_results(self, username, task_list):
         with self._conn as conn:
             with conn.cursor() as curs:
                 execute_values(curs, """
-                    UPDATE task_results tr
-                    SET task_result = data.task_result,
+                    INSERT INTO task_results (task_type, task_parameters, task_result, last_updated, last_accessed)
+                    SELECT task_type, task_parameters, task_result, NOW(), NOW()
+                    FROM (VALUES %s) AS data (task_type, task_parameters, task_result)
+                    ON CONFLICT ON CONSTRAINT task_results_task_type_task_parameters_key
+                    DO UPDATE
+                    SET task_result = EXCLUDED.task_result,
                         last_updated = NOW(), 
                         last_accessed = NOW()
-                    FROM (VALUES %s) AS data (task_type, task_parameters, task_result)
-                    WHERE tr.task_type = data.task_type
-                    AND tr.task_parameters = data.task_parameters 
-                """, [(task['task_type'], Json(task['task_parameters']), Json(task['task_result'])) for task in task_list], template='(%s, %s::jsonb, %s::json)')
+                """, [(task['task_type'], Json(task['task_parameters']), Json(task['task_result'])) for task
+                      in task_list], template='(%s, %s::jsonb, %s::json)')
 
                 execute_values(curs, """
                 UPDATE task_history h
@@ -268,7 +257,8 @@ class PSQLAPI(object):
                 WHERE h.user_id = users.user_id
                 AND h.task_type = data.task_type
                 AND h.task_parameters = data.task_parameters
-                """, [(username, task['task_type'], Json(task['task_parameters']), task['task_status']) for task in task_list], template='(%s, %s, %s::jsonb, %s)')
+                """, [(username, task['task_type'], Json(task['task_parameters']), task['task_status']) for task
+                      in task_list], template='(%s, %s, %s::jsonb, %s)')
 
     def update_status(self, username, task_list):
         with self._conn as conn:
