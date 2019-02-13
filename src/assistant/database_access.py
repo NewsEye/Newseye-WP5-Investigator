@@ -19,8 +19,7 @@ class BlacklightAPI(object):
 
     # Runs the query/queries using aiohttp. The return value is a list containing the results in the corresponding order.
     async def async_query(self, queries):
-        query_is_a_list = type(queries) is list
-        if not query_is_a_list:
+        if not isinstance(queries, list):
             queries = [queries]
         tasks = []
         async with aiohttp.ClientSession() as session:
@@ -38,7 +37,7 @@ class BlacklightAPI(object):
     def fix_query_for_aiohttp(self, query):
         new_query = []
         for key in query.keys():
-            if type(query[key]) is list:
+            if isinstance(query[key], list):
                 new_query.extend([(key, value) for value in query[key]])
             else:
                 new_query.append((key, query[key]))
@@ -126,7 +125,7 @@ class PSQLAPI(object):
         return dict(zip(['task_id', 'task_type', 'task_parameters', 'task_status', 'task_result', 'parent_id'], current_task))
 
     def get_results_by_task_id(self, task_ids):
-        if type(task_ids) is not list:
+        if not isinstance(task_ids, list):
             task_ids = [task_ids]
         with self._conn as conn:
             with conn.cursor() as curs:

@@ -203,7 +203,7 @@ def test_multiquery():
 
 def _is_valid_query(query):
     for key in query.keys():
-        if type(query[key]) != list:
+        if not isinstance(query[key], list):
             return False
     return True
 

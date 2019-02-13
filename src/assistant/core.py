@@ -147,13 +147,13 @@ class SystemCore(object):
         # TODO: Spot and properly handle duplicate tasks when added within the same request
         # TODO: Check the following: Does the system use an old result produced by a different user or will it rerun the task, since it is "new"?
 
-        if type(queries) is not list:
+        if not isinstance(queries, list):
             queries = [queries]
 
         # If queries contains dictionaries, assume they are of type 'query' and fix the format
-        if type(queries[0]) is dict:
+        if isinstance(queries[0], dict):
             queries = [('query', item) for item in queries]
-        elif type(queries[0]) is not tuple:
+        elif not isinstance(queries[0], tuple):
             raise ValueError
 
         # ToDo: need to check that this is a correct type. For now we'll assume that it is.
@@ -239,7 +239,7 @@ class SystemCore(object):
         self._PSQL_api.update_results(username, tasks)
 
     def get_results(self, task_ids):
-        if type(task_ids) is not list:
+        if not isinstance(task_ids, list):
             task_ids = [task_ids]
         results = self._PSQL_api.get_results_by_task_id(task_ids)
         if results:
