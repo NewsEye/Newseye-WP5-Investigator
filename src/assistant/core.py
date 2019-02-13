@@ -40,14 +40,9 @@ class SystemCore(object):
         for task in history.values():
             parent = task['parent_id']
             if parent:
-                if task['task_type'] == 'query':
-                    if 'children' not in history[parent].keys():
-                        history[parent]['children'] = []
-                    history[parent]['children'].append(task)
-                else:
-                    if 'analysis' not in history[parent].keys():
-                        history[parent]['analysis'] = []
-                    history[parent]['analysis'].append(task)
+                if 'children' not in history[parent].keys():
+                    history[parent]['children'] = []
+                history[parent]['children'].append(task)
             else:
                 tree['root'].append(task)
         return tree
