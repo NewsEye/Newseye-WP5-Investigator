@@ -37,7 +37,7 @@ class AnalysisTools(object):
         return facets
 
     async def common_topics(self, username, task):
-        facet_counts = await self._core.execute_async_tasks(username, ('analysis', {'tool': 'extract_facets', 'target_query': task['task_parameters']['target_query']}))
+        facet_counts = await self._core.execute_async_tasks(username, queries=('analysis', {'tool': 'extract_facets', 'target_query': task['task_parameters']['target_query']}), parent_id=task['task_id'])
         facet_counts = facet_counts[0]['task_result']
         topics = facet_counts[conf.AVAILABLE_FACETS['TOPIC']][:int(task['task_parameters']['n'])]
         return topics
@@ -58,14 +58,14 @@ class AnalysisTools(object):
         queries = [{'f[{}][]'.format(conf.AVAILABLE_FACETS[split_facet]): item[0]} for item in facet_totals]
         for query in queries:
             query.update(original_query)
-        query_ids = await self._core.execute_async_tasks(username, queries=queries, return_tasks=False)
+        query_ids = await self._core.execute_async_tasks(username, queries=queries, return_tasks=False, parent_id=task['task_id'])
         return [str(query_id) for query_id in query_ids]
 
     async def topic_analysis(self, username, task):
         if task['target_task'] is None or task['target_task']['task_status'] != 'finished':
             raise TypeError("No query results available for analysis")
 
-        subquery_task = await self._core.execute_async_tasks(username, ('analysis', {'tool': 'split_document_set_by_facet', 'split_facet': 'PUB_YEAR', 'target_query': task['task_parameters']['target_query']}))
+        subquery_task = await self._core.execute_async_tasks(username, queries=('analysis', {'tool': 'split_document_set_by_facet', 'split_facet': 'PUB_YEAR', 'target_query': task['task_parameters']['target_query']}), parent_id=task['task_id'])
         subquery_ids = subquery_task[0]['task_result']
 
         subquery_results = self._core.get_results(subquery_ids).values()
