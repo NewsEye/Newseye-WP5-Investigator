@@ -27,7 +27,7 @@ class AnalysisTools(object):
 
     async def extract_facets(self, username, task):
         facets = {}
-        for feature in task['task_parameters']['data']['task_result']['included']:
+        for feature in task['target_task']['task_result']['included']:
             if feature['type'] != 'facet':
                 continue
             values = []
@@ -47,7 +47,7 @@ class AnalysisTools(object):
         # TODO: Fix the parent_id generation to implement the history properly
 
         split_facet = task['task_parameters'].get('split_facet', None)
-        for item in task['task_parameters']['data']['task_result']['included']:
+        for item in task['target_task']['task_result']['included']:
             if item['id'] == conf.AVAILABLE_FACETS[split_facet] and item['type'] == 'facet':
                 facet_totals = [(facet['attributes']['value'], facet['attributes']['hits']) for facet in item['attributes']['items']]
                 break
@@ -62,7 +62,7 @@ class AnalysisTools(object):
         return [str(query_id) for query_id in query_ids]
 
     async def topic_analysis(self, username, task):
-        if task['task_parameters']['data'] is None or task['task_parameters']['data']['task_status'] != 'finished':
+        if task['target_task'] is None or task['target_task']['task_status'] != 'finished':
             raise TypeError("No query results available for analysis")
 
         subquery_task = await self._core.execute_async_tasks(username, ('analysis', {'tool': 'split_document_set_by_facet', 'split_facet': 'PUB_YEAR', 'target_query': task['task_parameters']['target_query']}))

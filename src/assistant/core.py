@@ -116,7 +116,7 @@ class SystemCore(object):
                 query_results = await self.execute_async_tasks(username, queries=extra_queries)
 
                 for task, result in zip(analysis_to_run, query_results):
-                    task['task_parameters']['data'] = result
+                    task['target_task'] = result
 
             # Note: now we are running first all the queries and then all the analysis, which is suboptimal, but
             # I would expect a single task list to include only tasks of one type. If this is not the case, then it
@@ -229,7 +229,7 @@ class SystemCore(object):
         # Do not store the target_id even if one has been temporarily set
         for task in tasks:
             task['task_parameters'].pop('target_id', None)
-            task['task_parameters'].pop('data', None)
+            task.pop('target_task', None)
         print("Storing results into database")
         self._PSQL_api.add_results(username, tasks)
 
