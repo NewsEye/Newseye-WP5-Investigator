@@ -8,7 +8,11 @@ if DATABASE_IN_USE == 'demo':
 
     AVAILABLE_FACETS = {
         'PUB_YEAR': 'pub_date_ssim',
-        'TOPIC': 'subject_ssim'
+        'TOPIC': 'subject_ssim',
+        'ERA': 'subject_era_ssim',
+        'REGION': 'subject_geo_ssim',
+        'LANGUAGE': 'language_ssim',
+        'FORMAT': 'format',
     }
 
 if DATABASE_IN_USE == 'newseye':
