@@ -74,6 +74,9 @@ def analyze():
             response = {'task_id': task_ids[0], 'username': username}
             response.update(arguments)
             return jsonify(response)
+        except KeyError as e:
+            log.exception(e)
+            return 'Missing parameter for chosen analysis tool', 400
         except Exception as e:
             log.exception(e)
             return 'Something went wrong...', 500
