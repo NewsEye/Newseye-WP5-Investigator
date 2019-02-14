@@ -124,6 +124,22 @@ class PSQLAPI(object):
             return None
         return dict(zip(['task_id', 'task_type', 'task_parameters', 'task_status', 'task_result', 'parent_id'], current_task))
 
+    def get_tasks_by_task_id(self, task_ids):
+        if not isinstance(task_ids, list):
+            task_ids = [task_ids]
+        with self._conn as conn:
+            with conn.cursor() as curs:
+                curs.execute("""
+                    UPDATE task_history h
+                    SET last_accessed = NOW()
+                    WHERE h.task_id IN %s
+                    RETURNING h.task_id, h.task_type, h.task_parameters, h.task_status, h.created_on, h.last_updated, h.last_accessed
+                """, [tuple(task_ids)])
+                results = curs.fetchall()
+        if not results:
+            return None
+        return dict([(str(result[0]), dict(zip(['task_id', 'task_type', 'task_parameters', 'task_status', 'created_on', 'last_updated', 'last_accessed'], result))) for result in results])
+
     def get_results_by_task_id(self, task_ids):
         if not isinstance(task_ids, list):
             task_ids = [task_ids]

@@ -30,6 +30,9 @@ class SystemCore(object):
     def get_task(self, username):
         return self._PSQL_api.get_current_task(username)
 
+    def get_tasks_by_task_id(self, task_id):
+        return self._PSQL_api.get_tasks_by_task_id(task_id)
+
     def get_history(self, username, make_tree=True):
         history = self._PSQL_api.get_user_history(username)
         if not make_tree:
