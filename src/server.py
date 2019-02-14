@@ -111,7 +111,7 @@ def analyze():
         try:
             arguments = request.json
             username = arguments.pop('username')
-            task_ids = service.core.run_query_task(username, ('analysis', arguments), return_task=False)
+            task_ids = service.core.run_query_task(username, ('analysis', arguments), return_tasks=False)
             response = {'task_id': task_ids[0], 'username': username}
             response.update(arguments)
             return jsonify(response)

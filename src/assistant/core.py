@@ -47,14 +47,14 @@ class SystemCore(object):
                 tree['root'].append(task)
         return tree
 
-    def run_query_task(self, username, queries, switch_task=False, return_task=True, store_results=True):
+    def run_query_task(self, username, queries, switch_task=False, return_tasks=True, store_results=True):
         """
         Generate tasks from queries and execute them.
         :param username: the user who is requesting the queries
         :param queries: a single query or a list of queries
         :param switch_task: If true, the current task for the user will be updated to the one generated. If multiple
         queries are run in parallel, the current task will not be updated.
-        :param return_task: If true, the task object (or a list of task objects) is returned to the user in json format.
+        :param return_tasks: If true, the task object (or a list of task objects) is returned to the user in json format.
         If false, only the task_id (or a list of task_ids) is returned
         :return: A list of task_objects or task_ids corresponding to the queries.
         """
@@ -74,7 +74,7 @@ class SystemCore(object):
 
         if switch_task:
             self._PSQL_api.set_current_task(username, tasks[0]['task_id'])
-        if return_task:
+        if return_tasks:
             return tasks
         else:
             return [item['task_id'] for item in tasks]
