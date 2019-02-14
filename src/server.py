@@ -61,8 +61,9 @@ def analyze():
     username = session['username']
     if request.method == 'GET':
         try:
-            result = service.core.run_query_task(username, ('analysis', request.args.to_dict()))
-            return jsonify(result)
+            task_ids = service.core.run_query_task(username, ('analysis', request.args.to_dict()), return_tasks=False)
+            response = service.core.get_tasks_by_task_id(task_ids)
+            return jsonify(list(response.values()))
         except TypeError as e:
             log.exception(e)
             return 'Invalid tool name or invalid number of arguments for the chosen tool', 400
