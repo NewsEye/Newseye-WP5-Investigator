@@ -31,38 +31,6 @@ service = AssistantService()
 #
 
 
-@app.route('/api/query', methods=['POST', 'GET', 'DELETE'])
-def query():
-    if 'username' not in session:
-        return 'You are not logged in', 401
-    username = session['username']
-    if request.method == 'GET':
-        return jsonify(service.core.get_query(username))
-    elif request.method == 'POST':
-        new_query = request.get_json()
-        if not _is_valid_query(new_query):
-            return 'Invalid query', 400
-        if 'q' not in new_query.keys():
-            new_query['q'] = ''
-        service.core.set_query(username, new_query)
-        return jsonify(service.core.get_query(username))
-    elif request.method == 'DELETE':
-        service.core.clear_query(username)
-        return '', 204
-
-
-@app.route('/catalog.json')
-def passthrough():
-    if 'username' not in session:
-        return 'You are not logged in', 401
-    username = session['username']
-    query = request.args.to_dict(flat=False)
-    try:
-        result = service.core.run_query(username, query, switch_state=False, store_results=False)
-    except TypeError:
-        session.pop('username')
-        return 'You are not logged in', 401
-    return jsonify(result.result)
 
 
 @app.route('/search')
@@ -84,15 +52,6 @@ def quick_query():
     except Exception as e:
         log.exception(e)
         return 'Something went wrong...', 500
-
-
-@app.route('/test/analysis/topic')
-def test_topic_analysis():
-    if 'username' not in session:
-        return 'You are not logged in', 401
-    username = session['username']
-    result = service.core.run_query_task(username, ('analysis', {'tool': 'topic_analysis'}))
-    return jsonify(result)
 
 
 @app.route('/api/analysis', methods=['GET', 'POST'])
@@ -199,13 +158,6 @@ def test_multiquery():
         return 'You are not logged in', 401
     username = session['username']
     return jsonify(service.core.run_query_task(username, test_query))
-
-
-def _is_valid_query(query):
-    for key in query.keys():
-        if not isinstance(query[key], list):
-            return False
-    return True
 
 
 def main():
