@@ -38,14 +38,11 @@ class AnalysisTools(object):
 
     async def common_topics(self, username, task):
         facet_counts = await self._core.execute_async_tasks(username, queries=('analysis', {'tool': 'extract_facets', 'target_query': task['task_parameters']['target_query']}), parent_id=task['task_id'])
-        facet_counts = facet_counts[0]['task_result']
+        facet_counts = facet_counts['task_result']
         topics = facet_counts[conf.AVAILABLE_FACETS['TOPIC']][:int(task['task_parameters']['n'])]
         return topics
 
     async def split_document_set_by_facet(self, username, task):
-
-        # TODO: Fix the parent_id generation to implement the history properly
-
         split_facet = task['task_parameters'].get('split_facet', None)
         for item in task['target_task']['task_result']['included']:
             if item['id'] == conf.AVAILABLE_FACETS[split_facet] and item['type'] == 'facet':
@@ -66,7 +63,7 @@ class AnalysisTools(object):
             raise TypeError("No query results available for analysis")
 
         subquery_task = await self._core.execute_async_tasks(username, queries=('analysis', {'tool': 'split_document_set_by_facet', 'split_facet': 'PUB_YEAR', 'target_query': task['task_parameters']['target_query']}), parent_id=task['task_id'])
-        subquery_ids = subquery_task[0]['task_result']
+        subquery_ids = subquery_task['task_result']
 
         subquery_results = self._core.get_results(subquery_ids).values()
         t_counts = []

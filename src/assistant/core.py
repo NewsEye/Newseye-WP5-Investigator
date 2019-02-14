@@ -85,6 +85,11 @@ class SystemCore(object):
         loop.run_until_complete(self.execute_async_tasks(username=username, tasks=tasks, store_results=store_results, return_tasks=False))
 
     async def execute_async_tasks(self, username, queries=None, tasks=None, store_results=True, return_tasks=True, parent_id=None):
+        if (tasks and isinstance(tasks, list)) or (not tasks and isinstance(queries, list)):
+            return_list = True
+        else:
+            return_list = False
+
         if not tasks:
             tasks = self.generate_tasks(username, queries, parent_id=parent_id)
 
@@ -135,9 +140,14 @@ class SystemCore(object):
                     self.store_results(username, analysis_to_run)
 
         if return_tasks:
-            return tasks
+            result = tasks
         else:
-            return [item['task_id'] for item in tasks]
+            result = [item['task_id'] for item in tasks]
+
+        if return_list:
+            return result
+        else:
+            return result[0]
 
     def generate_tasks(self, username, queries, parent_id=None):
 
