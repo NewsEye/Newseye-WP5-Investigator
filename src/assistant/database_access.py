@@ -189,7 +189,6 @@ class PSQLAPI(object):
             return None
         return [(task[0], (task[1], task[2]), task[3]) for task in tasks]
 
-    # Todo: update to same output format as above??
     def get_results_by_query(self, queries):
         with self._conn as conn:
             with conn.cursor() as curs:
@@ -247,7 +246,6 @@ class PSQLAPI(object):
                 id_list = [uuid.uuid4() for task in task_list]
         return id_list
 
-    # TODO: Do we need to update also the parent_ids in some cases???
     def add_results(self, task_list):
         with self._conn as conn:
             with conn.cursor() as curs:

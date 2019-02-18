@@ -112,6 +112,7 @@ class SystemCore(object):
             self._PSQL_api.update_status(tasks_to_run)
 
             # Todo: Possibility of directly sending data instead of target_query for the analysis tasks??
+            # Probably unnecessary optimization
 
             if analysis_to_run:
                 # Fetch the data required by the analysis tasks
@@ -121,7 +122,7 @@ class SystemCore(object):
                 for task, result in zip(analysis_to_run, query_results):
                     task['target_task'] = result
                     # Set the parent of any analysis task to be the corresponding query task
-                    task['parent_id'] = result['task_id']
+                    # task['parent_id'] = result['task_id']
 
             # Note: now we are running first all the queries and then all the analysis, which is suboptimal, but
             # I would expect a single task list to include only tasks of one type. If this is not the case, then it

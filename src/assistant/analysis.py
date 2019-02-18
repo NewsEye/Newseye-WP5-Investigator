@@ -43,18 +43,19 @@ class AnalysisTools(object):
 
     async def split_document_set_by_facet(self, username, task):
         split_facet = task['task_parameters'].get('split_facet', None)
-        for item in task['target_task']['task_result']['included']:
+        target_task = task['target_task']
+        for item in target_task['task_result']['included']:
             if item['id'] == conf.AVAILABLE_FACETS[split_facet] and item['type'] == 'facet':
                 facet_totals = [(facet['attributes']['value'], facet['attributes']['hits']) for facet in item['attributes']['items']]
                 break
         else:
             raise TypeError("Query results don't contain required facet {}".format(conf.AVAILABLE_FACETS[split_facet]))
         facet_totals.sort()
-        original_query = task['task_parameters']['target_query']
+        original_query = target_task['task_parameters']
         queries = [{'f[{}][]'.format(conf.AVAILABLE_FACETS[split_facet]): item[0]} for item in facet_totals]
         for query in queries:
             query.update(original_query)
-        query_ids = await self._core.execute_async_tasks(username, queries=queries, return_tasks=False, parent_id=task['task_id'])
+        query_ids = await self._core.execute_async_tasks(username, queries=queries, return_tasks=False, parent_id=target_task['task_id'])
         return [str(query_id) for query_id in query_ids]
 
     async def facet_analysis(self, username, task):
@@ -67,7 +68,8 @@ class AnalysisTools(object):
         if target_task is None or target_task['task_status'] != 'finished':
             raise TypeError("No query results available for analysis")
 
-        subquery_task = await self._core.execute_async_tasks(username, queries=('analysis', {'tool': 'split_document_set_by_facet', 'split_facet': 'PUB_YEAR', 'target_query': task['task_parameters']['target_query']}), parent_id=task['task_id'])
+        subquery_task = await self._core.execute_async_tasks(username, queries=('analysis', {'tool': 'split_document_set_by_facet', 'split_facet': 'PUB_YEAR', 'target_query': target_task['task_parameters']}), parent_id=task['parent_id'])
+        task['parent_id'] = subquery_task['task_id']
         subquery_ids = subquery_task['task_result']
 
         subquery_results = self._core.get_results(subquery_ids).values()
