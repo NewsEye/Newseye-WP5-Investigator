@@ -8,17 +8,33 @@ class AnalysisTools(object):
 
     def __init__(self, core):
         self._TOOL_LIST = {
-            'extract_facets': lambda *args: self.extract_facets(*args),
-            'common_topics': lambda *args: self.common_topics(*args),
-            'facet_analysis': lambda *args: self.facet_analysis(*args),
-            'split_document_set_by_facet': lambda *args: self.split_document_set_by_facet(*args),
+            'extract_facets': {
+                'call': lambda *args: self.extract_facets(*args),
+                'input_type': 'query',
+                'output_type': 'facet_list'
+            },
+            'common_topics': {
+                'call': lambda *args: self.common_topics(*args),
+                'input_type': 'facet_list',
+                'output_type': 'topic_list'
+            },
+            'facet_analysis': {
+                'call': lambda *args: self.facet_analysis(*args),
+                'input_type': 'time_split_query',
+                'output_type': 'facet_time_series'
+            },
+            'split_document_set_by_facet': {
+                'call': lambda *args: self.split_document_set_by_facet(*args),
+                'input_type': 'query',
+                'output_type': 'time_split_query'
+            },
         }
 
         self._core = core
 
     # TODO: The API for retrieving descriptions of available tools,
     async def async_analysis(self, username, tasks):
-        async_tasks = [self._TOOL_LIST[task['task_parameters'].get('tool')](username, task) for task in tasks]
+        async_tasks = [self._TOOL_LIST[task['task_parameters'].get('tool')]['call'](username, task) for task in tasks]
 
         results = await asyncio.gather(*async_tasks)
         print("Queries finished, returning results")
