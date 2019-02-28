@@ -143,7 +143,7 @@ class AnalysisTools(object):
         steps = {}
         for column in relative_counts.columns:
             data = relative_counts[column]
-            prod, _, _ = mz_fwt(data, 3)
+            prod = mz_fwt(data, 3)
             step_indices = find_steps(prod, step_threshold)
             step_sizes = get_step_sizes(relative_counts[column], step_indices)
             step_times = [int(relative_counts.index[idx]) for idx in step_indices]
