@@ -248,6 +248,8 @@ class SystemCore(object):
         if not isinstance(task_ids, list):
             task_ids = [task_ids]
         results = self._PSQL_api.get_results_by_task_id(task_ids)
+        if not results:
+            results = self._PSQL_api.get_tasks_by_task_id(task_ids)
         if results:
             return results
         else:
