@@ -145,9 +145,9 @@ class AnalysisTools(object):
             data = relative_counts[column]
             prod = mz_fwt(data, 3)
             step_indices = find_steps(prod, step_threshold)
-            step_sizes = get_step_sizes(relative_counts[column], step_indices)
+            step_sizes, errors = get_step_sizes(relative_counts[column], step_indices)
             step_times = [int(relative_counts.index[idx]) for idx in step_indices]
-            steps[column] = (step_times, step_sizes)
+            steps[column] = list(zip(step_times, step_sizes, errors))
         return steps
 
 
@@ -279,7 +279,7 @@ def get_step_sizes(array, indices, window=1000):
     Returns
     -------
     step_sizes : list
-        List of the calculated sizes of each step
+        List of tuples describing the mean of the data before and after the detected step
     step_error : list
     """
     step_sizes = []
@@ -297,6 +297,6 @@ def get_step_sizes(array, indices, window=1000):
             q = min(window, index-indices[i - 1], indices[i + 1] - index)
         a = array[index - q: index - 1]
         b = array[index + 1: index + q]
-        step_sizes.append(b.mean() - a.mean())
+        step_sizes.append((a.mean(), b.mean()))
         step_error.append(sqrt(a.var() + b.var()))
     return step_sizes, step_error
