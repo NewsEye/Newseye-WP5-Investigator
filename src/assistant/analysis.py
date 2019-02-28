@@ -247,6 +247,9 @@ def find_steps(array, threshold=None):
     ap_dif = np.diff(above_points)
     cross_ups = np.where(ap_dif == 1)[0]
     cross_dns = np.where(ap_dif == -1)[0]
+    # If cross_dns is longer that cross_ups, the first entry in cross_dns is zero, which will cause a crash
+    if len(cross_dns) > len(cross_ups):
+        cross_dns = cross_dns[1:]
     for upi, dni in zip(cross_ups, cross_dns):
         steps.append(np.argmax(array[upi: dni]) + upi)
     return steps
