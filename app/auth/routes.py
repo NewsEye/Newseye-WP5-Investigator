@@ -1,6 +1,6 @@
 from flask import session, request, current_app
 from app.assistant import core
-from app.server import bp
+from app.auth import bp
 
 
 @bp.route('/login')
