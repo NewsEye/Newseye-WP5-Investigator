@@ -99,7 +99,7 @@ class PSQLAPI(object):
                 """, [username])
                 current_task_id = curs.fetchone()
         if not current_task_id:
-            return None
+            return
         return current_task_id[0]
 
     def get_current_task(self, username):
@@ -121,7 +121,7 @@ class PSQLAPI(object):
                 """, [username])
                 current_task = curs.fetchone()
         if not current_task:
-            return None
+            return
         return dict(zip(['task_id', 'task_type', 'task_parameters', 'task_status', 'task_result', 'parent_id'], current_task))
 
     def get_tasks_by_task_id(self, task_ids):
@@ -137,7 +137,7 @@ class PSQLAPI(object):
                 """, [tuple(task_ids)])
                 results = curs.fetchall()
         if not results:
-            return None
+            return
         return dict([(str(result[0]), dict(zip(['task_id', 'task_type', 'task_parameters', 'task_status', 'created_on', 'last_updated', 'last_accessed'], result))) for result in results])
 
     def get_results_by_task_id(self, task_ids):
@@ -161,7 +161,7 @@ class PSQLAPI(object):
                 """, [tuple(task_ids)])
                 results = curs.fetchall()
         if not results:
-            return None
+            return
         return dict([(str(result[0]), dict(zip(['task_id', 'task_type', 'task_parameters', 'task_status', 'task_result', 'created_on', 'last_updated', 'last_accessed'], result))) for result in results])
 
     def get_user_tasks_by_query(self, username, parent_id, queries):
@@ -186,7 +186,7 @@ class PSQLAPI(object):
                 """, [(username, parent_id, query[0], Json(query[1])) for query in queries], template='(%s, %s::uuid, %s, %s::jsonb)')
                 tasks = curs.fetchall()
         if not tasks:
-            return None
+            return
         return [(task[0], (task[1], task[2]), task[3]) for task in tasks]
 
     def get_results_by_query(self, queries):
@@ -202,7 +202,7 @@ class PSQLAPI(object):
                 """, [(query[0], Json(query[1])) for query in queries], template='(%s, %s::jsonb)')
                 result = curs.fetchall()
         if not result:
-            return None
+            return
         return [((item[0], item[1]), item[2]) for item in result]
 
     # TODO: Should this update the last_accessed field??
@@ -222,7 +222,7 @@ class PSQLAPI(object):
                 """, [username])
                 queries = curs.fetchall()
         if not queries:
-            return None
+            return
         history = {}
         for item in queries:
             history[item[0]] = dict(zip(['task_id', 'task_type', 'task_parameters', 'task_status', 'task_result', 'parent_id'], item))

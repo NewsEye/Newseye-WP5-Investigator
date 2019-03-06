@@ -1,6 +1,6 @@
-from assistant.task import Task
-from assistant.database_access import *
-from assistant.analysis import *
+from app.assistant.task import Task
+from app.assistant.database_access import *
+from app.assistant.analysis import *
 import threading
 import time
 import datetime as dt

@@ -1,4 +1,4 @@
-import assistant.config as conf
+from app.assistant.config import *
 import asyncio
 from operator import itemgetter
 import numpy as np
@@ -62,21 +62,21 @@ class AnalysisTools(object):
     async def common_topics(self, username, task):
         facet_counts = await self._core.execute_async_tasks(username, queries=('analysis', {'tool': 'extract_facets', 'target_query': task['task_parameters']['target_query']}), parent_id=task['task_id'])
         facet_counts = facet_counts['task_result']
-        topics = facet_counts[conf.AVAILABLE_FACETS['TOPIC']][:int(task['task_parameters']['n'])]
+        topics = facet_counts[AVAILABLE_FACETS['TOPIC']][:int(task['task_parameters']['n'])]
         return topics
 
     async def split_document_set_by_facet(self, username, task):
         split_facet = task['task_parameters'].get('split_facet', None)
         target_task = task['target_task']
         for item in target_task['task_result']['included']:
-            if item['id'] == conf.AVAILABLE_FACETS[split_facet] and item['type'] == 'facet':
+            if item['id'] == AVAILABLE_FACETS[split_facet] and item['type'] == 'facet':
                 facet_totals = [(facet['attributes']['value'], facet['attributes']['hits']) for facet in item['attributes']['items']]
                 break
         else:
             raise TypeError("Query results don't contain required facet {}".format(conf.AVAILABLE_FACETS[split_facet]))
         facet_totals.sort()
         original_query = target_task['task_parameters']
-        queries = [{'f[{}][]'.format(conf.AVAILABLE_FACETS[split_facet]): item[0]} for item in facet_totals]
+        queries = [{'f[{}][]'.format(AVAILABLE_FACETS[split_facet]): item[0]} for item in facet_totals]
         for query in queries:
             query.update(original_query)
         query_ids = await self._core.execute_async_tasks(username, queries=queries, return_tasks=False, parent_id=target_task['task_id'])
@@ -84,7 +84,7 @@ class AnalysisTools(object):
 
     async def facet_analysis(self, username, task):
         facet_name = task['task_parameters']['facet_name']
-        facet_string = conf.AVAILABLE_FACETS.get(facet_name, None)
+        facet_string = AVAILABLE_FACETS.get(facet_name, None)
         if facet_string is None:
             raise TypeError("Specified facet not available in current database")
 
@@ -100,7 +100,7 @@ class AnalysisTools(object):
         f_counts = []
         for task in subquery_results:
             task_params, task_result = itemgetter('task_parameters', 'task_result')(task)
-            year = task_params['f[{}][]'.format(conf.AVAILABLE_FACETS['PUB_YEAR'])]
+            year = task_params['f[{}][]'.format(AVAILABLE_FACETS['PUB_YEAR'])]
             total_hits = task_result['meta']['pages']['total_count']
             for item in task_result['included']:
                 if item['id'] == facet_string and item['type'] == 'facet':
@@ -119,7 +119,7 @@ class AnalysisTools(object):
     # TODO: Something like: if task_type is not xxx, then plan route from task_type to xxx => await execute plan
     async def find_steps_from_time_series(self, username, task):
         facet_name = task['task_parameters']['facet_name']
-        facet_string = conf.AVAILABLE_FACETS.get(facet_name, None)
+        facet_string = AVAILABLE_FACETS.get(facet_name, None)
         if facet_string is None:
             raise TypeError("Specified facet not available in current database")
 
