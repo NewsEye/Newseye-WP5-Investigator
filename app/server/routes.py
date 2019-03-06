@@ -20,7 +20,7 @@ def quick_query():
                 return jsonify(results), 202
         return jsonify(results)
     except Exception as e:
-        current_app.loggerexception(e)
+        current_app.logger.exception(e)
         return 'Something went wrong...', 500
 
 
@@ -35,7 +35,7 @@ def analyze():
             response = core.get_tasks_by_task_id(task_ids)
             return jsonify(list(response.values()))
         except TypeError as e:
-            current_app.loggerexception(e)
+            current_app.logger.exception(e)
             return 'Invalid tool name or invalid number of arguments for the chosen tool', 400
     if request.method == 'POST':
         try:
@@ -46,10 +46,10 @@ def analyze():
             response.update(arguments)
             return jsonify(response)
         except KeyError as e:
-            current_app.loggerexception(e)
+            current_app.logger.exception(e)
             return 'Missing parameter for chosen analysis tool', 400
         except Exception as e:
-            current_app.loggerexception(e)
+            current_app.logger.exception(e)
             return 'Something went wrong...', 500
 
 
@@ -59,7 +59,7 @@ def get_results(task_id):
         result = core.get_results(task_id)
         return jsonify(result[task_id])
     except TypeError as e:
-        current_app.loggerexception(e)
+        current_app.logger.exception(e)
         return 'Invalid task_id', 400
 
 
