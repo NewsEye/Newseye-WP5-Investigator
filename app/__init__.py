@@ -17,6 +17,7 @@ migrate = Migrate()
 # mail = Mail()
 # moment = Moment()
 
+
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(Config)
@@ -68,3 +69,6 @@ def create_app(config_class=Config):
         app.logger.info('Microblog startup')
 
     return app
+
+# This is required for the migrations to work properly
+from app import models
