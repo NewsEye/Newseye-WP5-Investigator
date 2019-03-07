@@ -3,7 +3,6 @@ from app.assistant.database_access import *
 from app.assistant.analysis import *
 import threading
 import time
-import datetime as dt
 import asyncio
 
 
@@ -12,20 +11,6 @@ class SystemCore(object):
         self._blacklight_api = BlacklightAPI()
         self._PSQL_api = PSQLAPI()
         self._analysis = AnalysisTools(self)
-
-    def add_user(self, username, new_username):
-        # Todo: add user types + limit user creation etc. to admins
-        # Only user 'admin' can add new users at the moment
-        if username == 'admin':
-            self._PSQL_api.add_user(new_username)
-        else:
-            raise ValueError()
-
-    def login_user(self, username):
-        # Raises IndexError if username doesn't exist
-        last_login = self._PSQL_api.get_last_login(username)
-        self._PSQL_api.set_last_login(username, dt.datetime.now())
-        return last_login
 
     def get_task(self, username):
         return self._PSQL_api.get_current_task(username)

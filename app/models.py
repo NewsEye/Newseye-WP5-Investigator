@@ -1,15 +1,16 @@
 from datetime import datetime
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 import uuid
+from flask_login import UserMixin
 from hashlib import md5
 from time import time
 from flask import current_app
 # from werkzeug.security import generate_password_hash, check_password_hash
 # import jwt
-from app import db
+from app import db, login
 
 
-class User(db.Model):
+class User(UserMixin, db.Model):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), unique=True)
@@ -49,3 +50,8 @@ class Task(db.Model):
 
     def __repr__(self):
         return '<Task {}>'.format(self.uuid)
+
+
+@login.user_loader
+def load_user(id):
+    return User.query.get(int(id))

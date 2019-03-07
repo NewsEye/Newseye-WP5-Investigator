@@ -1,16 +1,15 @@
-from flask import session, request, jsonify, current_app
+from flask import request, jsonify, current_app
+from flask_login import login_required, current_user
 from app.assistant import core
 from app.server import bp
 
 
 @bp.route('/search')
+@login_required
 def quick_query():
-    if 'username' not in session:
-        return 'You are not logged in', 401
-    username = session['username']
     query = request.args.to_dict(flat=False)
     try:
-        results = core.run_query_task(username, ('query', query))
+        results = core.run_query_task(current_user.username, ('query', query))
     except Exception as e:
         current_app.logger.exception(e)
         return 'Something went wrong...', 500
@@ -25,13 +24,11 @@ def quick_query():
 
 
 @bp.route('/api/analysis', methods=['GET', 'POST'])
+@login_required
 def analyze():
-    if 'username' not in session:
-        return 'You are not logged in', 401
-    username = session['username']
     if request.method == 'GET':
         try:
-            task_ids = core.run_query_task(username, ('analysis', request.args.to_dict()), return_tasks=False)
+            task_ids = core.run_query_task(current_user.username, ('analysis', request.args.to_dict()), return_tasks=False)
             response = core.get_tasks_by_task_id(task_ids)
             return jsonify(list(response.values()))
         except TypeError as e:
@@ -40,6 +37,7 @@ def analyze():
     if request.method == 'POST':
         try:
             arguments = request.json
+            # ToDO: check the validity of the username!!!!
             username = arguments.pop('username')
             task_ids = core.run_query_task(username, ('analysis', arguments), return_tasks=False)
             response = {'task_id': task_ids[0], 'username': username}
@@ -64,21 +62,17 @@ def get_results(task_id):
 
 
 @bp.route('/api/history')
+@login_required
 def get_history():
-    if 'username' not in session:
-        return 'You are not logged in', 401
-    username = session['username']
-    history = core.get_history(username)
+    history = core.get_history(current_user.username)
     return jsonify(history)
 
 
 @bp.route('/test/multiquery')
+@login_required
 def test_multiquery():
     test_query = [
         {'q': ['lighthouse']},
         {'q': ['ghost']}
     ]
-    if 'username' not in session:
-        return 'You are not logged in', 401
-    username = session['username']
-    return jsonify(core.run_query_task(username, test_query))
+    return jsonify(core.run_query_task(current_user.username, test_query))

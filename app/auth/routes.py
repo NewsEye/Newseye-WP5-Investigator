@@ -1,53 +1,56 @@
-from flask import session, request, current_app
-from app.assistant import core
+from flask import request
+from flask_login import login_user, logout_user, current_user, login_required
+from datetime import datetime
+from app import db
 from app.auth import bp
+from app.models import User
+
+
+@bp.route('/not_logged_in')
+def not_logged_in():
+    return 'You are not logged in', 401
 
 
 @bp.route('/login')
 def login():
-    if 'username' in session:
-        return 'User {} already logged in!'.format(session['username']), 401
+    if current_user.is_authenticated:
+        return 'User {} already logged in!'.format(current_user.username), 401
     username = request.args.get('username')
     if username is None:
         return "Missing parameter: username", 400
-    try:
-        last_login = core.login_user(username)
-    except IndexError as e:
-        return 'Invalid username {}!'.format(username), 401
-    except Exception as e:
-        current_app.logger.exception(e)
-        return 'Something went wrong...', 500
-    session['username'] = username
-    return 'Welcome, {}. Last login: {}'.format(username, last_login), 200
+    user = User.query.filter_by(username=username).first()
+    if user is None:
+        return 'Invalid username or password!', 401
+    last_login = user.last_seen
+    login_user(user)
+    current_user.last_seen = datetime.utcnow()
+    db.session.commit()
+    response = 'Welcome, {}. Last login: {}'.format(user.username, last_login)
+    return response, 200
 
 
-@bp.route('/add_user')
+@bp.route('/logout')
+@login_required
+def logout():
+    username = current_user.username
+    logout_user()
+    return 'Goodbye, {}'.format(username), 200
+
+
+@bp.route('/add_user', methods=['POST'])
+@login_required
 def add_user():
-    if 'username' not in session:
-        return 'You are not logged in', 401
-    username = session['username']
-    new_user = request.args.get('new_user')
-    if new_user is None:
-        return "Missing parameter: new_user", 400
-    try:
-        core.add_user(username, new_user)
-        return 'User {} created'.format(new_user), 200
-    except TypeError as e:
-        current_app.logger.exception(e)
-        return 'Cannot add user {}: username already in use!'.format(new_user), 400
-    except ValueError as e:
-        current_app.logger.exception(e)
+    if current_user.username != 'admin':
         # Todo: fix this as well when adding proper admin users!
         return "Only user 'admin' can add new users!", 401
-    except Exception as e:
-        current_app.logger.exception(e)
-        return 'Something went wrong...', 500
+    new_user = request.json.get('new_user')
+    if new_user is None:
+        return "Missing parameter: new_user", 400
 
-
-# Logout. Ignores all parameters.
-@bp.route('/logout')
-def logout():
-    if 'username' not in session:
-        return 'You are not logged in', 401
-    username = session.pop('username')
-    return 'Goodbye, {}'.format(username), 200
+    user = User.query.filter_by(username=new_user).first()
+    if user:
+        return 'Cannot add user {}: username already in use!'.format(new_user), 400
+    user = User(username=new_user)
+    db.session.add(user)
+    db.session.commit()
+    return '{} added to database'.format(user), 200
