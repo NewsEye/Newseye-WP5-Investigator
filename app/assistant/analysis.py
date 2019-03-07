@@ -66,14 +66,14 @@ class AnalysisTools(object):
         return topics
 
     async def split_document_set_by_facet(self, username, task):
-        split_facet = task['task_parameters'].get('split_facet', None)
+        split_facet = task['task_parameters'].get('split_facet')
         target_task = task['target_task']
         for item in target_task['task_result']['included']:
             if item['id'] == AVAILABLE_FACETS[split_facet] and item['type'] == 'facet':
                 facet_totals = [(facet['attributes']['value'], facet['attributes']['hits']) for facet in item['attributes']['items']]
                 break
         else:
-            raise TypeError("Query results don't contain required facet {}".format(conf.AVAILABLE_FACETS[split_facet]))
+            raise TypeError("Query results don't contain required facet {}".format(AVAILABLE_FACETS[split_facet]))
         facet_totals.sort()
         original_query = target_task['task_parameters']
         queries = [{'f[{}][]'.format(AVAILABLE_FACETS[split_facet]): item[0]} for item in facet_totals]
@@ -84,7 +84,7 @@ class AnalysisTools(object):
 
     async def facet_analysis(self, username, task):
         facet_name = task['task_parameters']['facet_name']
-        facet_string = AVAILABLE_FACETS.get(facet_name, None)
+        facet_string = AVAILABLE_FACETS.get(facet_name)
         if facet_string is None:
             raise TypeError("Specified facet not available in current database")
 
@@ -119,7 +119,7 @@ class AnalysisTools(object):
     # TODO: Something like: if task_type is not xxx, then plan route from task_type to xxx => await execute plan
     async def find_steps_from_time_series(self, username, task):
         facet_name = task['task_parameters']['facet_name']
-        facet_string = AVAILABLE_FACETS.get(facet_name, None)
+        facet_string = AVAILABLE_FACETS.get(facet_name)
         if facet_string is None:
             raise TypeError("Specified facet not available in current database")
 
@@ -127,7 +127,7 @@ class AnalysisTools(object):
         if target_task is None or target_task['task_status'] != 'finished':
             raise TypeError("No query results available for analysis")
 
-        step_threshold = task['task_parameters'].get('step_threshold', None)
+        step_threshold = task['task_parameters'].get('step_threshold')
         facet_count_task = await self._core.execute_async_tasks(username, queries=('analysis', {'tool': 'facet_analysis', 'facet_name': facet_name, 'target_query': target_task['task_parameters']}), parent_id=task['parent_id'])
         task['parent_id'] = facet_count_task['task_id']
         facet_counts = facet_count_task['task_result']

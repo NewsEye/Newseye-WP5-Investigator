@@ -116,7 +116,7 @@ class SystemCore(object):
 
             if analysis_to_run:
                 # Fetch the data required by the analysis tasks
-                extra_queries = [task['task_parameters'].get('target_query', None) for task in analysis_to_run]
+                extra_queries = [task['task_parameters'].get('target_query') for task in analysis_to_run]
                 query_results = await self.execute_async_tasks(username, queries=extra_queries)
 
                 for task, result in zip(analysis_to_run, query_results):
@@ -172,9 +172,9 @@ class SystemCore(object):
 
         for query in queries:
             if query[0] == 'analysis':
-                target_query = query[1].get('target_query', None)
+                target_query = query[1].get('target_query')
                 if not target_query:
-                    target_id = query[1].get('target_id', None)
+                    target_id = query[1].get('target_id')
                     if target_id:
                         target_query = self._PSQL_api.get_results_by_task_id(target_id)[target_id]['task_parameters']
                         query[1]['target_query'] = target_query
