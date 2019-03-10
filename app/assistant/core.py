@@ -1,6 +1,11 @@
-from app.assistant.task import Task
+from flask import current_app
+from flask_login import current_user
+from app import db
 from app.assistant.database_access import *
 from app.assistant.analysis import *
+from app.models import Query, Task, User
+from sqlalchemy.exc import IntegrityError
+from datetime import datetime
 import threading
 import time
 import asyncio
@@ -12,11 +17,11 @@ class SystemCore(object):
         self._PSQL_api = PSQLAPI()
         self._analysis = AnalysisTools(self)
 
-    def get_task(self, username):
-        return self._PSQL_api.get_current_task(username)
+    def get_current_task(self):
+        return current_user.current_task
 
-    def get_tasks_by_task_id(self, task_id):
-        return self._PSQL_api.get_tasks_by_task_id(task_id)
+    def get_tasks_by_task_id(self, task_ids):
+        return Task.query.filter(Task.uuid.in_(task_ids))
 
     def get_history(self, username, make_tree=True):
         history = self._PSQL_api.get_user_history(username)
@@ -46,114 +51,102 @@ class SystemCore(object):
         If false, only the task_id (or a list of task_ids) is returned
         :return: A list of task_objects or task_ids corresponding to the queries.
         """
-        tasks = self.generate_tasks(username, queries)
+        task_uuids = self.generate_tasks(queries)
 
-        t = threading.Thread(target=self.execute_task_thread, args=[username, tasks, store_results])
+        t = threading.Thread(target=self.execute_task_thread, args=[current_app._get_current_object(), task_uuids, store_results])
         t.setDaemon(False)
         t.start()
 
         # Wait until the thread has started the tasks before responding to the user
         i = 0
-        while i < len(tasks):
-            if tasks[i]['task_status'] == 'created':
-                time.sleep(.5)
-            else:
-                i += 1
+        while Task.query.filter(Task.uuid.in_(task_uuids), Task.task_status == 'created').count() > 0:
+            time.sleep(1)
 
         if switch_task:
-            self._PSQL_api.set_current_task(username, tasks[0]['task_id'])
+            current_user.current_task = task_uuids[0]
+            db.session.commit()
         if return_tasks:
-            return tasks
+            return Task.query.filter(Task.uuid.in_(task_uuids)).all()
         else:
-            return [item['task_id'] for item in tasks]
+            return task_uuids
 
-    def execute_task_thread(self, username, tasks, store_results):
+    def execute_task_thread(self, app, task_uuids, store_results):
 
-        loop = asyncio.new_event_loop()
-        loop.run_until_complete(self.execute_async_tasks(username=username, tasks=tasks, store_results=store_results, return_tasks=False))
+        with app.app_context():
+            loop = asyncio.new_event_loop()
+            loop.run_until_complete(self.execute_async_tasks(task_uuids=task_uuids, return_tasks=False))
 
-    async def execute_async_tasks(self, username, queries=None, tasks=None, store_results=True, return_tasks=True, parent_id=None):
-        if (tasks and isinstance(tasks, list)) or (not tasks and isinstance(queries, list)):
+    async def execute_async_tasks(self, queries=None, task_uuids=None, return_tasks=True, parent_id=None):
+        if (task_uuids and isinstance(task_uuids, list)) or (not task_uuids and isinstance(queries, list)):
             return_list = True
         else:
             return_list = False
 
-        if not tasks:
-            tasks = self.generate_tasks(username, queries, parent_id=parent_id)
+        if not task_uuids:
+            task_uuids = self.generate_tasks(queries, parent_id=parent_id)
+        tasks = Task.query.filter(Task.uuid.in_(task_uuids)).all()
 
         # Todo: delay estimates: based on old runtime history for similar tasks?
         # ToDo: Add timeouts for the results: timestamps are already stored, simply rerun the query if the timestamp is too old.
         # TODO: Figure out a sensible usage for the task_history timestamps
 
-        tasks_to_run = [task for task in tasks if task['task_status'] == 'created']
-        queries_to_run = [task for task in tasks_to_run if task['task_type'] == 'query']
-        analysis_to_run = [task for task in tasks_to_run if task['task_type'] == 'analysis']
+        tasks_to_run = [task for task in tasks if task.task_status == 'created']
+        searches_to_run = [task for task in tasks_to_run if task.query_type == 'search']
+        analysis_to_run = [task for task in tasks_to_run if task.query_type == 'analysis']
 
-        if not tasks_to_run:
-            print("All results already found in the local database")
-        else:
+        if tasks_to_run:
             for task in tasks_to_run:
-                task['task_status'] = 'running'
-            self._PSQL_api.update_status(tasks_to_run)
+                task.task_status = 'running'
+                task.last_updated = datetime.utcnow()
+                task.last_accessed = datetime.utcnow()
+            db.session.commit()
 
-            # Todo: Possibility of directly sending data instead of target_query for the analysis tasks??
-            # Probably unnecessary optimization
+        if analysis_to_run:
+            # Fetch the data required by the analysis tasks
+            extra_queries = [task.query_parameters.get('target_query') for task in analysis_to_run]
+            data_parent_ids = await self.execute_async_tasks(queries=extra_queries, return_tasks=False)
 
-            if analysis_to_run:
-                # Fetch the data required by the analysis tasks
-                extra_queries = [task['task_parameters'].get('target_query') for task in analysis_to_run]
-                query_results = await self.execute_async_tasks(username, queries=extra_queries)
+            for task, source_id in zip(analysis_to_run, data_parent_ids):
+                task.data_parent_id = source_id
+                # Set the parent of any analysis task to be the corresponding query task
+                # TODO: Check this
+                task.hist_parent_id = source_id
 
-                for task, result in zip(analysis_to_run, query_results):
-                    task['target_task'] = result
-                    # Set the parent of any analysis task to be the corresponding query task
-                    # task['parent_id'] = result['task_id']
+        if searches_to_run:
+            search_results = await self._blacklight_api.async_query([task.query_parameters for task in searches_to_run])
+            self.store_results(searches_to_run, search_results)
 
-            # Note: now we are running first all the queries and then all the analysis, which is suboptimal, but
-            # I would expect a single task list to include only tasks of one type. If this is not the case, then it
-            # might be useful to add functionality to run everything in parallel.
-            if queries_to_run:
-                query_results = await self._blacklight_api.async_query([task['task_parameters'] for task in queries_to_run])
-                for task, result in zip(queries_to_run, query_results):
-                    task['task_result'] = result
-                    task['task_status'] = 'finished'
-                if store_results:
-                    self.store_results(username, queries_to_run)
-
-            if analysis_to_run:
-                analysis_results = await self._analysis.async_analysis(username, analysis_to_run)
-                for task, result in zip(analysis_to_run, analysis_results):
-                    task['task_result'] = result
-                    task['task_status'] = 'finished'
-                if store_results:
-                    self.store_results(username, analysis_to_run)
+        if analysis_to_run:
+            analysis_results = await self._analysis.async_analysis(analysis_to_run)
+            self.store_results(analysis_to_run, analysis_results)
 
         if return_tasks:
-            result = tasks
+            result = Task.query.filter(Task.uuid.in_(task_uuids)).all()
         else:
-            result = [item['task_id'] for item in tasks]
+            result = task_uuids
 
         if return_list:
             return result
         else:
             return result[0]
 
-    def generate_tasks(self, username, queries, parent_id=None):
+    def generate_tasks(self, queries, parent_id=None):
 
+        # TODO: Option for choosing whether to return tasks or task_uuids
         # TODO: Spot and properly handle duplicate tasks when added within the same request
 
         if not isinstance(queries, list):
             queries = [queries]
 
-        # If queries contains dictionaries, assume they are of type 'query' and fix the format
+        # If queries contains dictionaries, assume they are of type 'search' and fix the format
         if isinstance(queries[0], dict):
-            queries = [('query', item) for item in queries]
+            queries = [('search', item) for item in queries]
         elif not isinstance(queries[0], tuple):
             raise ValueError
 
         # ToDo: need to check that this is a correct type. For now we'll assume that it is.
         if not parent_id:
-            parent_id = self._PSQL_api.get_current_task_id(username)
+            parent_id = current_user.current_task_id
 
         for query in queries:
             if query[0] == 'analysis':
@@ -161,7 +154,7 @@ class SystemCore(object):
                 if not target_query:
                     target_id = query[1].get('target_id')
                     if target_id:
-                        target_query = self._PSQL_api.get_results_by_task_id(target_id)[target_id]['task_parameters']
+                        target_query = Task.query.get(target_id).query_parameters
                         query[1]['target_query'] = target_query
 
                     # If neither is specified, use an empty query as the target_query
@@ -171,51 +164,31 @@ class SystemCore(object):
                 # Remove the target_id parameter
                 query[1].pop('target_id', None)
 
-        # (task_id, query, task_status)
-        old_tasks = self._PSQL_api.get_user_tasks_by_query(username, parent_id, queries)
-
-        if old_tasks:
-            old_tasks = list(zip(*old_tasks))
-        else:
-            old_tasks = [[]] * 3
-
-        old_results = self._PSQL_api.get_results_by_query(queries)
-
-        if old_results:
-            old_results = list(zip(*old_results))
-        else:
-            old_results = [[]] * 2
+        existing_tasks = [Task.query.filter_by(user_id=current_user.id, hist_parent_id=parent_id, query_type=query[0], query_parameters=query[1]).first() for query in queries]
 
         tasks = []
         new_tasks = []
 
-        for query in queries:
-            task = Task(task_type=query[0], task_parameters=query[1], parent_id=parent_id, username=username)
+        for idx, query in enumerate(queries):
+            task = existing_tasks[idx]
+            if task is None:
+                task = Task(query_type=query[0], query_parameters=query[1], hist_parent_id=parent_id, user_id=current_user.id, task_status='created')
+                new_tasks.append(task)
             tasks.append(task)
 
-            try:
-                i = old_tasks[1].index(query)
-                task['task_id'] = old_tasks[0][i]
-                task['task_status'] = old_tasks[2][i]
-            except ValueError:
-                new_tasks.append(task)
-            try:
-                i = old_results[0].index(query)
-                task['task_status'] = 'finished'
-                task['task_result'] = old_results[1][i]
-            except ValueError:
-                pass
-
         if new_tasks:
-            new_task_ids = self._PSQL_api.add_tasks(new_tasks)
+            while True:
+                try:
+                    db.session.add_all(new_tasks)
+                    db.session.commit()
+                    break
+                except IntegrityError:
+                    db.session.rollback()
+                    pass
 
-            # Add the correct ids to tasks
-            for task, id in zip(new_tasks, new_task_ids):
-                task['task_id'] = id
+        return [task.uuid for task in tasks]
 
-        return tasks
-
-    def store_results(self, username, tasks):
+    def store_results(self, tasks, task_results):
         # Store the new results to the database after everything has been finished
         # Todo: Should we offer the option to store results as soon as they are ready? Or do that by default?
         # Speedier results vs. more sql calls. If different tasks in the same query take wildly different amounts of
@@ -223,18 +196,28 @@ class SystemCore(object):
         # doubt this would be the case here.
 
         # Do not store the target_id even if one has been temporarily set
+        # TODO: Check whether this is still needed
         for task in tasks:
-            task['task_parameters'].pop('target_id', None)
-            task.pop('target_task', None)
+            task.query_parameters.pop('target_id', None)
+
+        for task, result in zip(tasks, task_results):
+            task.task_status = 'finished'
+            # TODO: What timestamps need to be updated?
+            q = Query.query.filter_by(query_type=task.query_type, query_parameters=task.query_parameters).first()
+            if not q:
+                q = Query(query_type=task.query_type, query_parameters=task.query_parameters)
+                db.session.add(q)
+            q.query_result = result
+            q.last_accessed = datetime.utcnow()
+            q.last_updated = datetime.utcnow()
+
+        db.session.commit()
         print("Storing results into database")
-        self._PSQL_api.add_results(tasks)
 
     def get_results(self, task_ids):
         if not isinstance(task_ids, list):
             task_ids = [task_ids]
-        results = self._PSQL_api.get_results_by_task_id(task_ids)
-        if not results:
-            results = self._PSQL_api.get_tasks_by_task_id(task_ids)
+        results = Task.query.filter(Task.uuid.in_(task_ids)).all()
         if results:
             return results
         else:

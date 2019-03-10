@@ -13,7 +13,7 @@ class AnalysisTools(object):
         self._TOOL_LIST = {
             'extract_facets': {
                 'call': lambda *args: self.extract_facets(*args),
-                'input_type': 'query',
+                'input_type': 'search',
                 'output_type': 'facet_list'
             },
             'common_topics': {
@@ -28,7 +28,7 @@ class AnalysisTools(object):
             },
             'split_document_set_by_facet': {
                 'call': lambda *args: self.split_document_set_by_facet(*args),
-                'input_type': 'query',
+                'input_type': 'search',
                 'output_type': 'time_split_query'
             },
             'find_steps_from_time_series': {
