@@ -83,7 +83,8 @@ class SystemCore(object):
             return_list = False
 
         if not task_uuids:
-            task_uuids = self.generate_tasks(queries, parent_id=parent_id)
+            tasks = self.generate_tasks(queries, parent_id=parent_id, return_tasks=True)
+            task_uuids = [task.uuid for task in tasks]
         tasks = Task.query.filter(Task.uuid.in_(task_uuids)).all()
 
         # Todo: delay estimates: based on old runtime history for similar tasks?
@@ -130,9 +131,9 @@ class SystemCore(object):
         else:
             return result[0]
 
-    def generate_tasks(self, queries, parent_id=None):
+    @staticmethod
+    def generate_tasks(queries, parent_id=None, return_tasks=False):
 
-        # TODO: Option for choosing whether to return tasks or task_uuids
         # TODO: Spot and properly handle duplicate tasks when added within the same request
 
         if not isinstance(queries, list):
@@ -186,6 +187,8 @@ class SystemCore(object):
                     db.session.rollback()
                     pass
 
+        if return_tasks:
+            return tasks
         return [task.uuid for task in tasks]
 
     def store_results(self, tasks, task_results):
