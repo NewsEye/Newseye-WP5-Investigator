@@ -40,10 +40,9 @@ class SystemCore(object):
                 tree['root'].append(task)
         return tree
 
-    def run_query_task(self, username, queries, switch_task=False, return_tasks=True, store_results=True):
+    def run_query_task(self, queries, switch_task=False, return_tasks=True):
         """
         Generate tasks from queries and execute them.
-        :param username: the user who is requesting the queries
         :param queries: a single query or a list of queries
         :param switch_task: If true, the current task for the user will be updated to the one generated. If multiple
         queries are run in parallel, the current task will not be updated.
@@ -53,7 +52,7 @@ class SystemCore(object):
         """
         task_uuids = self.generate_tasks(queries)
 
-        t = threading.Thread(target=self.execute_task_thread, args=[current_app._get_current_object(), task_uuids, store_results])
+        t = threading.Thread(target=self.execute_task_thread, args=[current_app._get_current_object(), task_uuids])
         t.setDaemon(False)
         t.start()
 
@@ -70,7 +69,7 @@ class SystemCore(object):
         else:
             return task_uuids
 
-    def execute_task_thread(self, app, task_uuids, store_results):
+    def execute_task_thread(self, app, task_uuids):
 
         with app.app_context():
             loop = asyncio.new_event_loop()
@@ -191,7 +190,8 @@ class SystemCore(object):
             return tasks
         return [task.uuid for task in tasks]
 
-    def store_results(self, tasks, task_results):
+    @staticmethod
+    def store_results(tasks, task_results):
         # Store the new results to the database after everything has been finished
         # Todo: Should we offer the option to store results as soon as they are ready? Or do that by default?
         # Speedier results vs. more sql calls. If different tasks in the same query take wildly different amounts of
@@ -217,7 +217,8 @@ class SystemCore(object):
         db.session.commit()
         print("Storing results into database")
 
-    def get_results(self, task_ids):
+    @staticmethod
+    def get_results(task_ids):
         if not isinstance(task_ids, list):
             task_ids = [task_ids]
         results = Task.query.filter(Task.uuid.in_(task_ids)).all()
