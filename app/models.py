@@ -59,7 +59,9 @@ class Task(db.Model):
             'query_type': self.query_type,
             'query_parameters': self.query_parameters,
             'task_status': self.task_status,
-            'task_result': self.task_result.query_result
+            'task_result': self.task_result.query_result,
+            'hist_parent_id': self.hist_parent_id,
+            'data_parent_id': self.data_parent_id,
         }
 
     def __repr__(self):
