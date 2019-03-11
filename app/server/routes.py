@@ -10,7 +10,7 @@ from app.models import Task
 def search():
     query = request.args.to_dict(flat=False)
     try:
-        results = core.run_query_task(current_user.username, ('search', query))
+        results = core.run_query_task(('search', query))
     except Exception as e:
         current_app.logger.exception(e)
         return 'Something went wrong...', 500
@@ -30,7 +30,7 @@ def search():
 def analyze():
     if request.method == 'GET':
         try:
-            task_ids = core.run_query_task(current_user.username, ('analysis', request.args.to_dict()), return_tasks=False)
+            task_ids = core.run_query_task(('analysis', request.args.to_dict()), return_tasks=False)
             response = core.get_tasks_by_task_id(task_ids)
             return jsonify(list(response.values()))
         except TypeError as e:
@@ -41,7 +41,7 @@ def analyze():
             arguments = request.json
             # ToDO: check the validity of the username!!!!
             username = arguments.pop('username')
-            task_ids = core.run_query_task(username, ('analysis', arguments), return_tasks=False)
+            task_ids = core.run_query_task(('analysis', arguments), return_tasks=False)
             response = {'task_id': task_ids[0], 'username': username}
             response.update(arguments)
             return jsonify(response)
@@ -64,7 +64,7 @@ def analysis(task_id):
 @bp.route('/api/history')
 @login_required
 def get_history():
-    history = core.get_history(current_user.username)
+    history = core.get_history()
     return jsonify(history)
 
 
@@ -75,4 +75,4 @@ def test_multiquery():
         {'q': ['lighthouse']},
         {'q': ['ghost']}
     ]
-    return jsonify(core.run_query_task(current_user.username, test_query))
+    return jsonify(core.run_query_task(test_query))

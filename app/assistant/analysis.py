@@ -41,14 +41,14 @@ class AnalysisTools(object):
         self._core = core
 
     # TODO: The API for retrieving descriptions of available tools,
-    async def async_analysis(self, username, tasks):
-        async_tasks = [self._TOOL_LIST[task['task_parameters'].get('tool')]['call'](username, task) for task in tasks]
+    async def async_analysis(self, tasks):
+        async_tasks = [self._TOOL_LIST[task['task_parameters'].get('tool')]['call'](task) for task in tasks]
 
         results = await asyncio.gather(*async_tasks)
         print("Queries finished, returning results")
         return results
 
-    async def extract_facets(self, username, task):
+    async def extract_facets(self, task):
         facets = {}
         for feature in task['target_task']['task_result']['included']:
             if feature['type'] != 'facet':
@@ -59,13 +59,13 @@ class AnalysisTools(object):
             facets[feature['id']] = values
         return facets
 
-    async def common_topics(self, username, task):
-        facet_counts = await self._core.execute_async_tasks(username, queries=('analysis', {'tool': 'extract_facets', 'target_query': task['task_parameters']['target_query']}), parent_id=task['task_id'])
+    async def common_topics(self, task):
+        facet_counts = await self._core.execute_async_tasks(queries=('analysis', {'tool': 'extract_facets', 'target_query': task['task_parameters']['target_query']}), parent_id=task['task_id'])
         facet_counts = facet_counts['task_result']
         topics = facet_counts[AVAILABLE_FACETS['TOPIC']][:int(task['task_parameters']['n'])]
         return topics
 
-    async def split_document_set_by_facet(self, username, task):
+    async def split_document_set_by_facet(self, task):
         split_facet = task['task_parameters'].get('split_facet')
         target_task = task['target_task']
         for item in target_task['task_result']['included']:
@@ -79,10 +79,10 @@ class AnalysisTools(object):
         queries = [{'f[{}][]'.format(AVAILABLE_FACETS[split_facet]): item[0]} for item in facet_totals]
         for query in queries:
             query.update(original_query)
-        query_ids = await self._core.execute_async_tasks(username, queries=queries, return_tasks=False, parent_id=target_task['task_id'])
+        query_ids = await self._core.execute_async_tasks(queries=queries, return_tasks=False, parent_id=target_task['task_id'])
         return [str(query_id) for query_id in query_ids]
 
-    async def facet_analysis(self, username, task):
+    async def facet_analysis(self, task):
         facet_name = task['task_parameters']['facet_name']
         facet_string = AVAILABLE_FACETS.get(facet_name)
         if facet_string is None:
@@ -92,7 +92,7 @@ class AnalysisTools(object):
         if target_task is None or target_task['task_status'] != 'finished':
             raise TypeError("No query results available for analysis")
 
-        subquery_task = await self._core.execute_async_tasks(username, queries=('analysis', {'tool': 'split_document_set_by_facet', 'split_facet': 'PUB_YEAR', 'target_query': target_task['task_parameters']}), parent_id=task['parent_id'])
+        subquery_task = await self._core.execute_async_tasks(queries=('analysis', {'tool': 'split_document_set_by_facet', 'split_facet': 'PUB_YEAR', 'target_query': target_task['task_parameters']}), parent_id=task['parent_id'])
         task['parent_id'] = subquery_task['task_id']
         subquery_ids = subquery_task['task_result']
 
@@ -117,7 +117,7 @@ class AnalysisTools(object):
         return analysis_results
 
     # TODO: Something like: if task_type is not xxx, then plan route from task_type to xxx => await execute plan
-    async def find_steps_from_time_series(self, username, task):
+    async def find_steps_from_time_series(self, task):
         facet_name = task['task_parameters']['facet_name']
         facet_string = AVAILABLE_FACETS.get(facet_name)
         if facet_string is None:
@@ -128,7 +128,7 @@ class AnalysisTools(object):
             raise TypeError("No query results available for analysis")
 
         step_threshold = task['task_parameters'].get('step_threshold')
-        facet_count_task = await self._core.execute_async_tasks(username, queries=('analysis', {'tool': 'facet_analysis', 'facet_name': facet_name, 'target_query': target_task['task_parameters']}), parent_id=task['parent_id'])
+        facet_count_task = await self._core.execute_async_tasks(queries=('analysis', {'tool': 'facet_analysis', 'facet_name': facet_name, 'target_query': target_task['task_parameters']}), parent_id=task['parent_id'])
         task['parent_id'] = facet_count_task['task_id']
         facet_counts = facet_count_task['task_result']
         absolute_counts = pd.DataFrame(facet_counts['absolute_counts'])
