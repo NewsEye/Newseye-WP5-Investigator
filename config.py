@@ -15,3 +15,5 @@ class Config(object):
     MAIL_USERNAME = os.environ.get('MAIL_USERNAME')
     MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
     ADMINS = ['jari.avikainen@helsinki.fi']
+    BLACKLIGHT_URI = "https://demo.projectblacklight.org/catalog.json"
+    BLACKLIGHT_DEFAULT_PARAMETERS = {'utf8': "%E2%9C%93"}

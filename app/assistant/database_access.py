@@ -1,5 +1,7 @@
 import asyncio
 import aiohttp
+from config import Config
+from flask import current_app
 import psycopg2
 from psycopg2.extras import Json, execute_values, register_uuid
 import uuid
@@ -7,14 +9,8 @@ import uuid
 
 class BlacklightAPI(object):
 
-    def __init__(self):
-        self.baseUri = "https://demo.projectblacklight.org/catalog.json"
-        self.default_params = {
-            'utf8': "%E2%9C%93",
-        }
-
     async def fetch(self, session, params={}):
-        async with session.get(url=self.baseUri, params=self.fix_query_for_aiohttp(params)) as response:
+        async with session.get(url=Config.BLACKLIGHT_URI, params=self.fix_query_for_aiohttp(params)) as response:
             return await response.json()
 
     # Runs the query/queries using aiohttp. The return value is a list containing the results in the corresponding order.
@@ -24,7 +20,7 @@ class BlacklightAPI(object):
         tasks = []
         async with aiohttp.ClientSession() as session:
             for query in queries:
-                params = self.default_params.copy()
+                params = Config.BLACKLIGHT_DEFAULT_PARAMETERS.copy()
                 params.update(query)
                 print("Log, appending query: {}".format(params))
                 tasks.append(self.fetch(session, params))
