@@ -22,10 +22,10 @@ class BlacklightAPI(object):
             for query in queries:
                 params = Config.BLACKLIGHT_DEFAULT_PARAMETERS.copy()
                 params.update(query)
-                print("Log, appending query: {}".format(params))
+                current_app.logger.info("Log, appending query: {}".format(params))
                 tasks.append(self.fetch(session, params))
             results = await asyncio.gather(*tasks)
-        print("Queries finished, returning results")
+        current_app.logger.info("Queries finished, returning results")
         return results
 
     # Unlike the requests package, aiohttp doesn't support key: [value_list] pairs for defining multiple values for

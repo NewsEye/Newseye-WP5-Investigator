@@ -1,9 +1,9 @@
 from flask import current_app
 from flask_login import current_user
 from app import db
-from app.assistant.database_access import *
-from app.assistant.analysis import *
-from app.models import Query, Task, User
+from app.assistant.database_access import BlacklightAPI
+from app.assistant.analysis import AnalysisTools
+from app.models import Query, Task
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime
 import threading
@@ -15,9 +15,6 @@ class SystemCore(object):
     def __init__(self):
         self._blacklight_api = BlacklightAPI()
         self._analysis = AnalysisTools(self)
-
-    def get_current_task(self):
-        return current_user.current_task
 
     def get_tasks_by_task_id(self, task_ids):
         return Task.query.filter(Task.uuid.in_(task_ids))
