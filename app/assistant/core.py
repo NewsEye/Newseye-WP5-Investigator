@@ -206,7 +206,16 @@ class SystemCore(object):
             q = Query.query.filter_by(query_type=task.query_type, query_parameters=task.query_parameters).first()
             if not q:
                 q = Query(query_type=task.query_type, query_parameters=task.query_parameters)
-                db.session.add(q)
+                try:
+                    db.session.add(q)
+                # If another thread created the query in the meanwhile, this should recover from that, and simply overwrite the result with the newest one.
+                # If the filter still returns None after IntegrityError, we log the event, ignore the result and continue
+                except IntegrityError:
+                    q = Query.query.filter_by(query_type=task.query_type,
+                                              query_parameters=task.query_parameters).first()
+                    if not q:
+                        current_app.logging.error("Unable to create or retrieve Query for {}. Store results failed!".format(task))
+                        continue
             q.query_result = result
             q.last_accessed = datetime.utcnow()
             q.last_updated = datetime.utcnow()
