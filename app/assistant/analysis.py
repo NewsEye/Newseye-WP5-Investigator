@@ -1,6 +1,7 @@
+from app.models import Task
 from app.assistant.config import *
+from flask import current_app
 import asyncio
-from operator import itemgetter
 import numpy as np
 import pandas as pd
 from math import sqrt
@@ -42,15 +43,25 @@ class AnalysisTools(object):
 
     # TODO: The API for retrieving descriptions of available tools,
     async def async_analysis(self, tasks):
-        async_tasks = [self._TOOL_LIST[task['task_parameters'].get('tool')]['call'](task) for task in tasks]
+
+        async_tasks = [self._TOOL_LIST[task.query_parameters.get('tool')]['call'](task) for task in tasks]
 
         results = await asyncio.gather(*async_tasks)
         print("Queries finished, returning results")
         return results
 
     async def extract_facets(self, task):
+        if task.data_parent_id:
+            input_task = Task.query.filter_by(uuid=task.data_parent_id)
+        else:
+            search_parameters = task.query_parameters.get('target_search')
+            if search_parameters is None:
+                return None
+            input_task = await self._core.execute_async_tasks(user=task.user, queries=('search', search_parameters), parent_id=task.uuid)
+            task.data_parent_id = input_task.uuid
+        input_data = input_task.task_result.query_result
         facets = {}
-        for feature in task['target_task']['task_result']['included']:
+        for feature in input_data['included']:
             if feature['type'] != 'facet':
                 continue
             values = []
@@ -60,47 +71,70 @@ class AnalysisTools(object):
         return facets
 
     async def common_topics(self, task):
-        facet_counts = await self._core.execute_async_tasks(queries=('analysis', {'tool': 'extract_facets', 'target_query': task['task_parameters']['target_query']}), parent_id=task['task_id'])
-        facet_counts = facet_counts['task_result']
-        topics = facet_counts[AVAILABLE_FACETS['TOPIC']][:int(task['task_parameters']['n'])]
+        if task.data_parent_id:
+            input_task = Task.query.filter(uuid=task.data_parent_id)
+        else:
+            search_parameters = task.query_parameters.get('target_search')
+            if search_parameters is None:
+                return None
+            input_task = await self._core.execute_async_tasks(user=task.user, queries=('analysis', {'tool': 'extract_facets', 'target_search': search_parameters}), parent_id=task.uuid)
+            task.data_parent_id = input_task.uuid
+        input_data = input_task.task_result.query_result
+        topics = input_data[AVAILABLE_FACETS['TOPIC']][:int(task.query_parameters['n'])]
         return topics
 
     async def split_document_set_by_facet(self, task):
-        split_facet = task['task_parameters'].get('split_facet')
-        target_task = task['target_task']
-        for item in target_task['task_result']['included']:
+        split_facet = task.query_parameters.get('split_facet')
+        if task.data_parent_id:
+            input_task = Task.query.filter_by(uuid=task.data_parent_id)
+        else:
+            search_parameters = task.query_parameters.get('target_search')
+            if search_parameters is None:
+                return None
+            input_task = await self._core.execute_async_tasks(user=task.user, queries=('search', search_parameters), parent_id=task.uuid)
+            task.data_parent_id = input_task.uuid
+        input_data = input_task.task_result.query_result
+        for item in input_data['included']:
             if item['id'] == AVAILABLE_FACETS[split_facet] and item['type'] == 'facet':
                 facet_totals = [(facet['attributes']['value'], facet['attributes']['hits']) for facet in item['attributes']['items']]
                 break
         else:
-            raise TypeError("Query results don't contain required facet {}".format(AVAILABLE_FACETS[split_facet]))
+            raise TypeError("Search results don't contain required facet {}".format(AVAILABLE_FACETS[split_facet]))
         facet_totals.sort()
-        original_query = target_task['task_parameters']
+        original_search = input_task.query_parameters
         queries = [{'f[{}][]'.format(AVAILABLE_FACETS[split_facet]): item[0]} for item in facet_totals]
         for query in queries:
-            query.update(original_query)
-        query_ids = await self._core.execute_async_tasks(queries=queries, return_tasks=False, parent_id=target_task['task_id'])
+            query.update(original_search)
+        query_ids = await self._core.execute_async_tasks(user=task.user, queries=queries, return_tasks=False, parent_id=input_task.uuid)
         return [str(query_id) for query_id in query_ids]
 
     async def facet_analysis(self, task):
-        facet_name = task['task_parameters']['facet_name']
+        facet_name = task.query_parameters['facet_name']
         facet_string = AVAILABLE_FACETS.get(facet_name)
         if facet_string is None:
             raise TypeError("Specified facet not available in current database")
 
-        target_task = task['target_task']
-        if target_task is None or target_task['task_status'] != 'finished':
+        if task.data_parent_id:
+            input_task = Task.query.filter_by(uuid=task.data_parent_id)
+        else:
+            search_parameters = task.query_parameters.get('target_search')
+            if search_parameters is None:
+                return None
+            input_task = await self._core.execute_async_tasks(user=task.user, queries=('analysis', {'tool': 'split_document_set_by_facet', 'split_facet': 'PUB_YEAR', 'target_search': search_parameters}), parent_id=task.hist_parent_id)
+            task.data_parent_id = input_task.uuid
+
+        if input_task is None or input_task.task_status != 'finished':
             raise TypeError("No query results available for analysis")
 
-        subquery_task = await self._core.execute_async_tasks(queries=('analysis', {'tool': 'split_document_set_by_facet', 'split_facet': 'PUB_YEAR', 'target_query': target_task['task_parameters']}), parent_id=task['parent_id'])
-        task['parent_id'] = subquery_task['task_id']
-        subquery_ids = subquery_task['task_result']
-
-        subquery_results = self._core.get_results(subquery_ids).values()
+        input_data = input_task.task_result.query_result
+        subquery_tasks = Task.query.filter(Task.uuid.in_(input_data)).all()
         f_counts = []
-        for task in subquery_results:
-            task_params, task_result = itemgetter('task_parameters', 'task_result')(task)
-            year = task_params['f[{}][]'.format(AVAILABLE_FACETS['PUB_YEAR'])]
+        for task in subquery_tasks:
+            if task.task_result is None:
+                current_app.logger.error('Empty task result in input for task_analysis')
+                continue
+            task_result = task.task_result.query_result
+            year = task.query_parameters['f[{}][]'.format(AVAILABLE_FACETS['PUB_YEAR'])]
             total_hits = task_result['meta']['pages']['total_count']
             for item in task_result['included']:
                 if item['id'] == facet_string and item['type'] == 'facet':
@@ -118,22 +152,27 @@ class AnalysisTools(object):
 
     # TODO: Something like: if task_type is not xxx, then plan route from task_type to xxx => await execute plan
     async def find_steps_from_time_series(self, task):
-        facet_name = task['task_parameters']['facet_name']
+        facet_name = task.query_parameters['facet_name']
         facet_string = AVAILABLE_FACETS.get(facet_name)
+        step_threshold = task.query_parameters.get('step_threshold')
         if facet_string is None:
             raise TypeError("Specified facet not available in current database")
+        if task.data_parent_id:
+            input_task = Task.query.filter_by(uuid=task.data_parent_id)
+        else:
+            search_parameters = task.query_parameters.get('target_search')
+            if search_parameters is None:
+                return None
+            input_task = await self._core.execute_async_tasks(user=task.user, queries=('analysis', {'tool': 'facet_analysis', 'facet_name': facet_name, 'target_search': search_parameters}), parent_id=task.hist_parent_id)
+            task.data_parent_id = input_task.uuid
 
-        target_task = task['target_task']
-        if target_task is None or target_task['task_status'] != 'finished':
+        if input_task is None or input_task.task_status != 'finished':
             raise TypeError("No query results available for analysis")
 
-        step_threshold = task['task_parameters'].get('step_threshold')
-        facet_count_task = await self._core.execute_async_tasks(queries=('analysis', {'tool': 'facet_analysis', 'facet_name': facet_name, 'target_query': target_task['task_parameters']}), parent_id=task['parent_id'])
-        task['parent_id'] = facet_count_task['task_id']
-        facet_counts = facet_count_task['task_result']
-        absolute_counts = pd.DataFrame(facet_counts['absolute_counts'])
+        input_data = input_task.task_result.query_result
+        absolute_counts = pd.DataFrame(input_data['absolute_counts'])
         absolute_counts.index = pd.to_numeric(absolute_counts.index)
-        relative_counts = pd.DataFrame(facet_counts['relative_counts'])
+        relative_counts = pd.DataFrame(input_data['relative_counts'])
         relative_counts.index = pd.to_numeric(absolute_counts.index)
         index_start = absolute_counts.index.min()
         index_end = absolute_counts.index.max()

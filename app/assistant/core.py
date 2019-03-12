@@ -3,12 +3,13 @@ from flask_login import current_user
 from app import db
 from app.assistant.database_access import BlacklightAPI
 from app.assistant.analysis import AnalysisTools
-from app.models import Query, Task
+from app.models import Query, Task, User
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime
 import threading
 import time
 import asyncio
+import uuid
 
 
 class SystemCore(object):
@@ -48,8 +49,7 @@ class SystemCore(object):
         :return: A list of task_objects or task_ids corresponding to the queries.
         """
         task_uuids = self.generate_tasks(queries)
-
-        t = threading.Thread(target=self.execute_task_thread, args=[current_app._get_current_object(), task_uuids])
+        t = threading.Thread(target=self.execute_task_thread, args=[current_app._get_current_object(), current_user.id, task_uuids])
         t.setDaemon(False)
         t.start()
 
@@ -66,26 +66,29 @@ class SystemCore(object):
         else:
             return task_uuids
 
-    def execute_task_thread(self, app, task_uuids):
+    def execute_task_thread(self, app, user_id, task_uuids):
 
         with app.app_context():
             loop = asyncio.new_event_loop()
-            loop.run_until_complete(self.execute_async_tasks(task_uuids=task_uuids, return_tasks=False))
+            loop.run_until_complete(self.execute_async_tasks(user=User.query.get(user_id), task_uuids=task_uuids, return_tasks=False))
 
-    async def execute_async_tasks(self, queries=None, task_uuids=None, return_tasks=True, parent_id=None):
+    async def execute_async_tasks(self, user, queries=None, task_uuids=None, return_tasks=True, parent_id=None):
+
         if (task_uuids and isinstance(task_uuids, list)) or (not task_uuids and isinstance(queries, list)):
             return_list = True
         else:
             return_list = False
 
-        if not task_uuids:
-            tasks = self.generate_tasks(queries, parent_id=parent_id, return_tasks=True)
+        if task_uuids:
+            tasks = Task.query.filter(Task.uuid.in_(task_uuids)).all()
+        else:
+            tasks = self.generate_tasks(queries=queries, user=user, parent_id=parent_id, return_tasks=True)
             task_uuids = [task.uuid for task in tasks]
-        tasks = Task.query.filter(Task.uuid.in_(task_uuids)).all()
 
         # Todo: delay estimates: based on old runtime history for similar tasks?
         # ToDo: Add timeouts for the results: timestamps are already stored, simply rerun the query if the timestamp is too old.
         # TODO: Figure out a sensible usage for the task_history timestamps
+        # Todo: Also rerun the tasks, if the results have been deleted from the database
 
         tasks_to_run = [task for task in tasks if task.task_status == 'created']
         searches_to_run = [task for task in tasks_to_run if task.query_type == 'search']
@@ -98,16 +101,6 @@ class SystemCore(object):
                 task.last_accessed = datetime.utcnow()
             db.session.commit()
 
-        if analysis_to_run:
-            # Fetch the data required by the analysis tasks
-            extra_queries = [task.query_parameters.get('target_query') for task in analysis_to_run]
-            data_parent_ids = await self.execute_async_tasks(queries=extra_queries, return_tasks=False)
-
-            for task, source_id in zip(analysis_to_run, data_parent_ids):
-                task.data_parent_id = source_id
-                # Set the parent of any analysis task to be the corresponding query task
-                # TODO: Check this
-                task.hist_parent_id = source_id
 
         if searches_to_run:
             search_results = await self._blacklight_api.async_query([task.query_parameters for task in searches_to_run])
@@ -128,7 +121,7 @@ class SystemCore(object):
             return result[0]
 
     @staticmethod
-    def generate_tasks(queries, parent_id=None, return_tasks=False):
+    def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=False):
 
         # TODO: Spot and properly handle duplicate tasks when added within the same request
 
@@ -143,25 +136,31 @@ class SystemCore(object):
 
         # ToDo: need to check that this is a correct type. For now we'll assume that it is.
         if not parent_id:
-            parent_id = current_user.current_task_id
+            parent_id = user.current_task_id
 
+        # Assume empty query as input for analysis with no input specified
         for query in queries:
             if query[0] == 'analysis':
-                target_query = query[1].get('target_query')
-                if not target_query:
-                    target_id = query[1].get('target_id')
-                    if target_id:
-                        target_query = Task.query.get(target_id).query_parameters
-                        query[1]['target_query'] = target_query
+                if query[1].get('data_parent_id') is None and query[1].get('target_search') is None:
+                    query[1]['target_search'] = {'q': []}
 
-                    # If neither is specified, use an empty query as the target_query
-                    else:
-                        query[1]['target_query'] = {'q': []}
+        # for query in queries:
+        #     if query[0] == 'analysis':
+        #         target_search = query[1].get('target_search')
+        #         if not target_search:
+        #             data_parent_id = query[1].get('data_parent_id')
+        #             if data_parent_id:
+        #                 target_search = Task.query.filter_by(uuid=data_parent_id).query_parameters
+        #                 query[1]['target_search'] = target_search
+        #
+        #             # If neither is specified, use an empty query as the target_query
+        #             else:
+        #                 query[1]['target_search'] = {'q': []}
+        #
+        #         # Remove the target_id parameter
+        #         query[1].pop('target_id', None)
 
-                # Remove the target_id parameter
-                query[1].pop('target_id', None)
-
-        existing_tasks = [Task.query.filter_by(user_id=current_user.id, hist_parent_id=parent_id, query_type=query[0], query_parameters=query[1]).first() for query in queries]
+        existing_tasks = [Task.query.filter_by(user_id=user.id, hist_parent_id=parent_id, query_type=query[0], query_parameters=query[1]).one() for query in queries]
 
         tasks = []
         new_tasks = []
@@ -169,12 +168,14 @@ class SystemCore(object):
         for idx, query in enumerate(queries):
             task = existing_tasks[idx]
             if task is None:
-                task = Task(query_type=query[0], query_parameters=query[1], hist_parent_id=parent_id, user_id=current_user.id, task_status='created')
+                task = Task(query_type=query[0], query_parameters=query[1], hist_parent_id=parent_id, user_id=user.id, task_status='created')
                 new_tasks.append(task)
             tasks.append(task)
 
         if new_tasks:
             while True:
+                for task in new_tasks:
+                    task.uuid = uuid.uuid4()
                 try:
                     db.session.add_all(new_tasks)
                     db.session.commit()
@@ -214,7 +215,7 @@ class SystemCore(object):
                     q = Query.query.filter_by(query_type=task.query_type,
                                               query_parameters=task.query_parameters).first()
                     if not q:
-                        current_app.logging.error("Unable to create or retrieve Query for {}. Store results failed!".format(task))
+                        current_app.logger.error("Unable to create or retrieve Query for {}. Store results failed!".format(task))
                         continue
             q.query_result = result
             q.last_accessed = datetime.utcnow()
@@ -222,13 +223,3 @@ class SystemCore(object):
 
         db.session.commit()
         print("Storing results into database")
-
-    @staticmethod
-    def get_results(task_ids):
-        if not isinstance(task_ids, list):
-            task_ids = [task_ids]
-        results = Task.query.filter(Task.uuid.in_(task_ids)).all()
-        if results:
-            return results
-        else:
-            raise TypeError
