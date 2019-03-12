@@ -223,6 +223,5 @@ class SystemCore(object):
             q.query_result = result
             q.last_accessed = datetime.utcnow()
             q.last_updated = datetime.utcnow()
-
+        current_app.logger.info("Storing results into database")
         db.session.commit()
-        print("Storing results into database")

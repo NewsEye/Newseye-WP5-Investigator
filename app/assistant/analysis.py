@@ -57,7 +57,7 @@ class AnalysisTools(object):
         async_tasks = [self._TOOL_LIST[task.query_parameters.get('tool')]['call'](task) for task in tasks]
 
         results = await asyncio.gather(*async_tasks)
-        print("Queries finished, returning results")
+        current_app.logger.info("Queries finished, returning results")
         return results
 
     async def get_input_task(self, task):
