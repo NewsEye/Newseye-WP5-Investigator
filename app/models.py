@@ -38,7 +38,7 @@ class Query(db.Model):
 class Task(db.Model):
     __tablename__ = 'tasks'
     id = db.Column(db.Integer, primary_key=True)
-    uuid = db.Column(UUID(as_uuid=True), unique=True, nullable=False, default=uuid.uuid4())
+    uuid = db.Column(UUID(as_uuid=True), unique=True, nullable=False, default=uuid.uuid4)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     hist_parent_id = db.Column(UUID(as_uuid=True), db.ForeignKey('tasks.uuid'))
     data_parent_id = db.Column(UUID(as_uuid=True), db.ForeignKey('tasks.uuid'))

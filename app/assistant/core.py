@@ -177,14 +177,14 @@ class SystemCore(object):
 
         if new_tasks:
             while True:
-                for task in new_tasks:
-                    task.uuid = uuid.uuid4()
                 try:
                     db.session.add_all(new_tasks)
                     db.session.commit()
                     break
                 except IntegrityError:
                     db.session.rollback()
+                    for task in new_tasks:
+                        task.uuid = uuid.uuid4()
                     pass
 
         if return_tasks:
