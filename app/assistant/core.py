@@ -141,29 +141,16 @@ class SystemCore(object):
         if not parent_id:
             parent_id = user.current_task_id
 
+        # Remove the target_id from query parameters
+        target_ids = [query[1].pop('target_id', None) for query in queries]
+
         # Assume empty query as input for analysis with no input specified
-        for query in queries:
+        for query, target_id in zip(queries, target_ids):
             if query[0] == 'analysis':
-                if query[1].get('data_parent_id') is None and query[1].get('target_search') is None:
+                if target_id is None and query[1].get('target_search') is None:
                     query[1]['target_search'] = {'q': []}
 
-        # for query in queries:
-        #     if query[0] == 'analysis':
-        #         target_search = query[1].get('target_search')
-        #         if not target_search:
-        #             data_parent_id = query[1].get('data_parent_id')
-        #             if data_parent_id:
-        #                 target_search = Task.query.filter_by(uuid=data_parent_id).query_parameters
-        #                 query[1]['target_search'] = target_search
-        #
-        #             # If neither is specified, use an empty query as the target_query
-        #             else:
-        #                 query[1]['target_search'] = {'q': []}
-        #
-        #         # Remove the target_id parameter
-        #         query[1].pop('target_id', None)
-
-        existing_tasks = [Task.query.filter_by(user_id=user.id, hist_parent_id=parent_id, query_type=query[0], query_parameters=query[1]).one() for query in queries]
+        existing_tasks = [Task.query.filter_by(user_id=user.id, data_parent_id=target_id, hist_parent_id=parent_id, query_type=query[0], query_parameters=query[1]).one_or_none() for query, target_id in zip(queries, target_ids)]
 
         tasks = []
         new_tasks = []
@@ -171,7 +158,7 @@ class SystemCore(object):
         for idx, query in enumerate(queries):
             task = existing_tasks[idx]
             if task is None:
-                task = Task(query_type=query[0], query_parameters=query[1], hist_parent_id=parent_id, user_id=user.id, task_status='created')
+                task = Task(query_type=query[0], query_parameters=query[1], data_parent_id=target_ids[idx], hist_parent_id=parent_id, user_id=user.id, task_status='created')
                 new_tasks.append(task)
             tasks.append(task)
 
@@ -199,15 +186,10 @@ class SystemCore(object):
         # time, it would make sense to store the finished ones immediately instead of waiting for the last one, but I
         # doubt this would be the case here.
 
-        # Do not store the target_id even if one has been temporarily set
-        # TODO: Check whether this is still needed
-        for task in tasks:
-            task.query_parameters.pop('target_id', None)
-
         for task, result in zip(tasks, task_results):
             task.task_status = 'finished'
             # TODO: What timestamps need to be updated?
-            q = Query.query.filter_by(query_type=task.query_type, query_parameters=task.query_parameters).first()
+            q = Query.query.filter_by(query_type=task.query_type, query_parameters=task.query_parameters).one_or_none()
             if not q:
                 q = Query(query_type=task.query_type, query_parameters=task.query_parameters)
                 try:
@@ -216,7 +198,7 @@ class SystemCore(object):
                 # If the filter still returns None after IntegrityError, we log the event, ignore the result and continue
                 except IntegrityError:
                     q = Query.query.filter_by(query_type=task.query_type,
-                                              query_parameters=task.query_parameters).first()
+                                              query_parameters=task.query_parameters).one_or_none()
                     if not q:
                         current_app.logger.error("Unable to create or retrieve Query for {}. Store results failed!".format(task))
                         continue

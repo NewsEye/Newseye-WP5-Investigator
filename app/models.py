@@ -20,6 +20,7 @@ class User(UserMixin, db.Model):
         return '<User {}>'.format(self.username)
 
 
+# TODO: Rename into Results, and query_type, _parameters_and _result as task_...
 class Query(db.Model):
     __tablename__ = 'queries'
     id = db.Column(db.Integer, primary_key=True)
@@ -68,6 +69,7 @@ class Task(db.Model):
         return '<Task {}: {}>'.format(self.query_type, self.query_parameters)
 
 
+# Needed by flask_login
 @login.user_loader
 def load_user(id):
     return User.query.get(int(id))
