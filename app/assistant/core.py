@@ -90,17 +90,20 @@ class SystemCore(object):
         # TODO: Figure out a sensible usage for the task_history timestamps
         # Todo: Also rerun the tasks, if the results have been deleted from the database
 
-        tasks_to_run = [task for task in tasks if task.task_status == 'created']
-        searches_to_run = [task for task in tasks_to_run if task.query_type == 'search']
-        analysis_to_run = [task for task in tasks_to_run if task.query_type == 'analysis']
+        new_tasks = [task for task in tasks if task.task_status == 'created']
 
-        if tasks_to_run:
-            for task in tasks_to_run:
-                task.task_status = 'running'
+        if new_tasks:
+            for task in new_tasks:
+                if task.task_result:
+                    task.task_status = 'finished'
+                else:
+                    task.task_status = 'running'
                 task.last_updated = datetime.utcnow()
                 task.last_accessed = datetime.utcnow()
             db.session.commit()
 
+        searches_to_run = [task for task in new_tasks if task.query_type == 'search' and task.task_status == 'running']
+        analysis_to_run = [task for task in new_tasks if task.query_type == 'analysis' and task.task_status == 'running']
 
         if searches_to_run:
             search_results = await self._blacklight_api.async_query([task.query_parameters for task in searches_to_run])
