@@ -137,7 +137,7 @@ class AnalysisTools(object):
         input_task = await self.get_input_task(task)
         task.hist_parent_id = input_task.uuid
         task.data_parent_id = input_task.uuid
-        db.sessio.commit()
+        db.session.commit()
         if input_task is None or input_task.task_status != 'finished':
             raise TypeError("No query results available for analysis")
 
