@@ -28,14 +28,17 @@ def create_app(config_class=Config):
     # mail.init_app(app)
     # moment.init_app(app)
 
-    from app.server import bp as server_bp
-    app.register_blueprint(server_bp)
+    from app.main import bp as main_bp
+    app.register_blueprint(main_bp)
 
     from app.auth import bp as auth_bp
     app.register_blueprint(auth_bp, url_prefix='/auth')
 
-    # from app.main import bp as main_bp
-    # app.register_blueprint(main_bp)
+    from app.samvera import bp as samvera_bp
+    app.register_blueprint(samvera_bp)
+
+    from app.analysis import bp as analysis_bp
+    app.register_blueprint(analysis_bp, url_prefix='/analysis')
 
     if not app.debug and not app.testing:
         if app.config['MAIL_SERVER']:

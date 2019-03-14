@@ -1,31 +1,11 @@
 from flask import request, jsonify, current_app
-from flask_login import login_required, current_user
+from flask_login import login_required
 from app.assistant import core
-from app.server import bp
+from app.analysis import bp
 from app.models import Task
 
 
-@bp.route('/search')
-@login_required
-def search():
-    query = request.args.to_dict(flat=False)
-    try:
-        results = core.run_query_task(('search', query))
-    except Exception as e:
-        current_app.logger.exception(e)
-        return 'Something went wrong...', 500
-    results = [task.dict() for task in results]
-    try:
-        for task in results:
-            if task['task_status'] != 'finished':
-                return jsonify(results), 202
-        return jsonify(results)
-    except Exception as e:
-        current_app.logger.exception(e)
-        return 'Something went wrong...', 500
-
-
-@bp.route('/api/analysis', methods=['GET', 'POST'])
+@bp.route('/', methods=['GET', 'POST'])
 @login_required
 def analyze():
     if request.method == 'GET':
@@ -53,26 +33,9 @@ def analyze():
             return 'Something went wrong...', 500
 
 
-@bp.route('/api/analysis/<string:task_id>')
+@bp.route('/<string:task_id>')
 def analysis(task_id):
     task = Task.query.filter_by(uuid=task_id).first()
     if task is None:
         return 'Invalid task_id', 400
     return jsonify(task.dict())
-
-
-@bp.route('/api/history')
-@login_required
-def get_history():
-    history = core.get_history()
-    return jsonify(history)
-
-
-@bp.route('/test/multiquery')
-@login_required
-def test_multiquery():
-    test_query = [
-        {'q': ['lighthouse']},
-        {'q': ['ghost']}
-    ]
-    return jsonify(core.run_query_task(test_query))
