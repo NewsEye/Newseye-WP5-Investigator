@@ -9,16 +9,14 @@ from app.search import bp
 def search():
     query = request.args.to_dict(flat=False)
     try:
-        results = core.run_query_task(('search', query))
+        result = core.run_query_task(('search', query))[0].dict()
     except Exception as e:
         current_app.logger.exception(e)
         return 'Something went wrong...', 500
-    results = [task.dict() for task in results]
     try:
-        for task in results:
-            if task['task_status'] != 'finished':
-                return jsonify(results), 202
-        return jsonify(results)
+        if result['task_status'] != 'finished':
+            return jsonify(result), 202
+        return jsonify(result)
     except Exception as e:
         current_app.logger.exception(e)
         return 'Something went wrong...', 500
