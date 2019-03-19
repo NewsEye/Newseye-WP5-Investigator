@@ -1,7 +1,7 @@
 from flask import current_app
 from flask_login import current_user
 from app import db
-from app.assistant.database_access import BlacklightAPI
+from app.assistant.database_access import search_database
 from app.assistant.analysis import AnalysisTools
 from app.models import Query, Task, User
 from sqlalchemy.exc import IntegrityError
@@ -14,7 +14,6 @@ import uuid
 
 class SystemCore(object):
     def __init__(self):
-        self._blacklight_api = BlacklightAPI()
         self._analysis = AnalysisTools(self)
 
     def get_tasks_by_task_id(self, task_ids):
@@ -106,7 +105,7 @@ class SystemCore(object):
         analysis_to_run = [task for task in new_tasks if task.query_type == 'analysis' and task.task_status == 'running']
 
         if searches_to_run:
-            search_results = await self._blacklight_api.async_query([task.query_parameters for task in searches_to_run])
+            search_results = await search_database([task.query_parameters for task in searches_to_run])
             self.store_results(searches_to_run, search_results)
 
         if analysis_to_run:
