@@ -4,19 +4,29 @@ from app.assistant import core
 from app.search import bp
 
 
-@bp.route('/search')
+@bp.route('/search', methods=['GET', 'POST'])
 @login_required
 def search():
-    query = request.args.to_dict(flat=False)
+    if request.method == 'GET':
+        query = request.args.to_dict(flat=False)
+        query = ('search', query)
+    if request.method == 'POST':
+        query = request.json
+        if isinstance(query, list):
+            query = [('search', item) for item in query]
+        else:
+            query = ('search', query)
     try:
-        result = core.run_query_task(('search', query))[0].dict()
-    except Exception as e:
-        current_app.logger.exception(e)
-        return 'Something went wrong...', 500
-    try:
-        if result['task_status'] != 'finished':
-            return jsonify(result), 202
-        return jsonify(result)
+        results = [task.dict() for task in core.run_query_task(query)]
+        for task in results:
+            if task['task_status'] != 'finished':
+                status = 202
+                break
+        else:
+            status = 200
+        if len(results) == 1:
+            results = results[0]
+        return jsonify(results), status
     except Exception as e:
         current_app.logger.exception(e)
         return 'Something went wrong...', 500
