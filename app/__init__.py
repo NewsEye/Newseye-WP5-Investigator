@@ -34,8 +34,8 @@ def create_app(config_class=Config):
     from app.auth import bp as auth_bp
     app.register_blueprint(auth_bp, url_prefix='/auth')
 
-    from app.samvera import bp as samvera_bp
-    app.register_blueprint(samvera_bp)
+    from app.search import bp as search_bp
+    app.register_blueprint(search_bp)
 
     from app.analysis import bp as analysis_bp
     app.register_blueprint(analysis_bp, url_prefix='/analysis')

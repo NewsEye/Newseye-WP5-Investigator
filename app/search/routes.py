@@ -1,7 +1,7 @@
 from flask import request, jsonify, current_app
 from flask_login import login_required
 from app.assistant import core
-from app.samvera import bp
+from app.search import bp
 
 
 @bp.route('/search')
