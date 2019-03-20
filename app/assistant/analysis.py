@@ -1,6 +1,6 @@
 from app import db
 from app.models import Task
-from app.assistant.config import *
+from config import Config
 from flask import current_app
 import asyncio
 import numpy as np
@@ -102,7 +102,7 @@ class AnalysisTools(object):
         task.data_parent_id = input_task.uuid
         db.session.commit()
         input_data = input_task.task_result.query_result
-        topics = input_data[AVAILABLE_FACETS['TOPIC']][:int(task.query_parameters.get('n', default_parameters['n']))]
+        topics = input_data[Config.AVAILABLE_FACETS['TOPIC']][:int(task.query_parameters.get('n', default_parameters['n']))]
         return topics
 
     async def split_document_set_by_facet(self, task):
@@ -115,14 +115,14 @@ class AnalysisTools(object):
         input_data = input_task.task_result.query_result
         split_facet = task.query_parameters.get('split_facet', default_parameters['split_facet'])
         for item in input_data['included']:
-            if item['id'] == AVAILABLE_FACETS[split_facet] and item['type'] == 'facet':
+            if item['id'] == Config.AVAILABLE_FACETS[split_facet] and item['type'] == 'facet':
                 facet_totals = [(facet['attributes']['value'], facet['attributes']['hits']) for facet in item['attributes']['items']]
                 break
         else:
-            raise TypeError("Search results don't contain required facet {}".format(AVAILABLE_FACETS[split_facet]))
+            raise TypeError("Search results don't contain required facet {}".format(Config.AVAILABLE_FACETS[split_facet]))
         facet_totals.sort()
         original_search = input_task.query_parameters
-        queries = [{'f[{}][]'.format(AVAILABLE_FACETS[split_facet]): item[0]} for item in facet_totals]
+        queries = [{'f[{}][]'.format(Config.AVAILABLE_FACETS[split_facet]): item[0]} for item in facet_totals]
         for query in queries:
             query.update(original_search)
         query_ids = await self._core.execute_async_tasks(user=task.user, queries=queries, return_tasks=False, parent_id=task.data_parent_id)
@@ -130,7 +130,7 @@ class AnalysisTools(object):
 
     async def facet_analysis(self, task):
         facet_name = task.query_parameters.get('facet_name')
-        facet_string = AVAILABLE_FACETS.get(facet_name)
+        facet_string = Config.AVAILABLE_FACETS.get(facet_name)
         if facet_string is None:
             raise TypeError("Facet not specified or specified facet not available in current database")
 
@@ -149,7 +149,7 @@ class AnalysisTools(object):
                 current_app.logger.error('Empty task result in input for task_analysis')
                 continue
             task_result = task.task_result.query_result
-            year = task.query_parameters['f[{}][]'.format(AVAILABLE_FACETS['PUB_YEAR'])]
+            year = task.query_parameters['f[{}][]'.format(Config.AVAILABLE_FACETS['PUB_YEAR'])]
             total_hits = task_result['meta']['pages']['total_count']
             for item in task_result['included']:
                 if item['id'] == facet_string and item['type'] == 'facet':
@@ -167,7 +167,7 @@ class AnalysisTools(object):
 
     async def find_steps_from_time_series(self, task):
         facet_name = task.query_parameters.get('facet_name')
-        facet_string = AVAILABLE_FACETS.get(facet_name)
+        facet_string = Config.AVAILABLE_FACETS.get(facet_name)
         if facet_string is None:
             raise TypeError("Facet not specified or specified facet not available in current database")
         step_threshold = task.query_parameters.get('step_threshold')
