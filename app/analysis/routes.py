@@ -9,26 +9,31 @@ from app.models import Task
 @login_required
 def analyze():
     if request.method == 'GET':
-        try:
-            task_ids = core.run_query_task(('analysis', request.args.to_dict()), return_tasks=False)
-            response = core.get_tasks_by_task_id(task_ids)
-            return jsonify(list(response.values()))
-        except TypeError as e:
-            current_app.logger.exception(e)
-            return 'Invalid tool name or invalid number of arguments for the chosen tool', 400
+        query = request.args.to_dict()
+        query = ('analysis', query)
     if request.method == 'POST':
-        try:
-            arguments = request.json
-            task_ids = core.run_query_task(('analysis', arguments), return_tasks=False)
-            response = {'task_id': task_ids[0]}
-            response.update(arguments)
-            return jsonify(response)
-        except KeyError as e:
-            current_app.logger.exception(e)
-            return 'Missing parameter for chosen analysis tool', 400
-        except Exception as e:
-            current_app.logger.exception(e)
-            return 'Something went wrong...', 500
+        query = request.json
+        if isinstance(query, list):
+            query = [('analysis', item) for item in query]
+        else:
+            query = ('analysis', query)
+    try:
+        results = [task.dict() for task in core.run_query_task(query)]
+        for task in results:
+            if task['task_status'] != 'finished':
+                status = 202
+                break
+        else:
+            status = 200
+        if len(results) == 1:
+            results = results[0]
+        return jsonify(results), status
+    except KeyError as e:
+        current_app.logger.exception(e)
+        return 'Missing parameter for chosen analysis tool', 400
+    except Exception as e:
+        current_app.logger.exception(e)
+        return 'Something went wrong...', 500
 
 
 @bp.route('/<string:task_id>')
