@@ -1,7 +1,6 @@
 from flask import jsonify
 from flask_login import login_required
-from app.assistant import core
-from app.main import bp
+from app.main import bp, core
 
 
 @bp.route('/history')

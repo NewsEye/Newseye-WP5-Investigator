@@ -1,6 +1,6 @@
 from flask import request, jsonify, current_app
 from flask_login import login_required
-from app.assistant import core
+from app.main import core
 from app.analysis import bp
 from app.models import Task
 
