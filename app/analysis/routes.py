@@ -19,10 +19,8 @@ def analyze():
     if request.method == 'POST':
         try:
             arguments = request.json
-            # ToDO: check the validity of the username!!!!
-            username = arguments.pop('username')
             task_ids = core.run_query_task(('analysis', arguments), return_tasks=False)
-            response = {'task_id': task_ids[0], 'username': username}
+            response = {'task_id': task_ids[0]}
             response.update(arguments)
             return jsonify(response)
         except KeyError as e:
