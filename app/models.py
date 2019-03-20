@@ -73,3 +73,15 @@ class Task(db.Model):
 @login.user_loader
 def load_user(id):
     return User.query.get(int(id))
+
+
+@login.request_loader
+def load_user_from_request(request):
+
+    # next, try to login using Basic Auth
+    username = request.headers.get('Authorization')
+    if username:
+        username = username.replace('Bearer ', '', 1)
+        user = User.query.filter_by(username=username).first()
+        return user
+    return None
