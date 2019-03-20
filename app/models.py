@@ -75,10 +75,9 @@ def load_user(id):
     return User.query.get(int(id))
 
 
+# User login using a Bearer Token, if it exists
 @login.request_loader
 def load_user_from_request(request):
-
-    # next, try to login using Basic Auth
     username = request.headers.get('Authorization')
     if username:
         username = username.replace('Bearer ', '', 1)
