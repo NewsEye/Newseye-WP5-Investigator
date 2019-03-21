@@ -3,6 +3,7 @@ from flask_login import login_required
 from app.main import core
 from app.analysis import bp
 from app.models import Task
+from app.main.analysis_tools import TOOL_LIST
 
 
 @bp.route('/', methods=['GET', 'POST'])
@@ -37,8 +38,16 @@ def analyze():
 
 
 @bp.route('/<string:task_id>')
+@login_required
 def analysis(task_id):
     task = Task.query.filter_by(uuid=task_id).first()
     if task is None:
         return 'Invalid task_id', 400
     return jsonify(task.dict())
+
+
+# TODO: Do this properly instead of using the hardcoded hack of a tool list
+@bp.route('/tools/')
+@login_required
+def tools():
+    return jsonify(TOOL_LIST), 200

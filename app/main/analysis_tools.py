@@ -7,6 +7,39 @@ import numpy as np
 import pandas as pd
 from math import sqrt
 
+TOOL_LIST = {
+    'extract_facets': {
+        'description': 'This tool ',
+        'required_parameters': '',
+        'input_type': 'search',
+        'output_type': 'facet_list'
+    },
+    'common_topics': {
+        'description': '',
+        'required_parameters': '',
+        'input_type': 'facet_list',
+        'output_type': 'topic_list'
+    },
+    'facet_analysis': {
+        'description': '',
+        'required_parameters': '',
+        'input_type': 'time_split_query',
+        'output_type': 'time_series'
+    },
+    'split_document_set_by_facet': {
+        'description': '',
+        'required_parameters': '',
+        'input_type': 'search',
+        'output_type': 'time_split_query'
+    },
+    'find_steps_from_time_series': {
+        'description': '',
+        'required_parameters': '',
+        'input_type': 'time_series',
+        'output_type': 'step_list'
+    },
+}
+
 
 class AnalysisTools(object):
 
@@ -51,7 +84,7 @@ class AnalysisTools(object):
 
         self._core = core
 
-    # TODO: The API for retrieving descriptions of available tools, automated check for critical parameters
+    # TODO: automated check for critical parameters
     async def async_analysis(self, tasks):
 
         async_tasks = [self._TOOL_LIST[task.query_parameters.get('tool')]['call'](task) for task in tasks]
