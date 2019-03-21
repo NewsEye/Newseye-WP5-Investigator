@@ -53,17 +53,36 @@ class Task(db.Model):
     data_children = db.relationship('Task', primaryjoin="Task.uuid==Task.data_parent_id")
     task_result = db.relationship('Query', primaryjoin="and_(foreign(Task.query_type)==Query.query_type, foreign(Task.query_parameters)==Query.query_parameters)")
 
-    def dict(self):
-        return {
-            'uuid': self.uuid,
-            'username': self.user.username,
-            'query_type': self.query_type,
-            'query_parameters': self.query_parameters,
-            'task_status': self.task_status,
-            'task_result': self.task_result.query_result if self.task_result else None,
-            'hist_parent_id': self.hist_parent_id,
-            'data_parent_id': self.data_parent_id,
-        }
+    def dict(self, style='status'):
+        if style == 'status':
+            return {
+                'uuid': self.uuid,
+                'query_type': self.query_type,
+                'query_parameters': self.query_parameters,
+                'task_status': self.task_status,
+            }
+        if style == 'result':
+            return {
+                'uuid': self.uuid,
+                'query_type': self.query_type,
+                'query_parameters': self.query_parameters,
+                'task_status': self.task_status,
+                'task_result': self.task_result.query_result if self.task_result else None,
+                'last_updated': self.last_updated,
+            }
+        if style == 'full':
+            return {
+                'uuid': self.uuid,
+                'query_type': self.query_type,
+                'query_parameters': self.query_parameters,
+                'task_status': self.task_status,
+                'task_result': self.task_result.query_result if self.task_result else None,
+                'hist_parent_id': self.hist_parent_id,
+                'data_parent_id': self.data_parent_id,
+                'last_updated': self.last_updated,
+                'last_accessed': self.last_accessed,
+            }
+        raise KeyError('''Unknown value for parameter 'style'! Valid options: status, result, full. ''')
 
     def __repr__(self):
         return '<Task {}: {}>'.format(self.query_type, self.query_parameters)

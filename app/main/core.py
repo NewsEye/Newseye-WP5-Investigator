@@ -16,27 +16,6 @@ class SystemCore(object):
     def __init__(self):
         self._analysis = AnalysisTools(self)
 
-    def get_tasks_by_task_id(self, task_ids):
-        return Task.query.filter(Task.uuid.in_(task_ids))
-
-    def get_history(self, make_tree=True):
-        tasks = Task.query.filter_by(user_id=current_user.id)
-        user_history = dict(zip([task.uuid for task in tasks], [task.dict() for task in tasks]))
-        if not make_tree:
-            return user_history
-        tree = {'root': []}
-        if not user_history:
-            return tree
-        for task in user_history.values():
-            parent = task['hist_parent_id']
-            if parent:
-                if 'children' not in user_history[parent].keys():
-                    user_history[parent]['children'] = []
-                user_history[parent]['children'].append(task)
-            else:
-                tree['root'].append(task)
-        return tree
-
     def run_query_task(self, queries, switch_task=False, return_tasks=True):
         """
         Generate tasks from queries and execute them.

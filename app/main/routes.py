@@ -1,10 +1,10 @@
 from flask import jsonify
 from flask_login import login_required
-from app.main import bp, core
+from app.main import bp
+from app.main.misc_tools import get_history
 
 
-@bp.route('/history')
+@bp.route('/history/')
 @login_required
-def get_history():
-    history = core.get_history()
-    return jsonify(history)
+def history():
+    return jsonify(get_history())

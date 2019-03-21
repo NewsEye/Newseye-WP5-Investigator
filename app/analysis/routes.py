@@ -43,7 +43,7 @@ def analysis(task_id):
     task = Task.query.filter_by(uuid=task_id).first()
     if task is None:
         return 'Invalid task_id', 400
-    return jsonify(task.dict())
+    return jsonify(task.dict(style='result'))
 
 
 # TODO: Do this properly instead of using the hardcoded hack of a tool list

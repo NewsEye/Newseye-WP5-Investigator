@@ -120,9 +120,9 @@ class AnalysisTools(object):
         for feature in input_data['included']:
             if feature['type'] != 'facet':
                 continue
-            values = []
+            values = {}
             for item in feature['attributes']['items']:
-                values.append((item['attributes']['label'], item['attributes']['hits']))
+                values[item['attributes']['label']] = item['attributes']['hits']
             facets[feature['id']] = values
         return facets
 
@@ -136,7 +136,8 @@ class AnalysisTools(object):
         db.session.commit()
         input_data = input_task.task_result.query_result
         topics = input_data[Config.AVAILABLE_FACETS['TOPIC']][:int(task.query_parameters.get('n', default_parameters['n']))]
-        return topics
+        interestingness = [1] * len(topics)
+        return {'topic_counts': topics, 'interestingness': interestingness}
 
     async def split_document_set_by_facet(self, task):
         default_parameters = {
