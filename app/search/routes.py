@@ -17,7 +17,7 @@ def search():
         else:
             query = ('search', query)
     try:
-        results = [task.dict() for task in core.run_query_task(query)]
+        results = [task.dict(style='result') for task in core.run_query_task(query)]
         for task in results:
             if task['task_status'] != 'finished':
                 status = 202
