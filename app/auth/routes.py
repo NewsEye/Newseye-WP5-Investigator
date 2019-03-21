@@ -6,11 +6,6 @@ from app.auth import bp
 from app.models import User
 
 
-@bp.route('/not_logged_in')
-def not_logged_in():
-    return 'You are not logged in', 401
-
-
 @bp.route('/login')
 def login():
     if current_user.is_authenticated:

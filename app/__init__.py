@@ -13,7 +13,6 @@ from logging.handlers import SMTPHandler, RotatingFileHandler
 db = SQLAlchemy()
 migrate = Migrate()
 login = LoginManager()
-login.login_view = 'auth.not_logged_in'
 # mail = Mail()
 # moment = Moment()
 
