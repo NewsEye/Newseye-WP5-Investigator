@@ -26,7 +26,7 @@ class SystemCore(object):
         If false, only the task_id (or a list of task_ids) is returned
         :return: A list of task_objects or task_ids corresponding to the queries.
         """
-        task_uuids = self.generate_tasks(queries)
+        task_uuids = generate_tasks(queries)
         t = threading.Thread(target=self.execute_task_thread, args=[current_app._get_current_object(), current_user.id, task_uuids])
         t.setDaemon(False)
         t.start()
@@ -60,7 +60,7 @@ class SystemCore(object):
         if task_uuids:
             tasks = Task.query.filter(Task.uuid.in_(task_uuids)).all()
         else:
-            tasks = self.generate_tasks(queries=queries, user=user, parent_id=parent_id, return_tasks=True)
+            tasks = generate_tasks(queries=queries, user=user, parent_id=parent_id, return_tasks=True)
             task_uuids = [task.uuid for task in tasks]
 
         # Todo: delay estimates: based on old runtime history for similar tasks?
@@ -85,11 +85,11 @@ class SystemCore(object):
 
         if searches_to_run:
             search_results = await search_database([task.query_parameters for task in searches_to_run])
-            self.store_results(searches_to_run, search_results)
+            store_results(searches_to_run, search_results)
 
         if analysis_to_run:
             analysis_results = await self._analysis.async_analysis(analysis_to_run)
-            self.store_results(analysis_to_run, analysis_results)
+            store_results(analysis_to_run, analysis_results)
 
         if return_tasks:
             result = Task.query.filter(Task.uuid.in_(task_uuids)).all()
@@ -101,87 +101,87 @@ class SystemCore(object):
         else:
             return result[0]
 
-    @staticmethod
-    def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=False):
 
-        # TODO: Spot and properly handle duplicate tasks when added within the same request
+def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=False):
 
-        if not isinstance(queries, list):
-            queries = [queries]
+    # TODO: Spot and properly handle duplicate tasks when added within the same request
 
-        # If queries contains dictionaries, assume they are of type 'search' and fix the format
-        if isinstance(queries[0], dict):
-            queries = [('search', item) for item in queries]
-        elif not isinstance(queries[0], tuple):
-            raise ValueError
+    if not isinstance(queries, list):
+        queries = [queries]
 
-        # ToDo: need to check that this is a correct type. For now we'll assume that it is.
-        if not parent_id:
-            parent_id = user.current_task_id
+    # If queries contains dictionaries, assume they are of type 'search' and fix the format
+    if isinstance(queries[0], dict):
+        queries = [('search', item) for item in queries]
+    elif not isinstance(queries[0], tuple):
+        raise ValueError
 
-        # Remove the target_id from query parameters
-        target_ids = [query[1].pop('target_id', None) for query in queries]
+    # ToDo: need to check that this is a correct type. For now we'll assume that it is.
+    if not parent_id:
+        parent_id = user.current_task_id
 
-        # Assume empty query as input for analysis with no input specified
-        for query, target_id in zip(queries, target_ids):
-            if query[0] == 'analysis':
-                if target_id is None and query[1].get('target_search') is None:
-                    query[1]['target_search'] = {'q': []}
+    # Remove the target_id from query parameters
+    target_ids = [query[1].pop('target_id', None) for query in queries]
 
-        existing_tasks = [Task.query.filter_by(user_id=user.id, data_parent_id=target_id, hist_parent_id=parent_id, query_type=query[0], query_parameters=query[1]).one_or_none() for query, target_id in zip(queries, target_ids)]
+    # Assume empty query as input for analysis with no input specified
+    for query, target_id in zip(queries, target_ids):
+        if query[0] == 'analysis':
+            if target_id is None and query[1].get('target_search') is None:
+                query[1]['target_search'] = {'q': []}
 
-        tasks = []
-        new_tasks = []
+    existing_tasks = [Task.query.filter_by(user_id=user.id, data_parent_id=target_id, hist_parent_id=parent_id, query_type=query[0], query_parameters=query[1]).one_or_none() for query, target_id in zip(queries, target_ids)]
 
-        for idx, query in enumerate(queries):
-            task = existing_tasks[idx]
-            if task is None:
-                task = Task(query_type=query[0], query_parameters=query[1], data_parent_id=target_ids[idx], hist_parent_id=parent_id, user_id=user.id, task_status='created')
-                new_tasks.append(task)
-            tasks.append(task)
+    tasks = []
+    new_tasks = []
 
-        if new_tasks:
-            while True:
-                try:
-                    db.session.add_all(new_tasks)
-                    db.session.commit()
-                    break
-                except IntegrityError:
-                    db.session.rollback()
-                    for task in new_tasks:
-                        task.uuid = uuid.uuid4()
-                    pass
+    for idx, query in enumerate(queries):
+        task = existing_tasks[idx]
+        if task is None:
+            task = Task(query_type=query[0], query_parameters=query[1], data_parent_id=target_ids[idx], hist_parent_id=parent_id, user_id=user.id, task_status='created')
+            new_tasks.append(task)
+        tasks.append(task)
 
-        if return_tasks:
-            return tasks
-        return [task.uuid for task in tasks]
+    if new_tasks:
+        while True:
+            try:
+                db.session.add_all(new_tasks)
+                db.session.commit()
+                break
+            except IntegrityError:
+                db.session.rollback()
+                for task in new_tasks:
+                    task.uuid = uuid.uuid4()
+                pass
 
-    @staticmethod
-    def store_results(tasks, task_results):
-        # Store the new results to the database after everything has been finished
-        # Todo: Should we offer the option to store results as soon as they are ready? Or do that by default?
-        # Speedier results vs. more sql calls. If different tasks in the same query take wildly different amounts of
-        # time, it would make sense to store the finished ones immediately instead of waiting for the last one, but I
-        # doubt this would be the case here.
+    if return_tasks:
+        return tasks
+    return [task.uuid for task in tasks]
 
-        for task, result in zip(tasks, task_results):
-            task.task_status = 'finished'
-            # TODO: What timestamps need to be updated?
-            q = Query.query.filter_by(query_type=task.query_type, query_parameters=task.query_parameters).one_or_none()
-            if not q:
-                q = Query(query_type=task.query_type, query_parameters=task.query_parameters)
-                try:
-                    db.session.add(q)
-                # If another thread created the query in the meanwhile, this should recover from that, and simply overwrite the result with the newest one.
-                # If the filter still returns None after IntegrityError, we log the event, ignore the result and continue
-                except IntegrityError:
-                    q = Query.query.filter_by(query_type=task.query_type,
-                                              query_parameters=task.query_parameters).one_or_none()
-                    if not q:
-                        current_app.logger.error("Unable to create or retrieve Query for {}. Store results failed!".format(task))
-                        continue
-            q.query_result = result
-            q.last_accessed = datetime.utcnow()
-            q.last_updated = datetime.utcnow()
-        current_app.logger.info("Storing results into database")
-        db.session.commit()
+
+def store_results(tasks, task_results):
+    # Store the new results to the database after everything has been finished
+    # Todo: Should we offer the option to store results as soon as they are ready? Or do that by default?
+    # Speedier results vs. more sql calls. If different tasks in the same query take wildly different amounts of
+    # time, it would make sense to store the finished ones immediately instead of waiting for the last one, but I
+    # doubt this would be the case here.
+
+    for task, result in zip(tasks, task_results):
+        task.task_status = 'finished'
+        # TODO: What timestamps need to be updated?
+        q = Query.query.filter_by(query_type=task.query_type, query_parameters=task.query_parameters).one_or_none()
+        if not q:
+            q = Query(query_type=task.query_type, query_parameters=task.query_parameters)
+            try:
+                db.session.add(q)
+            # If another thread created the query in the meanwhile, this should recover from that, and simply overwrite the result with the newest one.
+            # If the filter still returns None after IntegrityError, we log the event, ignore the result and continue
+            except IntegrityError:
+                q = Query.query.filter_by(query_type=task.query_type,
+                                          query_parameters=task.query_parameters).one_or_none()
+                if not q:
+                    current_app.logger.error("Unable to create or retrieve Query for {}. Store results failed!".format(task))
+                    continue
+        q.query_result = result
+        q.last_accessed = datetime.utcnow()
+        q.last_updated = datetime.utcnow()
+    current_app.logger.info("Storing results into database")
+    db.session.commit()
