@@ -9,6 +9,10 @@ from app.search import bp
 def search():
     if request.method == 'GET':
         query = request.args.to_dict(flat=False)
+        # Replace the array under the "q" key, if it contains only one item
+        q = query.get('q')
+        if isinstance(q, list) and len(q) == 1:
+            query['q'] = q[0]
         query = ('search', query)
     if request.method == 'POST':
         query = request.json
