@@ -4,7 +4,7 @@ from app.main import core
 from app.search import bp
 
 
-@bp.route('/search', methods=['GET', 'POST'])
+@bp.route('/', methods=['GET', 'POST'])
 @login_required
 def search():
     if request.method == 'GET':

@@ -27,14 +27,14 @@ def create_app(config_class=Config):
     # mail.init_app(app)
     # moment.init_app(app)
 
-    from app.main import bp as main_bp
-    app.register_blueprint(main_bp)
+    from app.report import bp as report_bp
+    app.register_blueprint(report_bp, url_prefix='/report')
 
     from app.auth import bp as auth_bp
     app.register_blueprint(auth_bp, url_prefix='/auth')
 
     from app.search import bp as search_bp
-    app.register_blueprint(search_bp)
+    app.register_blueprint(search_bp, url_prefix='/search')
 
     from app.analysis import bp as analysis_bp
     app.register_blueprint(analysis_bp, url_prefix='/analysis')

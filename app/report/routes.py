@@ -1,6 +1,6 @@
 from flask import jsonify
 from flask_login import login_required
-from app.main import bp
+from app.report import bp
 from app.main.misc_tools import get_history
 
 
