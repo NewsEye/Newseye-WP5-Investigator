@@ -34,9 +34,9 @@ class Config(object):
     if DATABASE_IN_USE == 'newseye':
         BLACKLIGHT_URI = "https://platform.newseye.eu/en/catalog.json"
         BLACKLIGHT_DEFAULT_PARAMETERS = {
-            'utf8': "%E2%9C%93",
-            'locale': 'en',
-            'search_field': 'all_fields,'
+            # 'utf8': "%E2%9C%93",
+            # 'locale': 'en',
+            # 'search_field': 'all_fields,'
         }
         AVAILABLE_FACETS = {
             'LANGUAGE': 'language_ssi',
