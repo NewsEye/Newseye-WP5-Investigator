@@ -51,8 +51,8 @@ class AnalysisTools(object):
                 'input_type': 'search',
                 'output_type': 'facet_list'
             },
-            'common_topics': {
-                'call': lambda *args: self.common_topics(*args),
+            'common_facet_values': {
+                'call': lambda *args: self.common_facet_values(*args),
                 'input_type': 'facet_list',
                 'output_type': 'topic_list'
             },
@@ -126,18 +126,24 @@ class AnalysisTools(object):
             facets[feature['id']] = values
         return facets
 
-    async def common_topics(self, task):
+    async def common_facet_values(self, task):
         default_parameters = {
-            'n': 5
+            'n': 5,
+            'facet_name': 'TOPIC',
         }
+        n = int(task.query_parameters.get('n', default_parameters['n']))
+        facet_name = task.query_parameters.get('facet_name', default_parameters['facet_name'])
+        facet_name = Config.AVAILABLE_FACETS.get(facet_name, facet_name)
+
         input_task = await self.get_input_task(task)
         task.hist_parent_id = input_task.uuid
         task.data_parent_id = input_task.uuid
         db.session.commit()
+
         input_data = input_task.task_result.query_result
-        topics = input_data[Config.AVAILABLE_FACETS['TOPIC']][:int(task.query_parameters.get('n', default_parameters['n']))]
-        interestingness = [1] * len(topics)
-        return {'topic_counts': topics, 'interestingness': interestingness}
+        facets = input_data[facet_name][:n]
+        interestingness = [1] * len(facets)
+        return {'facet_counts': facets, 'interestingness': interestingness}
 
     async def split_document_set_by_facet(self, task):
         default_parameters = {
