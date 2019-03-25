@@ -7,38 +7,45 @@ import numpy as np
 import pandas as pd
 from math import sqrt
 
-TOOL_LIST = {
-    'extract_facets': {
-        'description': 'This tool ',
-        'required_parameters': '',
+
+# TODO: Add the parameter info here!!
+TOOL_LIST = [
+    {
+        'tool_name': 'extract_facets',
+        'tool_description': 'This tool ...',
+        'tool_parameters': [],
         'input_type': 'search',
         'output_type': 'facet_list'
     },
-    'common_topics': {
-        'description': '',
-        'required_parameters': '',
+    {
+        'tool_name': 'common_facet_values',
+        'tool_description': '',
+        'tool_parameters': [],
         'input_type': 'facet_list',
         'output_type': 'topic_list'
     },
-    'facet_analysis': {
-        'description': '',
-        'required_parameters': '',
+    {
+        'tool_name': 'facet_analysis',
+        'tool_description': '',
+        'tool_parameters': [],
         'input_type': 'time_split_query',
         'output_type': 'time_series'
     },
-    'split_document_set_by_facet': {
-        'description': '',
-        'required_parameters': '',
+    {
+        'tool_name': 'split_document_set_by_facet',
+        'tool_description': '',
+        'tool_parameters': [],
         'input_type': 'search',
         'output_type': 'time_split_query'
     },
-    'find_steps_from_time_series': {
-        'description': '',
-        'required_parameters': '',
+    {
+        'tool_name': 'find_steps_from_time_series',
+        'tool_description': '',
+        'tool_parameters': [],
         'input_type': 'time_series',
         'output_type': 'step_list'
     },
-}
+]
 
 
 class AnalysisTools(object):
