@@ -119,16 +119,16 @@ def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=Fals
     if not parent_id:
         parent_id = user.current_task_id
 
-    # Remove the target_id from query parameters
-    target_ids = [query[1].pop('target_id', None) for query in queries]
+    # Remove the target_uuid from query parameters
+    target_uuids = [query[1].pop('target_uuid', None) for query in queries]
 
     # Assume empty query as input for analysis with no input specified
-    for query, target_id in zip(queries, target_ids):
+    for query, target_uuid in zip(queries, target_uuids):
         if query[0] == 'analysis':
-            if target_id is None and query[1].get('target_search') is None:
+            if target_uuid is None and query[1].get('target_search') is None:
                 query[1]['target_search'] = {'q': []}
 
-    existing_tasks = [Task.query.filter_by(user_id=user.id, data_parent_id=target_id, hist_parent_id=parent_id, query_type=query[0], query_parameters=query[1]).one_or_none() for query, target_id in zip(queries, target_ids)]
+    existing_tasks = [Task.query.filter_by(user_id=user.id, data_parent_id=target_uuid, hist_parent_id=parent_id, query_type=query[0], query_parameters=query[1]).one_or_none() for query, target_uuid in zip(queries, target_uuids)]
 
     tasks = []
     new_tasks = []
@@ -136,7 +136,7 @@ def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=Fals
     for idx, query in enumerate(queries):
         task = existing_tasks[idx]
         if task is None:
-            task = Task(query_type=query[0], query_parameters=query[1], data_parent_id=target_ids[idx], hist_parent_id=parent_id, user_id=user.id, task_status='created')
+            task = Task(query_type=query[0], query_parameters=query[1], data_parent_id=target_uuids[idx], hist_parent_id=parent_id, user_id=user.id, task_status='created')
             new_tasks.append(task)
         tasks.append(task)
 

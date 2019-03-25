@@ -11,17 +11,22 @@ from app.main.analysis_tools import TOOL_LIST
 def analyze():
     if request.method == 'GET':
         query = request.args.to_dict()
-        query = ('analysis', query) if query.get('target_id') or query.get('target_search') else None
+        query = ('analysis', query) if query.get('target_uuid') or query.get('target_search') else None
     if request.method == 'POST':
         query = request.json
         if isinstance(query, list):
-            query = [('analysis', item) for item in query if item.get('target_id') or item.get('target_search')]
+            query = [('analysis', item) for item in query if item.get('target_uuid') or item.get('target_search')]
             if not query:
-                query = None
+                return '''Target data is not specified. Include either a 'target_uuid' or 'target_search' parameter.''', 400
+            for item in query:
+                if item[1].get('tool') is None:
+                    return '''Required parameter 'tool' missing for query {}'''.format(item[1]), 400
         else:
-            query = ('analysis', query) if query.get('target_id') or query.get('target_search') else None
+            query = ('analysis', query) if query.get('target_uuid') or query.get('target_search') else None
     if query is None:
-        return 'Target data is not specified. Include either a target_id or target_search parameter.', 400
+        return '''Target data is not specified. Include either a 'target_uuid' or 'target_search' parameter.''', 400
+    if query[1].get('tool') is None:
+        return '''Required parameter 'tool' missing for query {}'''.format(query[1]), 400
     try:
         results = [task.dict() for task in core.run_query_task(query)]
         for task in results:
