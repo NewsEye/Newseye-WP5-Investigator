@@ -8,39 +8,91 @@ import pandas as pd
 from math import sqrt
 
 
-# TODO: Add the parameter info here!!
 TOOL_LIST = [
     {
         'tool_name': 'extract_facets',
-        'tool_description': 'This tool ...',
+        'tool_description': 'Examines the document set given as input, and finds all the different facets for which values have been set in at least some of the documents.',
         'tool_parameters': [],
         'input_type': 'search',
         'output_type': 'facet_list'
     },
     {
         'tool_name': 'common_facet_values',
-        'tool_description': '',
-        'tool_parameters': [],
+        'tool_description': 'Sorts the facet values for facet_name by decreasing number of matching documents and returns the n most common facet values and their document counts',
+        'tool_parameters': [
+            {
+                'parameter_name': 'n',
+                'parameter_description': 'The number of facet values to be included in the result',
+                'parameter_type': 'integer',
+                'parameter_default': 5,
+                'parameter_is_required': False,
+            },
+            {
+                'parameter_name': 'facet_name',
+                'parameter_description': 'The name of the facet to be analysed, e.g. PUB_YEAR',
+                'parameter_type': 'string',
+                'parameter_default': None,
+                'parameter_is_required': True
+            }
+        ],
         'input_type': 'facet_list',
         'output_type': 'topic_list'
     },
     {
         'tool_name': 'facet_analysis',
         'tool_description': '',
-        'tool_parameters': [],
+        'tool_parameters': [
+            {
+                'parameter_name': 'facet_name',
+                'parameter_description': 'Not yet written',
+                'parameter_type': 'string',
+                'parameter_default': None,
+                'parameter_is_required': True
+            }
+        ],
         'input_type': 'time_split_query',
         'output_type': 'time_series'
     },
     {
         'tool_name': 'split_document_set_by_facet',
         'tool_description': '',
-        'tool_parameters': [],
+        'tool_parameters': [
+            {
+                'parameter_name': 'facet_name',
+                'parameter_description': 'Not yet written',
+                'parameter_type': 'string',
+                'parameter_default': None,
+                'parameter_is_required': True
+            }
+        ],
         'input_type': 'search',
         'output_type': 'time_split_query'
     },
     {
         'tool_name': 'find_steps_from_time_series',
         'tool_description': '',
+        'tool_parameters': [
+            {
+                'parameter_name': 'step_threshold',
+                'parameter_description': 'Not yet written',
+                'parameter_type': 'float',
+                'parameter_default': 0.5,
+                'parameter_is_required': False
+            },
+            {
+                'parameter_name': 'facet_name',
+                'parameter_description': 'Not yet written',
+                'parameter_type': 'string',
+                'parameter_default': None,
+                'parameter_is_required': True
+            }
+        ],
+        'input_type': 'time_series',
+        'output_type': 'step_list'
+    },
+        {
+        'tool_name': 'extract_document_ids',
+        'tool_description': 'Extracts document_ids from the document set.',
         'tool_parameters': [],
         'input_type': 'time_series',
         'output_type': 'step_list'
