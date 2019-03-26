@@ -148,9 +148,13 @@ class AnalysisTools(object):
         db.session.commit()
 
         input_data = input_task.task_result.query_result
-        facets = input_data[facet_name][:n]
-        interestingness = [1] * len(facets)
-        return {'facet_counts': facets, 'interestingness': interestingness}
+        facets = input_data[facet_name]
+        facet_list = [(facets[key], key) for key in facets.keys()]
+        facet_list.sort(reverse=True)
+        facet_list = facet_list[:n]
+        facet_list = [{"facet_value": key, "document_count": value} for value, key in facet_list]
+        interestingness = [1] * len(facet_list)
+        return {'facet_counts': facet_list, 'interestingness': interestingness}
 
     async def split_document_set_by_facet(self, task):
         default_parameters = {
