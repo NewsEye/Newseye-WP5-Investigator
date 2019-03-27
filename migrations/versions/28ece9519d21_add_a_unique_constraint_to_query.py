@@ -1,4 +1,4 @@
-"""Add a unique constraint to Query
+"""Add a unique constraint to Result
 
 Revision ID: 28ece9519d21
 Revises: 1fb43417d846

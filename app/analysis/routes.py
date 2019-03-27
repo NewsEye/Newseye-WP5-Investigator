@@ -28,7 +28,7 @@ def analyze():
     if query[1].get('tool') is None:
         return '''Required parameter 'tool' missing for query {}'''.format(query[1]), 400
     try:
-        results = [task.dict() for task in core.run_query_task(query)]
+        results = [task.dict() for task in core.execute_tasks(query)]
         for task in results:
             if task['task_status'] != 'finished':
                 status = 202

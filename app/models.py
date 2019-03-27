@@ -20,22 +20,23 @@ class User(UserMixin, db.Model):
         return '<User {}>'.format(self.username)
 
 
-# TODO: Rename into Results, and query_type, _parameters_and _result as task_...
-class Query(db.Model):
-    __tablename__ = 'queries'
+class Result(db.Model):
+    __tablename__ = 'results'
     id = db.Column(db.Integer, primary_key=True)
-    query_type = db.Column(db.String(255), nullable=False)
-    query_parameters = db.Column(JSONB, nullable=False)
-    query_result = db.Column(db.JSON)
+    task_type = db.Column(db.String(255), nullable=False)
+    task_parameters = db.Column(JSONB, nullable=False)
+    result = db.Column(db.JSON)
     last_updated = db.Column(db.DateTime, default=datetime.utcnow)
     last_accessed = db.Column(db.DateTime, default=datetime.utcnow)
-    __table_args__ = (UniqueConstraint('query_type', 'query_parameters', name='uq_queries_query_type_query_parameters'),)
+    __table_args__ = (UniqueConstraint('task_type', 'task_parameters', name='uq_results_task_type_task_parameters'),)
 
     def __repr__(self):
-        return '<Query {}: {}>'.format(self.query_type, self.query_parameters)
+        return '<Result {}: {}>'.format(self.task_type, self.task_parameters)
 
 
-# TODO: Move status to queries
+# TODO: Add a separate table for reports, possibly so that a single report can refer to any number of tasks, the set of which it describes
+
+
 class Task(db.Model):
     __tablename__ = 'tasks'
     id = db.Column(db.Integer, primary_key=True)
@@ -43,40 +44,40 @@ class Task(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     hist_parent_id = db.Column(UUID(as_uuid=True), db.ForeignKey('tasks.uuid'))
     data_parent_id = db.Column(UUID(as_uuid=True), db.ForeignKey('tasks.uuid'))
-    query_type = db.Column(db.String(255), nullable=False)
-    query_parameters = db.Column(JSONB, nullable=False)
+    task_type = db.Column(db.String(255), nullable=False)
+    task_parameters = db.Column(JSONB, nullable=False)
     task_status = db.Column(db.String(255))
     last_updated = db.Column(db.DateTime, default=datetime.utcnow)
     last_accessed = db.Column(db.DateTime, default=datetime.utcnow)
     user = db.relationship('User', back_populates='all_tasks', foreign_keys=[user_id])
     hist_children = db.relationship('Task', primaryjoin="Task.uuid==Task.hist_parent_id")
     data_children = db.relationship('Task', primaryjoin="Task.uuid==Task.data_parent_id")
-    task_result = db.relationship('Query', primaryjoin="and_(foreign(Task.query_type)==Query.query_type, foreign(Task.query_parameters)==Query.query_parameters)")
+    task_result = db.relationship('Result', primaryjoin="and_(foreign(Task.task_type)==Result.task_type, foreign(Task.task_parameters)==Result.task_parameters)")
 
     def dict(self, style='status'):
         if style == 'status':
             return {
                 'uuid': self.uuid,
-                'query_type': self.query_type,
-                'query_parameters': self.query_parameters,
+                'task_type': self.task_type,
+                'task_parameters': self.task_parameters,
                 'task_status': self.task_status,
             }
         if style == 'result':
             return {
                 'uuid': self.uuid,
-                'query_type': self.query_type,
-                'query_parameters': self.query_parameters,
+                'task_type': self.task_type,
+                'task_parameters': self.task_parameters,
                 'task_status': self.task_status,
-                'task_result': self.task_result.query_result if self.task_result else None,
+                'task_result': self.task_result.result if self.task_result else None,
                 'last_updated': self.last_updated,
             }
         if style == 'full':
             return {
                 'uuid': self.uuid,
-                'query_type': self.query_type,
-                'query_parameters': self.query_parameters,
+                'task_type': self.task_type,
+                'task_parameters': self.task_parameters,
                 'task_status': self.task_status,
-                'task_result': self.task_result.query_result if self.task_result else None,
+                'task_result': self.task_result.result if self.task_result else None,
                 'hist_parent_id': self.hist_parent_id,
                 'data_parent_id': self.data_parent_id,
                 'last_updated': self.last_updated,
@@ -85,7 +86,7 @@ class Task(db.Model):
         raise KeyError('''Unknown value for parameter 'style'! Valid options: status, result, full. ''')
 
     def __repr__(self):
-        return '<Task {}: {}>'.format(self.query_type, self.query_parameters)
+        return '<Task {}: {}>'.format(self.task_type, self.task_parameters)
 
 
 # Needed by flask_login

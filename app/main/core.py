@@ -3,7 +3,7 @@ from flask_login import current_user
 from app import db
 from app.main.search_tools import search_database
 from app.main.analysis_tools import AnalysisTools
-from app.models import Query, Task, User
+from app.models import Result, Task, User
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime
 import threading
@@ -16,7 +16,7 @@ class SystemCore(object):
     def __init__(self):
         self._analysis = AnalysisTools(self)
 
-    def run_query_task(self, queries, switch_task=False, return_tasks=True):
+    def execute_tasks(self, queries, switch_task=False, return_tasks=True):
         """
         Generate tasks from queries and execute them.
         :param queries: a single query or a list of queries
@@ -80,11 +80,11 @@ class SystemCore(object):
                 task.last_accessed = datetime.utcnow()
             db.session.commit()
 
-        searches_to_run = [task for task in new_tasks if task.query_type == 'search' and task.task_status == 'running']
-        analysis_to_run = [task for task in new_tasks if task.query_type == 'analysis' and task.task_status == 'running']
+        searches_to_run = [task for task in new_tasks if task.task_type == 'search' and task.task_status == 'running']
+        analysis_to_run = [task for task in new_tasks if task.task_type == 'analysis' and task.task_status == 'running']
 
         if searches_to_run:
-            search_results = await search_database([task.query_parameters for task in searches_to_run])
+            search_results = await search_database([task.task_parameters for task in searches_to_run])
             store_results(searches_to_run, search_results)
 
         if analysis_to_run:
@@ -128,7 +128,7 @@ def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=Fals
             if target_uuid is None and query[1].get('target_search') is None:
                 query[1]['target_search'] = {'q': []}
 
-    existing_tasks = [Task.query.filter_by(user_id=user.id, data_parent_id=target_uuid, hist_parent_id=parent_id, query_type=query[0], query_parameters=query[1]).one_or_none() for query, target_uuid in zip(queries, target_uuids)]
+    existing_tasks = [Task.query.filter_by(user_id=user.id, data_parent_id=target_uuid, hist_parent_id=parent_id, task_type=query[0], task_parameters=query[1]).one_or_none() for query, target_uuid in zip(queries, target_uuids)]
 
     tasks = []
     new_tasks = []
@@ -136,7 +136,7 @@ def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=Fals
     for idx, query in enumerate(queries):
         task = existing_tasks[idx]
         if task is None:
-            task = Task(query_type=query[0], query_parameters=query[1], data_parent_id=target_uuids[idx], hist_parent_id=parent_id, user_id=user.id, task_status='created')
+            task = Task(task_type=query[0], task_parameters=query[1], data_parent_id=target_uuids[idx], hist_parent_id=parent_id, user_id=user.id, task_status='created')
             new_tasks.append(task)
         tasks.append(task)
 
@@ -167,21 +167,21 @@ def store_results(tasks, task_results):
     for task, result in zip(tasks, task_results):
         task.task_status = 'finished'
         # TODO: What timestamps need to be updated?
-        q = Query.query.filter_by(query_type=task.query_type, query_parameters=task.query_parameters).one_or_none()
-        if not q:
-            q = Query(query_type=task.query_type, query_parameters=task.query_parameters)
+        res = Result.query.filter_by(task_type=task.task_type, task_parameters=task.task_parameters).one_or_none()
+        if not res:
+            res = Result(task_type=task.task_type, task_parameters=task.task_parameters)
             try:
-                db.session.add(q)
+                db.session.add(res)
             # If another thread created the query in the meanwhile, this should recover from that, and simply overwrite the result with the newest one.
             # If the filter still returns None after IntegrityError, we log the event, ignore the result and continue
             except IntegrityError:
-                q = Query.query.filter_by(query_type=task.query_type,
-                                          query_parameters=task.query_parameters).one_or_none()
-                if not q:
-                    current_app.logger.error("Unable to create or retrieve Query for {}. Store results failed!".format(task))
+                res = Result.query.filter_by(task_type=task.task_type,
+                                           task_parameters=task.task_parameters).one_or_none()
+                if not res:
+                    current_app.logger.error("Unable to create or retrieve Result for {}. Store results failed!".format(task))
                     continue
-        q.query_result = result
-        q.last_accessed = datetime.utcnow()
-        q.last_updated = datetime.utcnow()
+        res.result = result
+        res.last_accessed = datetime.utcnow()
+        res.last_updated = datetime.utcnow()
     current_app.logger.info("Storing results into database")
     db.session.commit()
