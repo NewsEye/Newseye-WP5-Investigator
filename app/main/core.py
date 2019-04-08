@@ -115,10 +115,6 @@ def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=Fals
     elif not isinstance(queries[0], tuple):
         raise ValueError
 
-    # ToDo: need to check that this is a correct type. For now we'll assume that it is.
-    if not parent_id:
-        parent_id = user.current_task_id
-
     # Remove the target_uuid from query parameters
     target_uuids = [query[1].pop('target_uuid', None) for query in queries]
 

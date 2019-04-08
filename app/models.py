@@ -12,9 +12,7 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(64), unique=True)
     created_on = db.Column(db.DateTime, default=datetime.utcnow)
     last_seen = db.Column(db.DateTime, default=datetime.utcnow)
-    current_task_id = db.Column(db.Integer, db.ForeignKey('tasks.id'))
     all_tasks = db.relationship('Task', back_populates='user', lazy='dynamic', foreign_keys="Task.user_id")
-    current_task = db.relationship('Task', foreign_keys=[current_task_id])
 
     def __repr__(self):
         return '<User {}>'.format(self.username)
