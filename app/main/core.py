@@ -72,12 +72,12 @@ class SystemCore(object):
 
         if new_tasks:
             for task in new_tasks:
+                task.task_started = datetime.utcnow()
                 if task.task_result:
                     task.task_status = 'finished'
+                    task.task_finished = datetime.utcnow()
                 else:
                     task.task_status = 'running'
-                task.last_updated = datetime.utcnow()
-                task.last_accessed = datetime.utcnow()
             db.session.commit()
 
         searches_to_run = [task for task in new_tasks if task.task_type == 'search' and task.task_status == 'running']
@@ -162,7 +162,7 @@ def store_results(tasks, task_results):
 
     for task, result in zip(tasks, task_results):
         task.task_status = 'finished'
-        # TODO: What timestamps need to be updated?
+        task.task_finished = datetime.utcnow()
         res = Result.query.filter_by(task_type=task.task_type, task_parameters=task.task_parameters).one_or_none()
         if not res:
             res = Result(task_type=task.task_type, task_parameters=task.task_parameters)
@@ -177,7 +177,6 @@ def store_results(tasks, task_results):
                     current_app.logger.error("Unable to create or retrieve Result for {}. Store results failed!".format(task))
                     continue
         res.result = result
-        res.last_accessed = datetime.utcnow()
         res.last_updated = datetime.utcnow()
     current_app.logger.info("Storing results into database")
     db.session.commit()
