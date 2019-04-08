@@ -1,7 +1,7 @@
 from flask import jsonify
 from flask_login import login_required
 from app.report import bp
-from app.main.misc_tools import get_history
+from app.main.misc_utils import get_history
 
 
 @bp.route('/history/')

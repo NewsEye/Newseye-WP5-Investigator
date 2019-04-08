@@ -8,18 +8,18 @@ import pandas as pd
 from math import sqrt
 
 
-TOOL_LIST = [
+UTILITY_LIST = [
     {
-        'tool_name': 'extract_facets',
-        'tool_description': 'Examines the document set given as input, and finds all the different facets for which values have been set in at least some of the documents.',
-        'tool_parameters': [],
+        'utility_name': 'extract_facets',
+        'utility_description': 'Examines the document set given as input, and finds all the different facets for which values have been set in at least some of the documents.',
+        'utility_parameters': [],
         'input_type': 'search',
         'output_type': 'facet_list'
     },
     {
-        'tool_name': 'common_facet_values',
-        'tool_description': 'Sorts the facet values for facet_name by decreasing number of matching documents and returns the n most common facet values and their document counts',
-        'tool_parameters': [
+        'utility_name': 'common_facet_values',
+        'utility_description': 'Sorts the facet values for facet_name by decreasing number of matching documents and returns the n most common facet values and their document counts',
+        'utility_parameters': [
             {
                 'parameter_name': 'n',
                 'parameter_description': 'The number of facet values to be included in the result',
@@ -39,9 +39,9 @@ TOOL_LIST = [
         'output_type': 'topic_list'
     },
     {
-        'tool_name': 'facet_analysis',
-        'tool_description': '',
-        'tool_parameters': [
+        'utility_name': 'generate_time_series',
+        'utility_description': '',
+        'utility_parameters': [
             {
                 'parameter_name': 'facet_name',
                 'parameter_description': 'Not yet written',
@@ -54,9 +54,9 @@ TOOL_LIST = [
         'output_type': 'time_series'
     },
     {
-        'tool_name': 'split_document_set_by_facet',
-        'tool_description': '',
-        'tool_parameters': [
+        'utility_name': 'split_document_set_by_facet',
+        'utility_description': '',
+        'utility_parameters': [
             {
                 'parameter_name': 'facet_name',
                 'parameter_description': 'Not yet written',
@@ -69,9 +69,9 @@ TOOL_LIST = [
         'output_type': 'time_split_query'
     },
     {
-        'tool_name': 'find_steps_from_time_series',
-        'tool_description': '',
-        'tool_parameters': [
+        'utility_name': 'find_steps_from_time_series',
+        'utility_description': '',
+        'utility_parameters': [
             {
                 'parameter_name': 'step_threshold',
                 'parameter_description': 'Not yet written',
@@ -91,9 +91,9 @@ TOOL_LIST = [
         'output_type': 'step_list'
     },
         {
-        'tool_name': 'extract_document_ids',
-        'tool_description': 'Extracts document_ids from the document set.',
-        'tool_parameters': [],
+        'utility_name': 'extract_document_ids',
+        'utility_description': 'Extracts document_ids from the document set.',
+        'utility_parameters': [],
         'input_type': 'time_series',
         'output_type': 'step_list'
     },
@@ -104,7 +104,7 @@ class AnalysisTools(object):
 
     # TODO: Automatic planning of toolchains
     def __init__(self, core):
-        self._TOOL_LIST = {
+        self._UTILITY_LIST = {
             'extract_facets': {
                 'call': lambda *args: self.extract_facets(*args),
                 'input_type': 'search',
@@ -115,8 +115,8 @@ class AnalysisTools(object):
                 'input_type': 'facet_list',
                 'output_type': 'topic_list'
             },
-            'facet_analysis': {
-                'call': lambda *args: self.facet_analysis(*args),
+            'generate_time_series': {
+                'call': lambda *args: self.generate_time_series(*args),
                 'input_type': 'time_split_query',
                 'output_type': 'time_series'
             },
@@ -133,20 +133,20 @@ class AnalysisTools(object):
         }
 
         # Generate mappings for toolchain generation
-        for key1, value1 in self._TOOL_LIST.items():
-            value1['source_tools'] = []
-            for key2, value2 in self._TOOL_LIST.items():
+        for key1, value1 in self._UTILITY_LIST.items():
+            value1['source_utilities'] = []
+            for key2, value2 in self._UTILITY_LIST.items():
                 if key1 == key2:
                     continue
                 if value2['output_type'] == value1['input_type']:
-                    value1['source_tools'].append(key2)
+                    value1['source_utilities'].append(key2)
 
         self._core = core
 
     # TODO: automated check for critical parameters
     async def async_analysis(self, tasks):
 
-        async_tasks = [self._TOOL_LIST[task.task_parameters.get('tool')]['call'](task) for task in tasks]
+        async_tasks = [self._UTILITY_LIST[task.task_parameters.get('utility')]['call'](task) for task in tasks]
 
         results = await asyncio.gather(*async_tasks)
         current_app.logger.info("Tasks finished, returning results")
@@ -159,13 +159,13 @@ class AnalysisTools(object):
             search_parameters = task.task_parameters.get('target_search')
             if search_parameters is None:
                 return None
-            source_tools = self._TOOL_LIST[task.task_parameters.get('tool')]['source_tools']
-            if not source_tools:
+            source_utilities = self._UTILITY_LIST[task.task_parameters.get('utility')]['source_utilities']
+            if not source_utilities:
                 input_task = await self._core.execute_async_tasks(user=task.user, queries=('search', search_parameters))
             else:
                 # Copy the task parameters from the originating task, replacing the tool parameter with the correct value
                 task_parameters = task.task_parameters.copy()
-                task_parameters['tool'] = source_tools[0]
+                task_parameters['utility'] = source_utilities[0]
                 input_task = await self._core.execute_async_tasks(user=task.user, queries=('analysis', task_parameters), parent_id=task.hist_parent_id)
         return input_task
 
@@ -231,7 +231,8 @@ class AnalysisTools(object):
         task_ids = await self._core.execute_async_tasks(user=task.user, queries=queries, return_tasks=False, parent_id=task.data_parent_id)
         return [str(task_id) for task_id in task_ids]
 
-    async def facet_analysis(self, task):
+    async def generate_time_series(self, task):
+        # TODO: Add parameter for imputting zeroes?
         facet_name = task.task_parameters.get('facet_name')
         facet_string = Config.AVAILABLE_FACETS.get(facet_name)
         if facet_string is None:
@@ -299,6 +300,8 @@ class AnalysisTools(object):
             step_sizes, errors = get_step_sizes(relative_counts[column], step_indices)
             step_times = [int(relative_counts.index[idx]) for idx in step_indices]
             steps[column] = list(zip(step_times, step_sizes, errors))
+        # TODO: Fix output to match documentation
+        # TODO: Implement interestingness values
         return steps
 
 
@@ -448,7 +451,7 @@ def get_step_sizes(array, indices, window=1000):
         elif i == last:
             q = min(window, index - indices[i - 1], len(array) - 1 - index)
         else:
-            q = min(window, index-indices[i - 1], indices[i + 1] - index)
+            q = min(window, index - indices[i - 1], indices[i + 1] - index)
         a = array[index - q: index - 1]
         b = array[index + 1: index + q]
         step_sizes.append((a.mean(), b.mean()))

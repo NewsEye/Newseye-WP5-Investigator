@@ -3,7 +3,7 @@ from flask_login import login_required
 from app.main import core
 from app.analysis import bp
 from app.models import Task
-from app.main.analysis_tools import TOOL_LIST
+from app.main.analysis_utils import UTILITY_LIST
 
 
 @bp.route('/', methods=['GET', 'POST'])
@@ -19,14 +19,14 @@ def analyze():
             if not query:
                 return '''Target data is not specified. Include either a 'target_uuid' or 'target_search' parameter.''', 400
             for item in query:
-                if item[1].get('tool') is None:
-                    return '''Required parameter 'tool' missing for query {}'''.format(item[1]), 400
+                if item[1].get('utility') is None:
+                    return '''Required parameter 'utility' missing for request {}'''.format(item[1]), 400
         else:
             query = ('analysis', query) if query.get('target_uuid') or query.get('target_search') else None
     if query is None:
         return '''Target data is not specified. Include either a 'target_uuid' or 'target_search' parameter.''', 400
     if query[1].get('tool') is None:
-        return '''Required parameter 'tool' missing for query {}'''.format(query[1]), 400
+        return '''Required parameter 'utility' missing for request {}'''.format(query[1]), 400
     try:
         results = [task.dict() for task in core.execute_tasks(query)]
         for task in results:
@@ -40,7 +40,7 @@ def analyze():
         return jsonify(results), status
     except KeyError as e:
         current_app.logger.exception(e)
-        return 'Missing parameter for chosen analysis tool', 400
+        return 'Missing parameter for chosen analysis utility', 400
     except Exception as e:
         current_app.logger.exception(e)
         return 'Something went wrong...', 500
@@ -56,7 +56,7 @@ def analysis(task_id):
 
 
 # TODO: Do this properly instead of using the hardcoded hack of a tool list
-@bp.route('/tools/')
+@bp.route('/utilities/')
 @login_required
-def tools():
-    return jsonify(TOOL_LIST), 200
+def utilities():
+    return jsonify(UTILITY_LIST), 200
