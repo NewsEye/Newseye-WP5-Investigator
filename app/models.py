@@ -31,7 +31,20 @@ class Result(db.Model):
         return '<Result {}: {}>'.format(self.task_type, self.task_parameters)
 
 
-# TODO: Add a separate table for reports, possibly so that a single report can refer to any number of tasks, the set of which it describes
+class Report(db.Model):
+    __tablename__ = 'reports'
+    id = db.Column(db.Integer, primary_key=True)
+    task_uuid = db.Column(UUID(as_uuid=True), db.ForeignKey('tasks.uuid'))
+    report_language = db.Column(db.String(255))
+    report_format = db.Column(db.String(255))
+    report_content = db.Column(db.JSON)
+    report_generated = db.Column(db.DateTime, default=datetime.utcnow)
+    task = db.relationship('Task', back_populates='task_reports', foreign_keys=[task_uuid])
+
+    def __repr__(self):
+        return '<Report>'
+
+
 class Task(db.Model):
     __tablename__ = 'tasks'
     id = db.Column(db.Integer, primary_key=True)
@@ -49,6 +62,7 @@ class Task(db.Model):
     hist_children = db.relationship('Task', primaryjoin="Task.uuid==Task.hist_parent_id")
     data_children = db.relationship('Task', primaryjoin="Task.uuid==Task.data_parent_id")
     task_result = db.relationship('Result', primaryjoin="and_(foreign(Task.task_type)==Result.task_type, foreign(Task.task_parameters)==Result.task_parameters)")
+    task_reports = db.relationship('Report', back_populates='task', foreign_keys="Report.task_uuid")
 
     def dict(self, style='status'):
         if style == 'status':
