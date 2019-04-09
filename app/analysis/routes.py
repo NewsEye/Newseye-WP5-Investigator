@@ -47,12 +47,12 @@ def start_analysis_task():
         return 'Something went wrong...', 500
 
 
-@bp.route('/<string:task_id>')
+@bp.route('/<string:task_uuid>')
 @login_required
-def get_analysis_task(task_id):
-    task = Task.query.filter_by(uuid=task_id, user_id=current_user.id, task_type='analysis').first()
+def get_analysis_task(task_uuid):
+    task = Task.query.filter_by(uuid=task_uuid, user_id=current_user.id, task_type='analysis').first()
     if task is None:
-        return 'Invalid task_id', 400
+        return 'Task {} not found for user {}'.format(task_uuid, current_user.username), 404
     return jsonify(task.dict(style='result'))
 
 
