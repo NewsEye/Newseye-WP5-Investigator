@@ -1,9 +1,8 @@
 from flask import jsonify, request
 from flask_login import login_required, current_user
 from app.report import bp
-from app.main.misc_utils import get_history
 from app.models import Task, Report
-from app.report.report_utils import generate_report
+from app.report.report_utils import generate_report, get_history
 
 
 @bp.route('/history/')
