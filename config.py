@@ -16,6 +16,9 @@ class Config(object):
     MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
     ADMINS = ['jari.avikainen@helsinki.fi']
 
+    # This should contain the URI for the reporters api, ending in /api
+    REPORTER_URI = ""
+
     DATABASE_IN_USE = 'demo'
     # DATABASE_IN_USE = 'newseye'
 
