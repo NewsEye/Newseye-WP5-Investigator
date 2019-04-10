@@ -3,7 +3,7 @@ from flask_login import login_required, current_user
 from app.main import controller
 from app.analysis import bp
 from app.models import Task
-from app.analysis.analysis_utils import UTILITY_LIST
+from app.analysis.analysis_utils import UTILITY_MAP
 
 
 @bp.route('/', methods=['GET'])
@@ -56,8 +56,8 @@ def get_analysis_task(task_uuid):
     return jsonify(task.dict(style='result'))
 
 
-# TODO: Do this properly instead of using the hardcoded hack of a tool list
 @bp.route('/utilities/')
 @login_required
 def get_utility_list():
-    return jsonify(UTILITY_LIST), 200
+    response = [utility.__dict__ for utility in UTILITY_MAP.values()]
+    return jsonify(response), 200
