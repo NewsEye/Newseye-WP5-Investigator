@@ -1,7 +1,7 @@
 from flask import current_app
 from flask_login import current_user
 from app import db
-from app.main.search_utils import search_database
+from app.search.search_utils import search_database
 from app.main import analysis_utils
 from app.models import Result, Task, User
 from sqlalchemy.exc import IntegrityError
