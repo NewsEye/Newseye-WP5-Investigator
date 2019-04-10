@@ -18,10 +18,10 @@ async def search_database(queries):
         for query in queries:
             params = Config.BLACKLIGHT_DEFAULT_PARAMETERS.copy()
             params.update(query)
-            current_app.logger.info("Log, appending query: {}".format(params))
+            current_app.logger.info("Log, appending search: {}".format(params))
             tasks.append(fetch(session, params))
         results = await asyncio.gather(*tasks)
-    current_app.logger.info("Queries finished, returning results")
+    current_app.logger.info("Tasks finished, returning results")
     return results
 
 
