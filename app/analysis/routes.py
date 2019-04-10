@@ -3,7 +3,7 @@ from flask_login import login_required, current_user
 from app.main import controller
 from app.analysis import bp
 from app.models import Task
-from app.main.analysis_utils import UTILITY_LIST
+from app.analysis.analysis_utils import UTILITY_LIST
 
 
 @bp.route('/', methods=['GET'])

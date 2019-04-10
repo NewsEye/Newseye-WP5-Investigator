@@ -2,7 +2,7 @@ from flask import current_app
 from flask_login import current_user
 from app import db
 from app.search.search_utils import search_database
-from app.main import analysis_utils
+from app.analysis.analysis_utils import async_analysis
 from app.models import Result, Task, User
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime
@@ -86,7 +86,7 @@ async def execute_async_tasks(user, queries=None, task_uuids=None, return_tasks=
         store_results(searches_to_run, search_results)
 
     if analysis_to_run:
-        analysis_results = await analysis_utils.async_analysis(analysis_to_run)
+        analysis_results = await async_analysis(analysis_to_run)
         store_results(analysis_to_run, analysis_results)
 
     if return_tasks:
