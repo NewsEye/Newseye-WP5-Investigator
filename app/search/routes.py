@@ -1,6 +1,6 @@
 from flask import request, jsonify, current_app
 from flask_login import login_required, current_user
-from app.main import core
+from app.main import controller
 from app.models import Task
 from app.search import bp
 
@@ -14,7 +14,7 @@ def start_search_task():
     else:
         query = [('search', query)]
     try:
-        results = [task.dict() for task in core.execute_tasks(query)]
+        results = [task.dict() for task in controller.execute_tasks(query)]
         status = 200
         for task in results:
             if task['task_status'] != 'finished':

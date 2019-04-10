@@ -1,6 +1,6 @@
 from flask import request, jsonify, current_app
 from flask_login import login_required, current_user
-from app.main import core
+from app.main import controller
 from app.analysis import bp
 from app.models import Task
 from app.main.analysis_utils import UTILITY_LIST
@@ -29,7 +29,7 @@ def start_analysis_task():
         if item[1].get('utility') is None:
             return '''Required parameter 'utility' missing for request {}'''.format(item[1]), 400
     try:
-        results = [task.dict() for task in core.execute_tasks(query)]
+        results = [task.dict() for task in controller.execute_tasks(query)]
         # If any of the tasks is not finished, the status code is set to 202, otherwise it is 200
         status = 200
         for task in results:
