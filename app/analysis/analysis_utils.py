@@ -9,6 +9,15 @@ import pandas as pd
 from math import sqrt
 
 
+async def async_analysis(tasks):
+    """ Generate asyncio tasks and run them, returning when all tasks are done"""
+    async_tasks = [UTILITY_MAP[task.task_parameters.get('utility')](task) for task in tasks]
+
+    results = await asyncio.gather(*async_tasks)
+    current_app.logger.info("Tasks finished, returning results")
+    return results
+
+
 class AnalysisUtility(object):
     def __init__(self):
         self.utility_name = None
@@ -22,7 +31,8 @@ class AnalysisUtility(object):
             'error': 'This utility has not yet been implemented'
         }
 
-    # TODO: Now the toolchain generation simply searches backwards from the final tool, this needs to be improved to a proper graph search in the future
+    # TODO: Now the toolchain generation simply searches backwards from the final tool, this needs to be improved to a
+    #       proper graph search in the future
     async def get_input_task(self, task):
         if task.data_parent_id:
             input_task = Task.query.filter_by(uuid=task.data_parent_id)
@@ -35,7 +45,8 @@ class AnalysisUtility(object):
             if not source_utilities:
                 input_task = await controller.execute_async_tasks(user=task.user, queries=('search', search_parameters))
             else:
-                # Copy the task parameters from the originating task, replacing the utility parameter with the correct value
+                # Copy the task parameters from the originating task, replacing the utility parameter with the
+                # correct value
                 task_parameters = task.task_parameters.copy()
                 task_parameters['utility'] = source_utilities[0]
                 input_task = await controller.execute_async_tasks(user=task.user, queries=('analysis', task_parameters),
@@ -439,11 +450,3 @@ UTILITY_MAP = {
     'split_document_set_by_facet': SplitDocumentSetByFacet(),
     'find_steps_from_time_series': FindStepsFromTimeSeries(),
 }
-
-
-async def async_analysis(tasks):
-    async_tasks = [UTILITY_MAP[task.task_parameters.get('utility')](task) for task in tasks]
-
-    results = await asyncio.gather(*async_tasks)
-    current_app.logger.info("Tasks finished, returning results")
-    return results

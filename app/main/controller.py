@@ -102,49 +102,35 @@ async def execute_async_tasks(user, queries=None, task_uuids=None, return_tasks=
 
 def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=False):
 
-    # TODO: Spot and properly handle duplicate tasks when added within the same request
+    if not queries:
+        return []
 
     if not isinstance(queries, list):
         queries = [queries]
 
-    # If queries contains dictionaries, assume they are of type 'search' and fix the format
-    if isinstance(queries[0], dict):
-        queries = [('search', item) for item in queries]
-    elif not isinstance(queries[0], tuple):
+    if not isinstance(queries[0], tuple):
         raise ValueError
 
-    # Remove the target_uuid from query parameters
-    target_uuids = [query[1].pop('target_uuid', None) for query in queries]
-
-    # Assume empty query as input for analysis with no input specified
-    for query, target_uuid in zip(queries, target_uuids):
-        if query[0] == 'analysis':
-            if target_uuid is None and query[1].get('target_search') is None:
-                query[1]['target_search'] = {'q': []}
-
-    existing_tasks = [Task.query.filter_by(user_id=user.id, data_parent_id=target_uuid, hist_parent_id=parent_id, task_type=query[0], task_parameters=query[1]).one_or_none() for query, target_uuid in zip(queries, target_uuids)]
+    # Remove the target_uuid from query parameters (stored separately internally)
+    target_uuid = [query[1].pop('target_uuid', None) for query in queries]
 
     tasks = []
-    new_tasks = []
 
     for idx, query in enumerate(queries):
-        task = existing_tasks[idx]
-        if task is None:
-            task = Task(task_type=query[0], task_parameters=query[1], data_parent_id=target_uuids[idx], hist_parent_id=parent_id, user_id=user.id, task_status='created')
-            new_tasks.append(task)
+        task = Task(task_type=query[0], task_parameters=query[1], data_parent_id=target_uuid, hist_parent_id=parent_id, user_id=user.id, task_status='created')
+        tasks.append(task)
         tasks.append(task)
 
-    if new_tasks:
-        while True:
-            try:
-                db.session.add_all(new_tasks)
-                db.session.commit()
-                break
-            except IntegrityError:
-                db.session.rollback()
-                for task in new_tasks:
-                    task.uuid = uuid.uuid4()
-                pass
+    while True:
+        try:
+            db.session.add_all(tasks)
+            db.session.commit()
+            break
+        except IntegrityError as e:
+            current_app.logger.error("Got a UUID collision? Trying with different UUIDs. Exception: {}".format(e))
+            db.session.rollback()
+            for task in tasks:
+                task.uuid = uuid.uuid4()
 
     if return_tasks:
         return tasks
