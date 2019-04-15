@@ -145,22 +145,27 @@ def store_results(tasks, task_results):
     # doubt this would be the case here.
 
     for task, result in zip(tasks, task_results):
-        task.task_status = 'finished'
-        task.task_finished = datetime.utcnow()
-        res = Result.query.filter_by(task_type=task.task_type, task_parameters=task.task_parameters).one_or_none()
-        if not res:
-            res = Result(task_type=task.task_type, task_parameters=task.task_parameters)
-            try:
-                db.session.add(res)
-            # If another thread created the query in the meanwhile, this should recover from that, and simply overwrite the result with the newest one.
-            # If the filter still returns None after IntegrityError, we log the event, ignore the result and continue
-            except IntegrityError:
-                res = Result.query.filter_by(task_type=task.task_type,
-                                           task_parameters=task.task_parameters).one_or_none()
-                if not res:
-                    current_app.logger.error("Unable to create or retrieve Result for {}. Store results failed!".format(task))
-                    continue
-        res.result = result
-        res.last_updated = datetime.utcnow()
+        if isinstance(result, Exception):
+            current_app.logger.error("Unexpected exception: {}".format(result))
+            task.task_status = 'failed'
+            task.task_finished = datetime.utcnow()
+        else:
+            task.task_status = 'finished'
+            task.task_finished = datetime.utcnow()
+            res = Result.query.filter_by(task_type=task.task_type, task_parameters=task.task_parameters).one_or_none()
+            if not res:
+                res = Result(task_type=task.task_type, task_parameters=task.task_parameters)
+                try:
+                    db.session.add(res)
+                # If another thread created the query in the meanwhile, this should recover from that, and simply overwrite the result with the newest one.
+                # If the filter still returns None after IntegrityError, we log the event, ignore the result and continue
+                except IntegrityError:
+                    res = Result.query.filter_by(task_type=task.task_type,
+                                               task_parameters=task.task_parameters).one_or_none()
+                    if not res:
+                        current_app.logger.error("Unable to create or retrieve Result for {}. Store results failed!".format(task))
+                        continue
+            res.result = result
+            res.last_updated = datetime.utcnow()
     current_app.logger.info("Storing results into database")
     db.session.commit()

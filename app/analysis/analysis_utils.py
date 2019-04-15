@@ -13,7 +13,7 @@ async def async_analysis(tasks):
     """ Generate asyncio tasks and run them, returning when all tasks are done"""
     async_tasks = [UTILITY_MAP[task.task_parameters.get('utility')](task) for task in tasks]
 
-    results = await asyncio.gather(*async_tasks)
+    results = await asyncio.gather(*async_tasks, return_exceptions=True)
     current_app.logger.info("Tasks finished, returning results")
     return results
 
