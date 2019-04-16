@@ -441,6 +441,53 @@ class FindStepsFromTimeSeries(AnalysisUtility):
             step_error.append(sqrt(a.var() + b.var()))
         return step_sizes, step_error
 
+### TODO: planner plans the task according to the task dependencies tree
+### Later on this will become an investigator
+class Planner(AnalysisUtility):
+    def __init__(self):
+        super(Planner, self).__init__()
+        self.utility_name = None
+        self.utility_description = None
+        self.utility_parameters = None
+        self.input_type = None
+        self.output_type = None
+
+    async def __call__(self, task):
+        results = []
+        while not self.satisfied(results):
+            research_plan = self.plan_the_research(task, results)
+            results = await async_analysis(research_plan)
+
+        return {
+            'error': 'This utility has not yet been implemented'
+        }
+
+    @staticmethod
+    def satisfied(task, results):
+        return True
+
+    @staticmethod
+    def plan_the_research(task, results):
+        return []  # return a list of new tasks
+
+
+class CompareDocumentSets(AnalysisUtility):
+
+    async def __call__(self, task):
+        input_task = await self.get_input_task(task)
+        input_data = input_task.task_result.result
+
+
+class WordCount(AnalysisUtility):
+    async def __call__(self, task):
+        input_task = await self.get_input_task(task)
+        input_data = input_task.task_result.result
+        word_counts = self.do_magic(input_data)
+        return word_counts
+
+    @staticmethod
+    def do_magic(data):
+        return {'Stuff': 1}
 
 class ExtractDocumentIds(AnalysisUtility):
     def __init__(self):
