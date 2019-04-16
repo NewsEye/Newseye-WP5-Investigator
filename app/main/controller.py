@@ -12,7 +12,7 @@ import asyncio
 import uuid
 
 
-def execute_tasks(queries, return_tasks=True, user=None):
+def execute_tasks(queries, return_tasks=True):
     """
     Generate tasks from queries and execute them.
     :param queries: a single query or a list of queries
@@ -59,24 +59,20 @@ async def execute_async_tasks(user, queries=None, task_uuids=None, return_tasks=
         task_uuids = [task.uuid for task in tasks]
 
     # Todo: delay estimates: based on old runtime history for similar tasks?
-    # ToDo: Add timeouts for the results: timestamps are already stored, simply rerun the query if the timestamp is too old.
-    # TODO: Figure out a sensible usage for the task_history timestamps
-    # Todo: Also rerun the tasks, if the results have been deleted from the database
+    # ToDo: Add timeouts for the results: timestamps are already stored, simply rerun the query if the timestamp
+    #  is too old.
 
-    new_tasks = [task for task in tasks if task.task_status == 'created']
+    for task in tasks:
+        task.task_started = datetime.utcnow()
+        if task.task_result:
+            task.task_status = 'finished'
+            task.task_finished = datetime.utcnow()
+        else:
+            task.task_status = 'running'
+    db.session.commit()
 
-    if new_tasks:
-        for task in new_tasks:
-            task.task_started = datetime.utcnow()
-            if task.task_result:
-                task.task_status = 'finished'
-                task.task_finished = datetime.utcnow()
-            else:
-                task.task_status = 'running'
-        db.session.commit()
-
-    searches_to_run = [task for task in new_tasks if task.task_type == 'search' and task.task_status == 'running']
-    analysis_to_run = [task for task in new_tasks if task.task_type == 'analysis' and task.task_status == 'running']
+    searches_to_run = [task for task in tasks if task.task_type == 'search' and task.task_status == 'running']
+    analysis_to_run = [task for task in tasks if task.task_type == 'analysis' and task.task_status == 'running']
 
     if searches_to_run:
         search_results = await search_database([task.task_parameters for task in searches_to_run])
@@ -99,18 +95,17 @@ async def execute_async_tasks(user, queries=None, task_uuids=None, return_tasks=
 
 def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=False):
 
+    if not isinstance(queries, list):
+        raise ValueError
+
     if not queries:
         return []
-
-    if not isinstance(queries, list):
-        queries = [queries]
-
-    if not isinstance(queries[0], tuple):
-        raise ValueError
 
     tasks = []
 
     for query in queries:
+        if not isinstance(query, tuple):
+            raise ValueError
         # Remove the target_uuid from query parameters (stored separately internally)
         target_uuid = query[1].pop('target_uuid', None)
         task = Task(task_type=query[0], task_parameters=query[1], data_parent_id=target_uuid, hist_parent_id=parent_id, user_id=user.id, task_status='created')
