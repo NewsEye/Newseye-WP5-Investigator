@@ -72,7 +72,7 @@ class Task(db.Model):
                 'task_started': self.task_started,
                 'task_finished': self.task_finished,
             }
-        if style == 'result':
+        elif style == 'result':
             return {
                 'uuid': self.uuid,
                 'task_type': self.task_type,
@@ -82,7 +82,7 @@ class Task(db.Model):
                 'task_finished': self.task_finished,
                 'task_result': self.task_result.result if self.task_result else None,
             }
-        if style == 'full':
+        elif style == 'full':
             return {
                 'uuid': self.uuid,
                 'task_type': self.task_type,
@@ -94,7 +94,8 @@ class Task(db.Model):
                 'task_finished': self.task_finished,
                 'last_accessed': self.last_accessed,
             }
-        raise KeyError('''Unknown value for parameter 'style'! Valid options: status, result, full. ''')
+        else:
+            raise KeyError('''Unknown value for parameter 'style'! Valid options: status, result, full. ''')
 
     def __repr__(self):
         return '<Task {}: {}>'.format(self.task_type, self.task_parameters)

@@ -96,7 +96,7 @@ async def execute_async_tasks(user, queries=None, task_uuids=None, return_tasks=
 def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=False):
 
     if not isinstance(queries, list):
-        raise ValueError
+        queries = [queries]
 
     if not queries:
         return []
@@ -133,13 +133,15 @@ def store_results(tasks, task_results):
     # doubt this would be the case here.
 
     for task, result in zip(tasks, task_results):
-        if isinstance(result, Exception):
+        task.task_finished = datetime.utcnow()
+        if isinstance(result, ValueError):
+            current_app.logger.error("ValueError: {}".format(result))
+            task.task_status = 'failed: {}'.format(result)
+        elif isinstance(result, Exception):
             current_app.logger.error("Unexpected exception: {}".format(result))
-            task.task_status = 'failed'
-            task.task_finished = datetime.utcnow()
+            task.task_status = 'failed: Unexpected exception: {}'.format(result)
         else:
             task.task_status = 'finished'
-            task.task_finished = datetime.utcnow()
             res = Result.query.filter_by(task_type=task.task_type, task_parameters=task.task_parameters).one_or_none()
             if not res:
                 res = Result(task_type=task.task_type, task_parameters=task.task_parameters)
