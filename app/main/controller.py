@@ -12,7 +12,7 @@ import asyncio
 import uuid
 
 
-def execute_tasks(queries, switch_task=False, return_tasks=True):
+def execute_tasks(queries, return_tasks=True, user=None):
     """
     Generate tasks from queries and execute them.
     :param queries: a single query or a list of queries
@@ -33,9 +33,6 @@ def execute_tasks(queries, switch_task=False, return_tasks=True):
     while Task.query.filter(Task.uuid.in_(task_uuids), Task.task_status == 'created').count() > 0:
         time.sleep(1)
 
-    if switch_task:
-        current_user.current_task = task_uuids[0]
-        db.session.commit()
     if return_tasks:
         return Task.query.filter(Task.uuid.in_(task_uuids)).all()
     else:
