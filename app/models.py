@@ -51,7 +51,6 @@ class Task(db.Model):
     uuid = db.Column(UUID(as_uuid=True), unique=True, nullable=False, default=uuid.uuid4)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     hist_parent_id = db.Column(UUID(as_uuid=True), db.ForeignKey('tasks.uuid'))
-    data_parent_id = db.Column(UUID(as_uuid=True), db.ForeignKey('tasks.uuid'))
     task_type = db.Column(db.String(255), nullable=False)
     task_parameters = db.Column(JSONB, nullable=False)
     task_status = db.Column(db.String(255))
@@ -60,7 +59,6 @@ class Task(db.Model):
     last_accessed = db.Column(db.DateTime, default=datetime.utcnow)
     user = db.relationship('User', back_populates='all_tasks', foreign_keys=[user_id])
     hist_children = db.relationship('Task', primaryjoin="Task.uuid==Task.hist_parent_id")
-    data_children = db.relationship('Task', primaryjoin="Task.uuid==Task.data_parent_id")
     task_result = db.relationship('Result', primaryjoin="and_(foreign(Task.task_type)==Result.task_type, foreign(Task.task_parameters)==Result.task_parameters)")
     task_reports = db.relationship('Report', back_populates='task', foreign_keys="Report.task_uuid")
 
@@ -92,7 +90,6 @@ class Task(db.Model):
                 'task_status': self.task_status,
                 'task_result': self.task_result.result if self.task_result else None,
                 'hist_parent_id': self.hist_parent_id,
-                'data_parent_id': self.data_parent_id,
                 'task_started': self.task_started,
                 'task_finished': self.task_finished,
                 'last_accessed': self.last_accessed,

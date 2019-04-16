@@ -105,10 +105,8 @@ def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=Fals
 
     for query in queries:
         if not isinstance(query, tuple):
-            raise ValueError
-        # Remove the target_uuid from query parameters (stored separately internally)
-        target_uuid = query[1].pop('target_uuid', None)
-        task = Task(task_type=query[0], task_parameters=query[1], data_parent_id=target_uuid, hist_parent_id=parent_id, user_id=user.id, task_status='created')
+            raise ValueError('query should be of the type tuple')
+        task = Task(task_type=query[0], task_parameters=query[1], hist_parent_id=parent_id, user_id=user.id, task_status='created')
         tasks.append(task)
 
     while True:

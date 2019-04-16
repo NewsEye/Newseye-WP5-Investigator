@@ -34,8 +34,11 @@ class AnalysisUtility(object):
     # TODO: Now the toolchain generation simply searches backwards from the final tool, this needs to be improved to a
     #       proper graph search in the future
     async def get_input_task(self, task):
-        if task.data_parent_id:
-            input_task = Task.query.filter_by(uuid=task.data_parent_id)
+        input_task_uuid = task.task_parameters.get('target_uuid')
+        if input_task_uuid:
+            input_task = Task.query.filter_by(uuid=input_task_uuid).first()
+            if input_task is None:
+                raise ValueError('Invalid target_uuid')
         else:
             search_parameters = task.task_parameters.get('target_search')
             if search_parameters is None:
@@ -66,7 +69,6 @@ class ExtractFacets(AnalysisUtility):
     async def __call__(self, task):
         input_task = await self.get_input_task(task)
         task.hist_parent_id = input_task.uuid
-        task.data_parent_id = input_task.uuid
         db.session.commit()
         input_data = input_task.task_result.result
         facets = {}
@@ -115,7 +117,6 @@ class CommonFacetValues(AnalysisUtility):
 
         input_task = await self.get_input_task(task)
         task.hist_parent_id = input_task.uuid
-        task.data_parent_id = input_task.uuid
         db.session.commit()
 
         input_data = input_task.task_result.result
@@ -154,7 +155,6 @@ class GenerateTimeSeries(AnalysisUtility):
 
         input_task = await self.get_input_task(task)
         task.hist_parent_id = input_task.uuid
-        task.data_parent_id = input_task.uuid
         db.session.commit()
         if input_task is None or input_task.task_status != 'finished':
             raise TypeError("No task results available for analysis")
@@ -208,8 +208,6 @@ class SplitDocumentSetByFacet(AnalysisUtility):
             'split_facet': 'PUB_YEAR'
         }
         input_task = await self.get_input_task(task)
-        task.data_parent_id = input_task.uuid
-        db.session.commit()
         input_data = input_task.task_result.result
         split_facet = task.task_parameters.get('split_facet', default_parameters['split_facet'])
         for item in input_data['included']:
@@ -225,8 +223,9 @@ class SplitDocumentSetByFacet(AnalysisUtility):
         queries = [{'f[{}][]'.format(Config.AVAILABLE_FACETS[split_facet]): item[0]} for item in facet_totals]
         for query in queries:
             query.update(original_search)
+        queries = [('search', query) for query in queries]
         task_ids = await controller.execute_async_tasks(user=task.user, queries=queries, return_tasks=False,
-                                                        parent_id=task.data_parent_id)
+                                                        parent_id=input_task.uuid)
         return [str(task_id) for task_id in task_ids]
 
 
@@ -262,7 +261,6 @@ class FindStepsFromTimeSeries(AnalysisUtility):
         step_threshold = task.task_parameters.get('step_threshold')
         input_task = await self.get_input_task(task)
         task.hist_parent_id = input_task.uuid
-        task.data_parent_id = input_task.uuid
         db.session.commit()
         if input_task is None or input_task.task_status != 'finished':
             raise TypeError("No task results available for analysis")
