@@ -12,8 +12,12 @@ from math import sqrt
 
 async def async_analysis(tasks):
     """ Generate asyncio tasks and run them, returning when all tasks are done"""
+
+    # generates coroutines out of task obects
     async_tasks = [UTILITY_MAP[task.task_parameters.get('utility')](task) for task in tasks]
 
+    # here tasks are actually executed asynchronously
+    # returns list of results *or* exceptions if a task fail
     results = await asyncio.gather(*async_tasks, return_exceptions=True)
     current_app.logger.info("Tasks finished, returning results")
     return results
@@ -259,14 +263,18 @@ class FindStepsFromTimeSeries(AnalysisUtility):
         facet_string = Config.AVAILABLE_FACETS.get(facet_name)
         if facet_string is None:
             raise TypeError("Facet not specified or specified facet not available in current database")
+
         step_threshold = task.task_parameters.get('step_threshold')
+
+        # looks for tasks to be done before this one
+        # TODO: avoid it, will be done by Planner
         input_task = await self.get_input_task(task)
         task.hist_parent_id = input_task.uuid
         db.session.commit()
         if input_task is None or input_task.task_status != 'finished':
             raise TypeError("No task results available for analysis")
-
         input_data = input_task.task_result.result
+
         absolute_counts = pd.DataFrame(input_data['absolute_counts'])
         absolute_counts.index = pd.to_numeric(absolute_counts.index)
         relative_counts = pd.DataFrame(input_data['relative_counts'])

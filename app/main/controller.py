@@ -47,14 +47,21 @@ def execute_task_thread(app, user_id, task_uuids):
 
 
 async def execute_async_tasks(user, queries=None, task_uuids=None, return_tasks=True, parent_id=None):
+
+    # check if it needs to return a single output or a list of outputs
     if (task_uuids and isinstance(task_uuids, list)) or (not task_uuids and isinstance(queries, list)):
         return_list = True
     else:
         return_list = False
 
+
     if task_uuids:
+        # to call from API (uuid is given by API)
         tasks = Task.query.filter(Task.uuid.in_(task_uuids)).all()
     else:
+        # task generation from within the system
+        # e.g. called by other utility
+        # generate task objects
         tasks = generate_tasks(queries=queries, user=user, parent_id=parent_id, return_tasks=True)
         task_uuids = [task.uuid for task in tasks]
 
@@ -75,20 +82,33 @@ async def execute_async_tasks(user, queries=None, task_uuids=None, return_tasks=
 
     db.session.commit()
 
+    # sorting tasks into searches and analyses
+    # then calling from the API this will be only one type
+    # calling from within that may be both
+
     searches_to_run = [task for task in tasks if task.task_type == 'search' and task.task_status == 'running']
     analysis_to_run = [task for task in tasks if task.task_type == 'analysis' and task.task_status == 'running']
 
+
     if searches_to_run:
+        # runs searches on the external database
         search_results = await search_database([task.task_parameters for task in searches_to_run])
+        # stores results in the internal database
         store_results(searches_to_run, search_results)
 
     if analysis_to_run:
+        # waiting for tasks to be done
+        # calls main processing function
         analysis_results = await async_analysis(analysis_to_run)
+        # store in the database
         store_results(analysis_to_run, analysis_results)
 
+    # now the database is updated, just fetch them by their uuids
     if return_tasks:
+        # return objects
         result = Task.query.filter(Task.uuid.in_(task_uuids)).all()
     else:
+        # or just id
         result = task_uuids
 
     if return_list:
@@ -98,6 +118,11 @@ async def execute_async_tasks(user, queries=None, task_uuids=None, return_tasks=
 
 
 def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=False):
+
+    # turns queries into Task objects
+    # stores them in the datbase
+    # returns task objects or task ids
+
 
     if not isinstance(queries, list):
         queries = [queries]
@@ -126,7 +151,8 @@ def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=Fals
 
     if return_tasks:
         return tasks
-    return [task.uuid for task in tasks]
+    else:
+        return [task.uuid for task in tasks]
 
 
 def store_results(tasks, task_results):

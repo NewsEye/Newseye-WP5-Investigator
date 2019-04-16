@@ -7,8 +7,12 @@ load_dotenv(os.path.join(basedir, 'investigator.env'))
 
 class Config(object):
     SECRET_KEY = os.environ.get('SECRET_KEY') or '1234'
+
+    # internal database for tasks and results
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'postgresql+psycopg2:///newseye_investigator'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+    # not used currently
     MAIL_SERVER = os.environ.get('MAIL_SERVER')
     MAIL_PORT = int(os.environ.get('MAIL_PORT') or 25)
     MAIL_USE_TLS = os.environ.get('MAIL_USE_TLS') is not None
@@ -19,8 +23,11 @@ class Config(object):
     # This should contain the URI for the reporters api, ending in /api
     REPORTER_URI = ""
 
+
     # This should contain the URI for the topic modelling tools
     TOPIC_MODEL_URI = ""
+
+    # external database to fetch data from
 
     DATABASE_IN_USE = 'demo'
     # DATABASE_IN_USE = 'newseye'
