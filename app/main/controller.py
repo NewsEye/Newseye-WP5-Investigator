@@ -144,12 +144,15 @@ def store_results(tasks, task_results):
             task.task_status = 'finished'
             res = Result.query.filter_by(task_type=task.task_type, task_parameters=task.task_parameters).one_or_none()
             if not res:
-                res = Result(task_type=task.task_type, task_parameters=task.task_parameters)
+                db.session.commit()
                 try:
+                    res = Result(task_type=task.task_type, task_parameters=task.task_parameters)
                     db.session.add(res)
+                    db.session.commit()
                 # If another thread created the query in the meanwhile, this should recover from that, and simply overwrite the result with the newest one.
                 # If the filter still returns None after IntegrityError, we log the event, ignore the result and continue
                 except IntegrityError:
+                    db.session.rollback()
                     res = Result.query.filter_by(task_type=task.task_type,
                                                task_parameters=task.task_parameters).one_or_none()
                     if not res:
