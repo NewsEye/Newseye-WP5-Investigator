@@ -81,6 +81,7 @@ async def execute_async_tasks(user, queries=None, task_uuids=None, return_tasks=
         # result object.
         task.task_parameters = {key: value for key, value in task.task_parameters.items() if key != 'force_refresh'}
 
+
     db.session.commit()
 
     # sorting tasks into searches and analyses
