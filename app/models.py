@@ -55,7 +55,7 @@ class Task(db.Model):
     task_parameters = db.Column(JSONB, nullable=False)
     task_status = db.Column(db.String(255))
     task_started = db.Column(db.DateTime, default=datetime.utcnow)
-    task_finished = db.Column(db.DateTime, default=datetime.utcnow)
+    task_finished = db.Column(db.DateTime)
     last_accessed = db.Column(db.DateTime, default=datetime.utcnow)
     user = db.relationship('User', back_populates='all_tasks', foreign_keys=[user_id])
     hist_children = db.relationship('Task', primaryjoin="Task.uuid==Task.hist_parent_id")
