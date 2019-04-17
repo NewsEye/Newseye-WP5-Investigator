@@ -6,6 +6,7 @@ from flask import current_app
 import asyncio
 import numpy as np
 import pandas as pd
+import requests
 from math import sqrt
 
 
@@ -441,10 +442,86 @@ class FindStepsFromTimeSeries(AnalysisUtility):
         return step_sizes, step_error
 
 
+class ExtractDocumentIds(AnalysisUtility):
+    def __init__(self):
+        super(ExtractDocumentIds, self).__init__()
+        self.utility_name = 'extract_document_ids'
+        self.utility_description = 'Examines the document set given as input, and extracts the document_ids for each of the documents.'
+        self.utility_parameters = []
+        self.input_type = 'search_result'
+        self.output_type = 'id_list'
+
+    async def __call__(self, task):
+        input_task = await self.get_input_task(task)
+        task.hist_parent_id = input_task.uuid
+        db.session.commit()
+        input_data = input_task.task_result.result
+        document_ids = [item['id'] for item in input_data['data']]
+        return document_ids
+
+
+class QueryTopicModel(AnalysisUtility):
+    def __init__(self):
+        super(QueryTopicModel, self).__init__()
+        self.utility_name = 'query_topic_model'
+        self.utility_description = 'Queries the selected topic model.'
+        self.utility_parameters = [
+            {
+                'parameter_name': 'model_type',
+                'parameter_description': 'The type of the topic model to use',
+                'parameter_type': 'string',
+                'parameter_default': None,
+                'parameter_is_required': True,
+            },
+            {
+                'parameter_name': 'model_name',
+                'parameter_description': 'The name of the topic model to use',
+                'parameter_type': 'string',
+                'parameter_default': None,
+                'parameter_is_required': True,
+            },
+        ]
+        self.input_type = 'id_list'
+        self.output_type = 'topic_analysis'
+
+    async def __call__(self, task):
+        model_type = task.task_parameters.get('model_type')
+        if model_type is None:
+            raise KeyError
+        model_name = task.task_parameters.get('model_name')
+        if model_name is None:
+            raise KeyError
+        input_task = await self.get_input_task(task)
+        db.session.commit()
+        payload = {
+            'model': model_name,
+            'documents': input_task.task_result.result
+        }
+        response = requests.post('{}/{}/query/'.format(Config.TOPIC_MODEL_URI, model_type), json=payload)
+        uuid = response.json().get('uuid')
+        if not uuid:
+            raise ValueError('Invalid response from the Topic Model API')
+        delay = 60
+        while True:
+            await asyncio.sleep(delay)
+            delay *= 1.5
+            response = requests.get('{}/{}/query/{}'.format(Config.TOPIC_MODEL_URI, model_type, uuid))
+            if response.status_code == 200:
+                break
+        return response.json()
+
+    @staticmethod
+    def request_topic_models(model_type):
+        response = requests.get('{}/{}/list/'.format(Config.TOPIC_MODEL_URI, model_type))
+        return response.json()
+
+
 UTILITY_MAP = {
     'extract_facets': ExtractFacets(),
     'common_facet_values': CommonFacetValues(),
     'generate_time_series': GenerateTimeSeries(),
     'split_document_set_by_facet': SplitDocumentSetByFacet(),
     'find_steps_from_time_series': FindStepsFromTimeSeries(),
+    'extract_document_ids': ExtractDocumentIds(),
+    'query_topic_model': QueryTopicModel(),
 }

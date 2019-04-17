@@ -19,6 +19,9 @@ class Config(object):
     # This should contain the URI for the reporters api, ending in /api
     REPORTER_URI = ""
 
+    # This should contain the URI for the topic modelling tools
+    TOPIC_MODEL_URI = ""
+
     DATABASE_IN_USE = 'demo'
     # DATABASE_IN_USE = 'newseye'
 
