@@ -1,3 +1,6 @@
+# tools to search from flask shell
+
+
 from investigator import *
 
 from pprint import pprint
