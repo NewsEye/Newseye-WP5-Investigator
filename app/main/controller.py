@@ -71,6 +71,7 @@ async def execute_async_tasks(user, queries=None, task_uuids=None, return_tasks=
 
     for task in tasks:
         task.task_started = datetime.utcnow()
+        # to update data obtained in previous searches
         if task.task_result and not task.task_parameters.get('force_refresh'):
             task.task_status = 'finished'
             task.task_finished = datetime.utcnow()
