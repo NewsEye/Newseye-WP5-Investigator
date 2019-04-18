@@ -64,11 +64,15 @@ async def execute_async_tasks(user, queries=None, task_uuids=None, return_tasks=
 
     for task in tasks:
         task.task_started = datetime.utcnow()
-        if task.task_result:
+        if task.task_result and not task.task_parameters.get('force_refresh'):
             task.task_status = 'finished'
             task.task_finished = datetime.utcnow()
         else:
             task.task_status = 'running'
+        # Remove the 'force_refresh parameter, if it is set. (We don't really want to store that, especially to the
+        # result object.
+        task.task_parameters = {key: value for key, value in task.task_parameters.items() if key != 'force_refresh'}
+
     db.session.commit()
 
     searches_to_run = [task for task in tasks if task.task_type == 'search' and task.task_status == 'running']
