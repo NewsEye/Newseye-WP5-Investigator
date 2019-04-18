@@ -5,7 +5,11 @@ from flask import current_app
 
 async def fetch(session, params={}):
     async with session.get(url=Config.BLACKLIGHT_URI, params=fix_query_for_aiohttp(params)) as response:
-        return await response.json()
+        result_body = await response.json()
+        if Config.DATABASE_IN_USE == 'newseye':
+            return result_body['response']
+        elif Config.DATABASE_IN_USE == 'demo':
+            return result_body
 
 
 # Runs the query/queries using aiohttp. The return value is a list containing the results in the corresponding order.
