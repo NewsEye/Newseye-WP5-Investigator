@@ -1,4 +1,9 @@
 # tools to search from flask shell
+<<<<<<< HEAD
+
+
+=======
+>>>>>>> 5a8a2a4cb7c19d4ca35728789fbaca62d723e5e5
 from investigator import *
 
 from pprint import pprint
