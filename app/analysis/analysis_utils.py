@@ -72,18 +72,25 @@ class ExtractFacets(AnalysisUtility):
         self.output_type = 'facet_list'
 
     async def __call__(self, task):
+        """ Extract all facet values found in the input data and the number of occurrences for each."""
         input_task = await self.get_input_task(task)
         task.hist_parent_id = input_task.uuid
         db.session.commit()
         input_data = input_task.task_result.result
         facets = {}
-        for feature in input_data['included']:
-            if feature['type'] != 'facet':
-                continue
-            values = {}
-            for item in feature['attributes']['items']:
-                values[item['attributes']['label']] = item['attributes']['hits']
-            facets[feature['id']] = values
+        for feature in input_data[Config.FACETS_KEY]:
+            if Config.DATABASE_IN_USE == 'demo':
+                if feature['type'] != 'facet':
+                    continue
+                values = {}
+                for item in feature[Config.FACET_ATTRIBUTES_KEY][Config.FACET_ITEMS_KEY]:
+                    values[item[Config.FACET_ATTRIBUTES_KEY][Config.FACET_VALUE_LABEL_KEY]] = item[Config.FACET_ATTRIBUTES_KEY][Config.FACET_VALUE_HITS_KEY]
+                facets[feature[Config.FACET_ID_KEY]] = values
+            elif Config.DATABASE_IN_USE == 'newseye':
+                values = {}
+                for item in feature[Config.FACET_ITEMS_KEY]:
+                    values[item[Config.FACET_VALUE_LABEL_KEY]] = item[Config.FACET_VALUE_HITS_KEY]
+                facets[feature[Config.FACET_ID_KEY]] = values
         return facets
 
 
@@ -174,7 +181,7 @@ class GenerateTimeSeries(AnalysisUtility):
             task_result = task.task_result.result
             year = task.task_parameters['f[{}][]'.format(Config.AVAILABLE_FACETS['PUB_YEAR'])]
             total_hits = task_result['meta']['pages']['total_count']
-            for item in task_result['included']:
+            for item in task_result[Config.FACETS_KEY]:
                 if item['id'] == facet_string and item['type'] == 'facet':
                     f_counts.extend([[year, facet['attributes']['value'], facet['attributes']['hits'],
                                       facet['attributes']['hits'] / total_hits] for facet in
@@ -215,7 +222,7 @@ class SplitDocumentSetByFacet(AnalysisUtility):
         input_task = await self.get_input_task(task)
         input_data = input_task.task_result.result
         split_facet = task.task_parameters.get('split_facet', default_parameters['split_facet'])
-        for item in input_data['included']:
+        for item in input_data[Config.FACETS_KEY]:
             if item['id'] == Config.AVAILABLE_FACETS[split_facet] and item['type'] == 'facet':
                 facet_totals = [(facet['attributes']['value'], facet['attributes']['hits']) for facet in
                                 item['attributes']['items']]
