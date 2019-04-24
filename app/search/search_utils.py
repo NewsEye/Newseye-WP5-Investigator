@@ -3,18 +3,17 @@ import aiohttp
 from config import Config
 from flask import current_app
 
-
 async def fetch(session, params={}):
     async with session.get(url=Config.BLACKLIGHT_URI, params=fix_query_for_aiohttp(params)) as response:
         return await response.json()
 
 
 # Runs the query/queries using aiohttp. The return value is a list containing the results in the corresponding order.
-async def search_database(queries):
+async def search_database(queries, return_all=False):
     if not isinstance(queries, list):
         queries = [queries]
     tasks = []
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(cookies=Config.COOKIES) as session:
         for query in queries:
             params = Config.BLACKLIGHT_DEFAULT_PARAMETERS.copy()
             params.update(query)
