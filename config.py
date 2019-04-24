@@ -30,11 +30,12 @@ class Config(object):
     # external database to fetch data from
 
     DATABASE_IN_USE = 'demo'
-    # DATABASE_IN_USE = 'newseye'
+    DATABASE_IN_USE = 'newseye'
 
     if DATABASE_IN_USE == 'demo':
         BLACKLIGHT_URI = "https://demo.projectblacklight.org/catalog.json"
         BLACKLIGHT_DEFAULT_PARAMETERS = {'utf8': "%E2%9C%93"}
+        COOKIES = {}
         AVAILABLE_FACETS = {
             'PUB_YEAR': 'pub_date_ssim',
             'TOPIC': 'subject_ssim',
@@ -45,12 +46,15 @@ class Config(object):
         }
 
     if DATABASE_IN_USE == 'newseye':
+        
+        
         BLACKLIGHT_URI = "https://platform.newseye.eu/en/catalog.json"
         BLACKLIGHT_DEFAULT_PARAMETERS = {
             # 'utf8': "%E2%9C%93",
             # 'locale': 'en',
             # 'search_field': 'all_fields,'
         }
+        COOKIES = {'_newseye_samvera_session' : os.environ.get('SESSION_COOKIE')}
         AVAILABLE_FACETS = {
             'LANGUAGE': 'language_ssi',
             'NEWSPAPER_NAME': 'member_of_collection_ids_ssim',
