@@ -5,9 +5,10 @@ from shelltools import *
 from collections import defaultdict
 import json
 from omorfi.omorfi import Omorfi
-import string
 
 from polyglot.text import Text
+from pytrie import StringTrie as Trie
+import string
 
 class TextProcessor(object):
     # DEFAULT PROCESSOR
@@ -45,7 +46,7 @@ class FrProcessor(TextProcessor):
 
     
 class FinProcessor(TextProcessor):
-    # simplest lemmatization for Finnish
+    # simplest lemmatization for Finnish; slow and non-accurate
     # TODO: replace with processing tools that Mark is using 
     # run in parallel
     def __init__(self):
@@ -104,12 +105,9 @@ class Document(object):
             if not self.text_processor.skipitem(l):
                 if lowercase:
                     yield l.lower()
-                else:
-                    yield l
-
-        
-        
-                    
+                yield l
+       
+                            
 class Corpus(object):
     def __init__(self, lang_id, debug_count=10e100):
         self.lang_id = lang_id
@@ -118,11 +116,21 @@ class Corpus(object):
 
         # stuff we want to compute only once, potentially useful for many tasks
         self.docid_to_date = {}
+       
         self.token_to_docids = defaultdict(list)
         self.lemma_to_docids = defaultdict(list)
-        
-                
+
+        self.token_vocabulary = {}
+        self.lemma_vocabulary = {}
+
+        # Tries are slow, so we don't use them as main storing structures 
+        self.prefix_token_vocabulary = Trie()
+        self.prefix_lemma_vocabulary = Trie()
+        self.suffix_token_vocabulary = Trie()
+        self.suffix_lemma_vocabulary = Trie()
+              
     def loop_db(self, per_page = 100):
+        # 100 in a maximum number of documents per page allowed through web interface
         # currently relies on shelltools
         # TODO: integrate into main processing
         # TODO: run in parallel (in future, for really big corpora)
@@ -146,34 +154,42 @@ class Corpus(object):
             # after running that all data will be in the local db
             for d in self.loop_db():
                 pass
+          
+    def get_id(self, item, vocab):
+        if not item in vocab:
+            vocab[item] = len(vocab)
+        return vocab[item]
 
-        
+    def get_lemma_id(self, lemma):
+        return self.get_id(lemma, self.lemma_vocabulary)         
+
+    def get_token_id(self, token):
+        return self.get_id(token, self.token_vocabulary)        
+
     # TODO: slow, should be a separate task with results (indexes) stored in db
     # TODO: run in parallel
     def build_indexes(self):
-
+        
         # build only once
         if self.docid_to_date:
             return
         
-        count = 0
+        doc_count = 0
         for d in self.loop_db():
             doc = Document(d, self.text_processor, self.lang_id)
             print(doc.doc_id)
             
             self.docid_to_date[doc.doc_id] = doc.date
-            
-            for t in doc.iter_tokens():
-                self.token_to_docids[t].append(doc.doc_id)
 
-            for l in doc.iter_lemmas():
-                self.lemma_to_docids[l].append(doc.doc_id)
+            for token in doc.iter_tokens():
+                self.token_to_docids[self.get_token_id(token)].append(doc.doc_id)
 
-            count += 1
-            if count==self.DEBUG_COUNT:
-                break
-            
+            for lemma in doc.iter_lemmas():
+                self.lemma_to_docids[self.get_lemma_id(lemma)].append(doc.doc_id)
 
+            doc_count += 1
+            if doc_count==self.DEBUG_COUNT:
+                break       
 
     def build_time_series(self, item="token", granularity = "year", min_count = 10):
         gran_to_field_map = {"year" : 0, "month" : 1, "day" : 2}
@@ -189,12 +205,12 @@ class Corpus(object):
             raise ValueError("item must be token or lemma")
 
         if not self.docid_to_date:
-            # TODO: build_indexes will be a separate task, the general
-            # controlling mechanism will take care that it has been done
+            # TODO: build_indexes will be a separate task
+            # the general controlling mechanism will take care that it has been done
             print("Indexes are not ready, building indexes...")
             self.build_indexes()
 
-
+        # timeseries are faster to build but probably we would need to store them in self variables and reuse
         total = defaultdict(lambda: 0)
         timeseries = defaultdict(lambda: defaultdict(lambda: 0))
         for (w, docids) in word_to_docids.items():           
@@ -217,4 +233,43 @@ class Corpus(object):
         
         # TODO: write to db    
         return json.loads(json.dumps(timeseries)), json.loads(json.dumps(timeseries_ipm)), dict(total)
+
+
+    # SUFFIX/PREFIX SEARCH
+    
+    def build_tries_from_dict(self, vocab, item_to_doc, min_count):
+        prefix_trie = Trie({item:i_id for item,i_id in vocab.items() if len(item_to_doc[i_id])>min_count})
+        suffix_trie = Trie({item[::-1]:i_id for item,i_id in prefix_trie.items()})
+        return prefix_trie, suffix_trie
+
             
+    def build_substring_structures(self, token_min_count=10, lemma_min_count=10):
+        if not self.token_vocabulary:
+            print("Need to build main indexes first")
+            self.build_indexes()
+            
+        print("Building prefix/suffix search structures")
+        
+        # Tries are slow so we build indexes first and use frequency threshold to store only most frequent tokens
+        self.prefix_token_vocabulary, self.suffix_token_vocabulary = \
+            self.build_tries_from_dict(self.token_vocabulary, self.token_to_docids, token_min_count)
+        self.prefix_lemma_vocabulary, self.suffix_lemma_vocabulary = \
+            self.build_tries_from_dict(self.lemma_vocabulary, self.lemma_to_docids, lemma_min_count)
+        
+    
+    def find_tokens_by_prefix(self, prefix):
+        return self.prefix_token_vocabulary.items(prefix=prefix)
+
+    def find_lemmas_by_prefix(self, prefix):
+        return self.prefix_lemma_vocabulary.items(prefix=prefix)
+
+    def find_tokens_by_suffix(self, suffix):
+        # assume that user would type word in a normal left-to-right form and wants to see result in the same form
+        # so we first flip the suffix, than search it in flipped dictionary than flip back the results
+        return [(k[::-1], v) for k, v in self.suffix_token_vocabulary.items(prefix=suffix[::-1])]
+
+    def find_lemmas_by_suffix(self, suffix):
+        return [(k[::-1], v) for k, v in self.suffix_lemmas_vocabulary.items(prefix=suffix[::-1])]
+
+        
+    
