@@ -264,7 +264,7 @@ class Corpus(object):
         timeseries_ipm = {w: {date: (count*10e5)/total[date] for (date, count) in ts.items()} for (w, ts) in timeseries.items()}
         
         # TODO: write to db
-        return json.loads(json.dumps(timeseries)), json.loads(json.dumps(timeseries_ipm)), dict(total)
+        return timeseries, timeseries_ipm, total
 
 
     # SUFFIX/PREFIX SEARCH
