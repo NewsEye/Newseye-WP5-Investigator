@@ -79,7 +79,7 @@ class FinProcessor(TextProcessor):
         cleanup=str.maketrans('wW','vV',self.remove)
         return [t.surf.translate(cleanup) for t in self.omorfi.tokenise(text)]
     
-    def get_lemma(self, tokens):
+    def get_lemma(self, token):
         # omorfi may produce more than one analyses, lets get the last one (-1)
         # lemmas are lists, can be more than one lemma (compounds) --> join
         # TODO: make proper lemma selection---we might prefer
