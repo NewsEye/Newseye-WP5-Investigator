@@ -17,33 +17,49 @@ class TextProcessor(object):
         # this should remove OCR bugs but would skip "legal" punctuation also
         # might be insufficient
         self.remove = string.punctuation + '—»■„™®«§£•€□►▼♦“»★✓❖’▲°©‘*®'
+        self.token_to_lemma = {}
+        self.skip_item = defaultdict(lambda: False)
         
     def get_tokens(self, text):
         # default relies on tokenization from polyglot package
         return Text(text).words
-
-    def get_lemmas(self, token):
-        # depending on language, some processors may take as an input tokens, some -- raw text
-        # TODO: fix when(if) we have more text processors
+   
+    def get_lemmas(self, tokens):
+        # ensures that processing is called for each string only once, to make it faster
+        if self.output_lemmas:
+            for t in tokens:
+                if not t in self.token_to_lemma:
+                    self.token_to_lemma[t] = self.get_lemma(t)
+            return [self.token_to_lemma[t] for t in tokens]
         return []
 
+    def get_lemma(token):
+        # language-specific processing
+        pass
+        
     def skipitem (self, item):
-    # remove items that don't look like human language
-    # may add more filters here in the future
-        if len(item) < 2:
-            return True
-        if any(char.isdigit() for char in item):
-            return True
-        if any(char in self.remove for char in item):
-            return True
-        return False
+        if not item in self.skip_item:
+            # remove items that don't look like human language
+            # may add more filters here in the future
+            if len(item) < 2:
+                self.skip_item[item] = True
+            if any(char.isdigit() for char in item):
+                self.skip_item[item] = True
+            if any(char in self.remove for char in item):
+                self.skip_item[item] = True
+        return self.skip_item[item]
         
 
 class FrProcessor(TextProcessor):
     def __init__(self):
         super(FrProcessor, self).__init__()
+        self.output_lemmas = True
         self.remove = self.remove.replace("'", "")  # import symbol for French
 
+    def get_lemma(self, token):
+        # that's not actually lemmatisation, just trying to map together words with/without articles
+        # e.g. "antagonisme", "d'antagonisme", "l'antagonisme"
+        return token.replace("l'", "").replace("d'", "")
     
 class FinProcessor(TextProcessor):
     # simplest lemmatization for Finnish; slow and non-accurate
@@ -63,12 +79,12 @@ class FinProcessor(TextProcessor):
         cleanup=str.maketrans('wW','vV',self.remove)
         return [t.surf.translate(cleanup) for t in self.omorfi.tokenise(text)]
     
-    def get_lemmas(self, tokens):
+    def get_lemma(self, tokens):
         # omorfi may produce more than one analyses, lets get the last one (-1)
         # lemmas are lists, can be more than one lemma (compounds) --> join
         # TODO: make proper lemma selection---we might prefer
         # compounds if the end users have special iterest in compounds
-        return ["".join(self.omorfi.analyse(t)[-1].lemmas) for t in tokens]
+        return "".join(self.omorfi.analyse(token)[-1].lemmas)
             
 
 LANG_PROCESSOR_MAP = defaultdict(lambda: TextProcessor(),
@@ -93,6 +109,8 @@ class Document(object):
         self.date = doc['date_created_ssim'][0].split('-')
         
         self.tokens = self.text_processor.get_tokens(self.text)
+        # depending on language, some processors may take as an input tokens, some -- raw text
+        # will fix when(if) we have more text processors
         self.lemmas = self.text_processor.get_lemmas(self.tokens)
 
     def iter_tokens(self):
@@ -109,11 +127,19 @@ class Document(object):
        
                             
 class Corpus(object):
-    def __init__(self, lang_id, debug_count=10e100):
+    # TODO: initialize corpus with query
+    # query may match documents from different languages, which would
+    # require calling several textprocessors most probably we will
+    # split corpus by language, i.e. will have more than one corpus
+    # object for the task, since indexes are language-specific anyway
+
+    def __init__(self, lang_id, debug_count=10e100):       
         self.lang_id = lang_id
         self.text_processor = LANG_PROCESSOR_MAP[lang_id]
-        self.DEBUG_COUNT = debug_count
+        self.DEBUG_COUNT = debug_count  # limits number of documents
 
+        self.corpus_info = {} # facet distribution
+        
         # stuff we want to compute only once, potentially useful for many tasks
         self.docid_to_date = {}
        
@@ -127,32 +153,36 @@ class Corpus(object):
         self.prefix_token_vocabulary = Trie()
         self.prefix_lemma_vocabulary = Trie()
         self.suffix_token_vocabulary = Trie()
-        self.suffix_lemma_vocabulary = Trie()
-              
-    def loop_db(self, per_page = 100):
+        self.suffix_lemma_vocabulary = Trie()        
+        
+    def loop_db(self, per_page = 100, force_refresh = False):
         # 100 in a maximum number of documents per page allowed through web interface
         # currently relies on shelltools
         # TODO: integrate into main processing
         # TODO: run in parallel (in future, for really big corpora)
         page = 1
-    
+
+        query = {'f[language_ssi][]': self.lang_id, 'per_page':per_page}
+        if force_refresh:
+                query.update({'force_refresh':'T'})
         while(True):
             print("page: ", page)
-            
-            task = search({'f[language_ssi][]': self.lang_id, 'page':page, 'per_page':per_page})
+            query.update({'page':page})
+            task = search(query)
             docs = task.task_result.result['response']['docs']
-            
+
             for doc in docs:
                 yield doc
                 
             if task.task_result.result['response']['pages']['last_page?']:
+                self.corpus_info = task.task_result.result['response']['facets']
                 break
             page += 1
                 
     def download_db(self):
             # dummy function for initial download
             # after running that all data will be in the local db
-            for d in self.loop_db():
+            for d in self.loop_db(force_refresh = True):
                 pass
           
     def get_id(self, item, vocab):
@@ -190,8 +220,8 @@ class Corpus(object):
             doc_count += 1
             if doc_count==self.DEBUG_COUNT:
                 break       
-
-    def build_time_series(self, item="token", granularity = "year", min_count = 10):
+            
+    def build_time_series(self, item="token", granularity = "year", min_count = 10, word_ids = None):       
         gran_to_field_map = {"year" : 0, "month" : 1, "day" : 2}
         field = gran_to_field_map[granularity]
          
@@ -213,15 +243,17 @@ class Corpus(object):
         # timeseries are faster to build but probably we would need to store them in self variables and reuse
         total = defaultdict(lambda: 0)
         timeseries = defaultdict(lambda: defaultdict(lambda: 0))
-        for (w, docids) in word_to_docids.items():           
-            if len(docids) <= min_count:
+        for (w, docids) in word_to_docids.items():
+            # record only words that are frequent and relevant
+            # but count everything for total counts
+            # so that return ipms there relatives
+            # TODO: maybe need to store totals in corpus variable, for speed up or maybe store all time series
+            if (word_ids and not w in word_ids) or len(docids) <= min_count:
                 record = False
             else:
                 record = True
 
             for docid in docids:
-                # record only words that are frequent enough
-                # but count everything for total counts
                 date = "-".join(self.docid_to_date[docid][:field+1])
                 total[date] += 1
                 if record:
@@ -231,7 +263,7 @@ class Corpus(object):
         # relative count (relative to all items in this date slice)
         timeseries_ipm = {w: {date: (count*10e5)/total[date] for (date, count) in ts.items()} for (w, ts) in timeseries.items()}
         
-        # TODO: write to db    
+        # TODO: write to db
         return json.loads(json.dumps(timeseries)), json.loads(json.dumps(timeseries_ipm)), dict(total)
 
 
@@ -269,7 +301,6 @@ class Corpus(object):
         return [(k[::-1], v) for k, v in self.suffix_token_vocabulary.items(prefix=suffix[::-1])]
 
     def find_lemmas_by_suffix(self, suffix):
-        return [(k[::-1], v) for k, v in self.suffix_lemmas_vocabulary.items(prefix=suffix[::-1])]
+        return [(k[::-1], v) for k, v in self.suffix_lemma_vocabulary.items(prefix=suffix[::-1])]
 
-        
-    
+      
