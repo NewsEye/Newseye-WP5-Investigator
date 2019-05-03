@@ -18,7 +18,7 @@ class TextProcessor(object):
         # might be insufficient
         self.remove = string.punctuation + '—»■„™®«§£•€□►▼♦“»★✓❖’▲°©‘*®'
         self.token_to_lemma = {}
-        self.skip_item = defaultdict(lambda: False)
+        self.skip_item = {}
         
     def get_tokens(self, text):
         # default relies on tokenization from polyglot package
@@ -43,10 +43,12 @@ class TextProcessor(object):
             # may add more filters here in the future
             if len(item) < 2:
                 self.skip_item[item] = True
-            if any(char.isdigit() for char in item):
+            elif any(char.isdigit() for char in item):
                 self.skip_item[item] = True
-            if any(char in self.remove for char in item):
+            elif any(char in self.remove for char in item):
                 self.skip_item[item] = True
+            else:
+                self.skip_item[item] = False
         return self.skip_item[item]
         
 
@@ -139,7 +141,7 @@ class Corpus(object):
         self.text_processor = LANG_PROCESSOR_MAP[lang_id]
         self.DEBUG_COUNT = debug_count  # limits number of documents
 
-        self.corpus_info = {} # facet distribution
+        self._corpus_info = {} # facet distribution
         
         # stuff we want to compute only once, potentially useful for many tasks
         self.docid_to_date = {}
@@ -179,7 +181,7 @@ class Corpus(object):
                 self.corpus_info = task.task_result.result['facets']
                 break
             page += 1
-        self.corpus_info = task.task_result.result['response']['facets']
+        self._corpus_info = task.task_result.result['response']['facets']
                         
                 
     def download_db(self):
@@ -188,7 +190,7 @@ class Corpus(object):
         for d in self.loop_db(force_refresh = True):
             pass
             
-    def show_corpus_info(self):
+    def corpus_info(self):
         for info in self.corpus_info:
             print ("\n******%s******" %info['label'])
             for item in info['items']:
@@ -255,8 +257,8 @@ class Corpus(object):
             self.build_indexes()
 
         # timeseries are faster to build but probably we would need to store them in self variables and reuse
-        total = defaultdict(lambda: 0)
-        timeseries = defaultdict(lambda: defaultdict(lambda: 0))
+        total = defaultdict(int)
+        timeseries = defaultdict(lambda: defaultdict(int))
         for (w, docids) in word_to_docids.items():
             # record only words that are frequent and relevant
             # but count everything for total counts
@@ -284,7 +286,7 @@ class Corpus(object):
         
     @staticmethod
     def sum_up_timeseries(timeseries):
-        sum_ts = defaultdict(lambda: 0)
+        sum_ts = defaultdict(int)
         for ts in timeseries.values():
             for date,count in ts:
                 sum_ts[date] += count
