@@ -4,6 +4,7 @@ import sys
 from collections import Iterable
 
 class Distribution(object):
+
     EPSILON = sys.float_info.epsilon  # smallest possible number
     
     def __init__(self, data):
@@ -57,11 +58,11 @@ def align_dicts(dict1, dict2, default_value=0.0):
     align_dicts_from_to(dict1, dict2, default_value)
     align_dicts_from_to(dict2, dict1, default_value)
 
-def frequency_ratio(dict1, reference):
-    align_dicts_from_to(reference, dict1)
-    return {k:dict1[k]/v for k,v in reference}
+def frequency_ratio(dict1, dict2):
+    align_dicts(dict1, dict2, Distribution.EPSILON)
+    return {k:float(dict1[k])/dict2[k] for k in dict1.keys()}
     
-def weighted_frequency_ratio(dict1, reference, weights=None):
-    align_dicts_from_to(reference, dict1)
-    if not weights: weights = reference
-    return {k:dict1[k]*log(weights[k])/v for k,v in reference}
+def weighted_frequency_ratio(dict1, dict2, weights=None):
+    align_dicts(dict1, dict2, Distribution.EPSILON)
+    if not weights: weights = dict1
+    return {k:dict1[k]*np.log(weights[k])/dict2[k] for k in dict1.keys()}  
