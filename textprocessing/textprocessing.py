@@ -10,6 +10,7 @@ from polyglot.text import Text
 from pytrie import StringTrie as Trie
 import string
 
+
 class TextProcessor(object):
     # DEFAULT PROCESSOR
     def __init__(self):
@@ -126,8 +127,8 @@ class Document(object):
                 if lowercase:
                     yield l.lower()
                 yield l
-       
-                            
+
+
 class Corpus(object):
     # TODO: initialize corpus with query
     # query may match documents from different languages, which would
@@ -136,28 +137,28 @@ class Corpus(object):
     # object for the task, since indexes are language-specific anyway
     # there is a utility for that in analysis_utils.py, FindStepsFromTimeSeries
 
-    def __init__(self, lang_id, debug_count=10e100):       
+    def __init__(self, lang_id, debug_count=10e100):
         self.lang_id = lang_id
         self.text_processor = LANG_PROCESSOR_MAP[lang_id]
         self.DEBUG_COUNT = debug_count  # limits number of documents
 
         self._corpus_info = {} # facet distribution
-        
+
         # stuff we want to compute only once, potentially useful for many tasks
         self.docid_to_date = {}
-       
+
         self.token_to_docids = defaultdict(list)
         self.lemma_to_docids = defaultdict(list)
 
-        self.token_vocabulary = {}
-        self.lemma_vocabulary = {}
+        self.docid_to_tokens = defaultdict(list)
+        self.docid_to_lemmas = defaultdict(list)
 
-        # Tries are slow, so we don't use them as main storing structures 
+        # Tries are slow, so we don't use them as main storing structures
         self.prefix_token_vocabulary = Trie()
         self.prefix_lemma_vocabulary = Trie()
         self.suffix_token_vocabulary = Trie()
-        self.suffix_lemma_vocabulary = Trie()        
-        
+        self.suffix_lemma_vocabulary = Trie()
+
     def loop_db(self, per_page = 100, force_refresh = False):
         # 100 in a maximum number of documents per page allowed through web interface
         # currently relies on shelltools
@@ -168,7 +169,7 @@ class Corpus(object):
         query = {'f[language_ssi][]': self.lang_id, 'per_page':per_page}
         if force_refresh:
                 query.update({'force_refresh':'T'})
-        while(True):
+        while True:
             print("page: ", page)
             query.update({'page':page})
             task = search(query)
@@ -176,14 +177,13 @@ class Corpus(object):
 
             for doc in docs:
                 yield doc
-                
+
             if task.task_result.result['pages']['last_page?']:
                 self.corpus_info = task.task_result.result['facets']
                 break
             page += 1
-        self._corpus_info = task.task_result.result['response']['facets']
-                        
-                
+        self._corpus_info = task.task_result.result['facets']
+
     def download_db(self):
         # dummy function for initial download
         # after running that all data will be in the local db
@@ -196,56 +196,44 @@ class Corpus(object):
             for item in info['items']:
                 print (item['value'], item['hits'])
             
-    def get_id(self, item, vocab):
-        if not item in vocab:
-            vocab[item] = len(vocab)
-        return vocab[item]
-
-    def get_lemma_id(self, lemma):
-        return self.get_id(lemma, self.lemma_vocabulary)         
-
-    def get_token_id(self, token):
-        return self.get_id(token, self.token_vocabulary)        
-
     # TODO: slow, should be a separate task with results (indexes) stored in db
     # TODO: run in parallel
     def build_indexes(self):
-        
+
         # build only once
         if self.docid_to_date:
             return
-        
+
         doc_count = 0
         for d in self.loop_db():
             doc = Document(d, self.text_processor, self.lang_id)
             print(doc.doc_id)
-            
+
             self.docid_to_date[doc.doc_id] = doc.date
 
+            self.docid_to_tokens[doc.doc_id] = list(doc.iter_tokens())
             for token in doc.iter_tokens():
-                self.token_to_docids[self.get_token_id(token)].append(doc.doc_id)
+                self.token_to_docids[token].append(doc.doc_id)
 
+            self.docid_to_lemmas[doc.doc_id] = list(doc.iter_lemmas())
             for lemma in doc.iter_lemmas():
-                self.lemma_to_docids[self.get_lemma_id(lemma)].append(doc.doc_id)
+                self.lemma_to_docids[lemma].append(doc.doc_id)
 
             doc_count += 1
-            if doc_count==self.DEBUG_COUNT:
-                break       
 
-        self.corpus_info = task.task_result.result['response']['facets']
-
+            if doc_count == self.DEBUG_COUNT:
+                break
 
     # TIMESERIES
-    
-    def build_time_series(self, item="token", granularity = "year", min_count = 10, word_ids = None):       
-        gran_to_field_map = {"year" : 0, "month" : 1, "day" : 2}
+    def build_time_series(self, item="token", granularity="year", min_count=10, word_ids=None):
+        gran_to_field_map = {"year": 0, "month": 1, "day": 2}
         field = gran_to_field_map[granularity]
-         
+
         if item == "token":
             word_to_docids = self.token_to_docids
         elif item == "lemma":
             if not self.text_processor.output_lemmas:
-                raise NotImplementedError("Lemmas are not available for %s." %self.lang_id.upper())
+                raise NotImplementedError("Lemmas are not available for %s." % self.lang_id.upper())
             word_to_docids = self.lemma_to_docids
         else:
             raise ValueError("item must be token or lemma")
@@ -264,7 +252,7 @@ class Corpus(object):
             # but count everything for total counts
             # so that return ipms there relatives
             # TODO: maybe need to store totals in corpus variable, for speed up or maybe store all time series
-            if (word_ids and not w in word_ids) or len(docids) <= min_count:
+            if (word_ids and w not in word_ids) or len(docids) <= min_count:
                 record = False
             else:
                 record = True
@@ -278,55 +266,49 @@ class Corpus(object):
         # ipm - items per million
         # relative count (relative to all items in this date slice)
         timeseries_ipm = {w: {date: (count*10e5)/total[date] for (date, count) in ts.items()} for (w, ts) in timeseries.items()}
-        
+
         # TODO: write to db
         # probably we don't need to return ipm, since they can be computed from ts and totals
         return timeseries, timeseries_ipm, total
 
-        
     @staticmethod
     def sum_up_timeseries(timeseries):
         sum_ts = defaultdict(int)
         for ts in timeseries.values():
-            for date,count in ts:
+            for date, count in ts:
                 sum_ts[date] += count
         return sum_ts
 
-
-    
-
     # SUFFIX/PREFIX SEARCH
-    
-    def build_tries_from_dict(self, vocab, item_to_doc, min_count):
-        prefix_trie = Trie({item:i_id for item,i_id in vocab.items() if len(item_to_doc[i_id])>min_count})
-        suffix_trie = Trie({item[::-1]:i_id for item,i_id in prefix_trie.items()})
+    @staticmethod
+    def build_tries_from_dict(item_to_doc, min_count):
+        prefix_trie = Trie({item: None for item in item_to_doc.keys() if len(item_to_doc[item]) > min_count})
+        suffix_trie = Trie({item[::-1]: None for item in prefix_trie.keys()})
         return prefix_trie, suffix_trie
 
-            
     def build_substring_structures(self, token_min_count=10, lemma_min_count=10):
-        if not self.token_vocabulary:
+        if not self.token_to_docids:
             print("Need to build main indexes first")
             self.build_indexes()
-            
+
         print("Building prefix/suffix search structures")
-        
+
         # Tries are slow so we build indexes first and use frequency threshold to store only most frequent tokens
         self.prefix_token_vocabulary, self.suffix_token_vocabulary = \
-            self.build_tries_from_dict(self.token_vocabulary, self.token_to_docids, token_min_count)
+            self.build_tries_from_dict(self.token_to_docids, token_min_count)
         self.prefix_lemma_vocabulary, self.suffix_lemma_vocabulary = \
-            self.build_tries_from_dict(self.lemma_vocabulary, self.lemma_to_docids, lemma_min_count)
-        
-    
+            self.build_tries_from_dict(self.lemma_to_docids, lemma_min_count)
+
     def find_tokens_by_prefix(self, prefix):
-        return self.prefix_token_vocabulary.items(prefix=prefix)
+        return self.prefix_token_vocabulary.keys(prefix=prefix)
 
     def find_lemmas_by_prefix(self, prefix):
-        return self.prefix_lemma_vocabulary.items(prefix=prefix)
+        return self.prefix_lemma_vocabulary.keys(prefix=prefix)
 
     def find_tokens_by_suffix(self, suffix):
         # assume that user would type word in a normal left-to-right form and wants to see result in the same form
         # so we first flip the suffix, than search it in flipped dictionary than flip back the results
-        return [(k[::-1], v) for k, v in self.suffix_token_vocabulary.items(prefix=suffix[::-1])]
+        return [(k[::-1]) for k in self.suffix_token_vocabulary.keys(prefix=suffix[::-1])]
 
     def find_lemmas_by_suffix(self, suffix):
-        return [(k[::-1], v) for k, v in self.suffix_lemma_vocabulary.items(prefix=suffix[::-1])]
+        return [(k[::-1]) for k in self.suffix_lemma_vocabulary.keys(prefix=suffix[::-1])]
