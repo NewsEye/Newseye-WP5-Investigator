@@ -190,7 +190,7 @@ class Corpus(object):
         for d in self.loop_db(force_refresh = True):
             pass
             
-    def corpus_info(self):
+    def show_corpus_info(self):
         for info in self.corpus_info:
             print ("\n******%s******" %info['label'])
             for item in info['items']:

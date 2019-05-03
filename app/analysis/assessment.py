@@ -65,4 +65,3 @@ def weighted_frequency_ratio(dict1, reference, weights=None):
     align_dicts_from_to(reference, dict1)
     if not weights: weights = reference
     return {k:dict1[k]*log(weights[k])/v for k,v in reference}
-
