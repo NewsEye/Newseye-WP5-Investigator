@@ -132,6 +132,7 @@ class Corpus(object):
     # require calling several textprocessors most probably we will
     # split corpus by language, i.e. will have more than one corpus
     # object for the task, since indexes are language-specific anyway
+    # there is a utility for that in analysis_utils.py, FindStepsFromTimeSeries
 
     def __init__(self, lang_id, debug_count=10e100):       
         self.lang_id = lang_id
@@ -175,16 +176,23 @@ class Corpus(object):
                 yield doc
                 
             if task.task_result.result['response']['pages']['last_page?']:
-                self.corpus_info = task.task_result.result['response']['facets']
                 break
             page += 1
+        self.corpus_info = task.task_result.result['response']['facets']
+                        
                 
     def download_db(self):
-            # dummy function for initial download
-            # after running that all data will be in the local db
-            for d in self.loop_db(force_refresh = True):
-                pass
-          
+        # dummy function for initial download
+        # after running that all data will be in the local db
+        for d in self.loop_db(force_refresh = True):
+            pass
+            
+    def show_corpus_info(self):
+        for info in self.corpus_info:
+            print ("\n******%s******" %info['label'])
+            for item in info['items']:
+                print (item['value'], item['hits'])
+            
     def get_id(self, item, vocab):
         if not item in vocab:
             vocab[item] = len(vocab)
@@ -220,6 +228,8 @@ class Corpus(object):
             doc_count += 1
             if doc_count==self.DEBUG_COUNT:
                 break       
+
+        self.corpus_info = task.task_result.result['response']['facets']
 
 
     # TIMESERIES
@@ -270,6 +280,7 @@ class Corpus(object):
         # probably we don't need to return ipm, since they can be computed from ts and totals
         return timeseries, timeseries_ipm, total
 
+        
     @staticmethod
     def sum_up_timeseries(timeseries):
         sum_ts = defaultdict(lambda: 0)
@@ -277,10 +288,10 @@ class Corpus(object):
             for date,count in ts:
                 sum_ts[date] += count
         return sum_ts
-        
-    
+
 
     
+
     # SUFFIX/PREFIX SEARCH
     
     def build_tries_from_dict(self, vocab, item_to_doc, min_count):
