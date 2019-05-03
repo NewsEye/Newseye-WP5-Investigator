@@ -87,7 +87,7 @@ class FinProcessor(TextProcessor):
         return "".join(self.omorfi.analyse(token)[-1].lemmas)
             
 
-LANG_PROCESSOR_MAP = defaultdict(lambda: TextProcessor(),
+LANG_PROCESSOR_MAP = defaultdict(TextProcessor,
     {'fi':FinProcessor(), 'fr':FrProcessor()}
 )
 
@@ -220,7 +220,10 @@ class Corpus(object):
             doc_count += 1
             if doc_count==self.DEBUG_COUNT:
                 break       
-            
+
+
+    # TIMESERIES
+    
     def build_time_series(self, item="token", granularity = "year", min_count = 10, word_ids = None):       
         gran_to_field_map = {"year" : 0, "month" : 1, "day" : 2}
         field = gran_to_field_map[granularity]
@@ -264,9 +267,20 @@ class Corpus(object):
         timeseries_ipm = {w: {date: (count*10e5)/total[date] for (date, count) in ts.items()} for (w, ts) in timeseries.items()}
         
         # TODO: write to db
+        # probably we don't need to return ipm, since they can be computed from ts and totals
         return timeseries, timeseries_ipm, total
 
+    @staticmethod
+    def sum_up_timeseries(timeseries):
+        sum_ts = defaultdict(lambda: 0)
+        for ts in timeseries.values():
+            for date,count in ts:
+                sum_ts[date] += count
+        return sum_ts
+        
+    
 
+    
     # SUFFIX/PREFIX SEARCH
     
     def build_tries_from_dict(self, vocab, item_to_doc, min_count):
@@ -304,3 +318,4 @@ class Corpus(object):
         return [(k[::-1], v) for k, v in self.suffix_lemma_vocabulary.items(prefix=suffix[::-1])]
 
       
+    
