@@ -169,13 +169,13 @@ class Corpus(object):
             print("page: ", page)
             query.update({'page':page})
             task = search(query)
-            docs = task.task_result.result['response']['docs']
+            docs = task.task_result.result['docs']
 
             for doc in docs:
                 yield doc
                 
-            if task.task_result.result['response']['pages']['last_page?']:
-                self.corpus_info = task.task_result.result['response']['facets']
+            if task.task_result.result['pages']['last_page?']:
+                self.corpus_info = task.task_result.result['facets']
                 break
             page += 1
                 
@@ -316,6 +316,3 @@ class Corpus(object):
 
     def find_lemmas_by_suffix(self, suffix):
         return [(k[::-1], v) for k, v in self.suffix_lemma_vocabulary.items(prefix=suffix[::-1])]
-
-      
-    
