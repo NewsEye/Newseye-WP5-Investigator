@@ -54,7 +54,6 @@ async def execute_async_tasks(user, queries=None, task_uuids=None, return_tasks=
     else:
         return_list = False
 
-
     if task_uuids:
         # to call from API (uuid is given by API)
         tasks = Task.query.filter(Task.uuid.in_(task_uuids)).all()
@@ -81,7 +80,6 @@ async def execute_async_tasks(user, queries=None, task_uuids=None, return_tasks=
         # result object.
         task.task_parameters = {key: value for key, value in task.task_parameters.items() if key != 'force_refresh'}
 
-
     db.session.commit()
 
     # sorting tasks into searches and analyses
@@ -90,7 +88,6 @@ async def execute_async_tasks(user, queries=None, task_uuids=None, return_tasks=
 
     searches_to_run = [task for task in tasks if task.task_type == 'search' and task.task_status == 'running']
     analysis_to_run = [task for task in tasks if task.task_type == 'analysis' and task.task_status == 'running']
-
 
     if searches_to_run:
         # runs searches on the external database
@@ -120,11 +117,9 @@ async def execute_async_tasks(user, queries=None, task_uuids=None, return_tasks=
 
 
 def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=False):
-
     # turns queries into Task objects
-    # stores them in the datbase
+    # stores them in the database
     # returns task objects or task ids
-
 
     if not isinstance(queries, list):
         queries = [queries]

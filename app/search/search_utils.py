@@ -3,6 +3,7 @@ import aiohttp
 from config import Config
 from flask import current_app
 
+
 async def fetch(session, params={}):
     async with session.get(url=Config.BLACKLIGHT_URI, params=fix_query_for_aiohttp(params)) as response:
         result_body = await response.json()

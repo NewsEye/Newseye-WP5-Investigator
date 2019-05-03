@@ -55,9 +55,7 @@ class Task(db.Model):
     # search history of a user
     hist_parent_id = db.Column(UUID(as_uuid=True), db.ForeignKey('tasks.uuid'))
 
-
     # search/analysis
-
     task_type = db.Column(db.String(255), nullable=False)
     task_parameters = db.Column(JSONB, nullable=False)
 
@@ -73,7 +71,6 @@ class Task(db.Model):
 
     # shortcuts for searching children given parents
     hist_children = db.relationship('Task', primaryjoin="Task.uuid==Task.hist_parent_id")
-
 
     # result
     # search in the Result table a result with the same type and the same parameters
