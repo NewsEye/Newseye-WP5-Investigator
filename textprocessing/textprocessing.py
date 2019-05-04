@@ -1,6 +1,7 @@
 import os, sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from shelltools import *
+import app.analysis.assessment as assessment
 
 from collections import defaultdict
 import json
@@ -59,10 +60,15 @@ class FrProcessor(TextProcessor):
         self.output_lemmas = True
         self.remove = self.remove.replace("'", "")  # import symbol for French
 
+    def get_tokens(self, text):
+        # TODO: glue hyphenated
+        return super().get_tokens(text)
+        
     def get_lemma(self, token):
         # that's not actually lemmatisation, just trying to map together words with/without articles
         # e.g. "antagonisme", "d'antagonisme", "l'antagonisme"
         return token.replace("l'", "").replace("d'", "")
+
     
 class FinProcessor(TextProcessor):
     # simplest lemmatization for Finnish; slow and non-accurate
@@ -112,7 +118,8 @@ class Document(object):
         self.date = doc['date_created_ssim'][0].split('-')
         
         self.tokens = self.text_processor.get_tokens(self.text)
-        # depending on language, some processors may take as an input tokens, some -- raw text
+        # depending on language, some processors may take as an input
+        # tokens, some -- raw text
         # will fix when(if) we have more text processors
         self.lemmas = self.text_processor.get_lemmas(self.tokens)
 
@@ -126,16 +133,10 @@ class Document(object):
             if not self.text_processor.skipitem(l):
                 if lowercase:
                     yield l.lower()
-                yield l
-
-
+                else:
+                    yield l
+               
 class Corpus(object):
-    # TODO: initialize corpus with query
-    # query may match documents from different languages, which would
-    # require calling several textprocessors most probably we will
-    # split corpus by language, i.e. will have more than one corpus
-    # object for the task, since indexes are language-specific anyway
-    # there is a utility for that in analysis_utils.py, FindStepsFromTimeSeries
 
     def __init__(self, lang_id, debug_count=10e100):
         self.lang_id = lang_id
@@ -150,8 +151,12 @@ class Corpus(object):
         self.token_to_docids = defaultdict(list)
         self.lemma_to_docids = defaultdict(list)
 
-        self.docid_to_tokens = defaultdict(list)
-        self.docid_to_lemmas = defaultdict(list)
+        # we cannot store the same document trice in memory
+        # it make sense to store pre-processed documents but in the db or file system
+        # we cannot load all documents in memory like that, it'll never work
+        
+        #self.docid_to_tokens = defaultdict(list)
+        #self.docid_to_lemmas = defaultdict(list)
 
         # Tries are slow, so we don't use them as main storing structures
         self.prefix_token_vocabulary = Trie()
@@ -159,8 +164,12 @@ class Corpus(object):
         self.suffix_token_vocabulary = Trie()
         self.suffix_lemma_vocabulary = Trie()
 
+        # slow and seems to be important for analysis
+        self.timeseries = {}
+        
+
     def loop_db(self, per_page = 100, force_refresh = False):
-        # 100 in a maximum number of documents per page allowed through web interface
+        # 100 is a maximum number of documents per page allowed through web interface
         # currently relies on shelltools
         # TODO: integrate into main processing
         # TODO: run in parallel (in future, for really big corpora)
@@ -191,6 +200,7 @@ class Corpus(object):
             pass
             
     def show_corpus_info(self):
+        # TODO: fix dates
         for info in self.corpus_info:
             print ("\n******%s******" %info['label'])
             for item in info['items']:
@@ -211,11 +221,11 @@ class Corpus(object):
 
             self.docid_to_date[doc.doc_id] = doc.date
 
-            self.docid_to_tokens[doc.doc_id] = list(doc.iter_tokens())
+            # self.docid_to_tokens[doc.doc_id] = list(doc.iter_tokens())
             for token in doc.iter_tokens():
                 self.token_to_docids[token].append(doc.doc_id)
 
-            self.docid_to_lemmas[doc.doc_id] = list(doc.iter_lemmas())
+            # self.docid_to_lemmas[doc.doc_id] = list(doc.iter_lemmas())
             for lemma in doc.iter_lemmas():
                 self.lemma_to_docids[lemma].append(doc.doc_id)
 
@@ -225,7 +235,11 @@ class Corpus(object):
                 break
 
     # TIMESERIES
-    def build_time_series(self, item="token", granularity="year", min_count=10, word_ids=None):
+    def build_time_series(self, item="token", granularity="year", min_count=10, word_list=None):
+        # kinda slow
+        # if we gonna use it frequently, better to store ts
+        # (all six in a dictionary ts[item][granularity])
+        
         gran_to_field_map = {"year": 0, "month": 1, "day": 2}
         field = gran_to_field_map[granularity]
 
@@ -252,7 +266,7 @@ class Corpus(object):
             # but count everything for total counts
             # so that return ipms there relatives
             # TODO: maybe need to store totals in corpus variable, for speed up or maybe store all time series
-            if (word_ids and w not in word_ids) or len(docids) <= min_count:
+            if (word_list and w not in word_list) or len(docids) < min_count:
                 record = False
             else:
                 record = True
@@ -275,14 +289,39 @@ class Corpus(object):
     def sum_up_timeseries(timeseries):
         sum_ts = defaultdict(int)
         for ts in timeseries.values():
-            for date, count in ts:
+            for date, count in ts.items():
                 sum_ts[date] += count
         return sum_ts
 
+# TODO: 1. make more general     
+    def compare_word_to_group(self, word, group, item="lemma", granularity="month", min_count = 10):           
+        # output of this function is a timeseries, where key is a date
+        # and value is a funciton that takes as an input word and group distributions
+        # this means that an output might be sent to timeseries
+        # processing functions to find steps
+        word_list = set(group + [word])
+        ts, ts_ipm, total = self.build_time_series(
+            item=item, granularity=granularity, min_count = min_count, word_list=word_list)
+
+        word_ts = ts_ipm[word]
+        group_ts = self.sum_up_timeseries({w:ts_ipm[w] for w in group})
+
+        # insert zeros for dates when these words are not mentioned
+        assessment.align_dicts_from_to(total, word_ts)
+        assessment.align_dicts_from_to(total, group_ts, assessment.EPSILON)
+        
+        # TODO: compute ts once and store instead of sending like this
+        return assessment.weighted_frequency_ratio(word_ts, group_ts, weights=total), ts, ts_ipm
+        
+    
+    def find_group_outlier(group, item="lemma", granularity="month"):
+        #TODO
+        pass
+    
     # SUFFIX/PREFIX SEARCH
     @staticmethod
     def build_tries_from_dict(item_to_doc, min_count):
-        prefix_trie = Trie({item: None for item in item_to_doc.keys() if len(item_to_doc[item]) > min_count})
+        prefix_trie = Trie({item: None for item in item_to_doc.keys() if len(item_to_doc[item]) >= min_count})
         suffix_trie = Trie({item[::-1]: None for item in prefix_trie.keys()})
         return prefix_trie, suffix_trie
 
@@ -312,3 +351,71 @@ class Corpus(object):
 
     def find_lemmas_by_suffix(self, suffix):
         return [(k[::-1]) for k in self.suffix_lemma_vocabulary.keys(prefix=suffix[::-1])]
+
+
+class SubCorpus(Corpus):
+    # SubCorpus should behave more-or-less as Corpus but
+    # should not repeat expensive operations (indexes, text
+    # processing, etc.)
+        
+    def __init__(self, query):
+        # TODO: initialize corpus with query
+        # query may match documents from different languages, which would
+        # require calling several textprocessors most probably we will
+        # split corpus by language, i.e. will have more than one corpus
+        # object for the task, since indexes are language-specific anyway
+        # there is a utility for that in analysis_utils.py, SplitDocumentSetByFacet
+
+        raise NotImplementedError
+
+
+##### EXAMPLES #######
+import numpy as np
+
+def example_load_corpora():
+    # SLOOOOW
+    # run this function in advance, before showing actual fun with other functions
+    fr = Corpus('fr')
+    de = Corpus('de')
+    fi = Corpus('fi')
+
+    for corp in [fr]:   #[fr, de, fi]:
+        corp.build_substring_structures()
+
+    return fr, de, fi
+
+def example_ism(corpus, word = 'patriotisme', suffix = 'isme'):  
+    # TODO: make impressive example, add plots    
+    print ("\n******************************************************")
+    print ("Corpus: %s, word: '%s', group: all words with suffix '%s'" \
+           %(corpus.lang_id, word, suffix))
+    
+    group = corpus.find_lemmas_by_suffix(suffix)
+    counts = {w:len(corpus.lemma_to_docids[w]) for w in group}
+    print("Words with suffix '%s', sorted by count:" %suffix)
+    for (w,c) in sorted(counts.items(), key=lambda x: x[1], reverse = True):
+        print (w, c)
+
+    wfr, ts, ts_ipm = corpus.compare_word_to_group(word, group)
+
+    group_ts = corpus.sum_up_timeseries({w:ts[w] for w in group})
+    group_ts_ipm = corpus.sum_up_timeseries({w:ts_ipm[w] for w in group})
+
+    print ("'%s': averaged count %3.2f, averaged relative count (ipm) %3.2f" \
+         %(word, np.mean(list(ts[word].values())), np.mean(list(ts_ipm[word].values()))))
+    print ("'%s': averaged count %3.2f, averaged relative count (ipm) %3.2f" \
+         %(suffix, np.mean(list(group_ts.values())), np.mean(list(group_ts_ipm.values()))))
+
+    spikes = assessment.find_spikes(wfr)
+    print("Potentially interesting dates:")
+    for k in sorted(spikes, key = lambda k: wfr[k], reverse = True):
+        print("%s: '%s': %d (%2.2f ipm), '%s': %d (%2.2f ipm)"\
+          %(k, word, ts[word][k], ts_ipm[word][k], suffix, group_ts[k], group_ts_ipm[k]))
+
+    print ("Needs further investigations... stay tuned!")
+    print ("******************************************************\n")           
+           
+    
+    
+    
+    
