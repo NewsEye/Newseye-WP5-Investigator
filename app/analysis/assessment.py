@@ -17,12 +17,7 @@ class Distribution(object):
         arr = np.array(list_of_counts)               
         return (arr + EPSILON) / (np.sum(arr) + len(arr) * EPSILON)
 
-def timeseries_entropy(ts):
-    # convert timeseries to distribution
-    dist = Distribution([ts[k] for k in sorted(ts)])
-    return dist.entropy()
-    
-    
+   
 def ensure_distributions(*dist):
     ret = []
     for d in dist:
@@ -78,6 +73,9 @@ def weighted_frequency_ratio(dict1, dict2, weights=None, weight_func=np.log10):
     fr = frequency_ratio(dict1, dict2)
     return {k:fr[k]*weight_func(weights[k]) for k in dict1.keys()}  
 
+
+# TIMESERIES
+
 def find_spikes(ts):
     # dummy function, most probably will be replaced with something more clever
     # at least we can use this one as a baseline
@@ -86,4 +84,9 @@ def find_spikes(ts):
     std = np.std(vals)
     return [k for k in ts if np.mean(ts[k] - mean) > 2*std]
     
-    
+def timeseries_entropy(ts):
+    # convert timeseries to distribution
+    dist = Distribution([ts[k] for k in sorted(ts)])
+    return dist.entropy()
+   
+
