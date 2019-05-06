@@ -143,7 +143,7 @@ class Corpus(object):
         self.text_processor = LANG_PROCESSOR_MAP[lang_id]
         self.DEBUG_COUNT = debug_count  # limits number of documents
 
-        self._corpus_info = {} # facet distribution
+        self._corpus_info = defaultdict(lambda: defaultdict(int)) # facet values
 
         # stuff we want to compute only once, potentially useful for many tasks
         self.docid_to_date = {}
@@ -191,20 +191,44 @@ class Corpus(object):
                 self.corpus_info = task.task_result.result['facets']
                 break
             page += 1
-        self._corpus_info = task.task_result.result['facets']
+            
+            self.corpus_info = task.task_result.result['facets']
 
     def download_db(self):
         # dummy function for initial download
         # after running that all data will be in the local db
         for d in self.loop_db(force_refresh = True):
             pass
-            
-    def show_corpus_info(self):
-        # TODO: fix dates
-        for info in self.corpus_info:
-            print ("\n******%s******" %info['label'])
+
+    @property
+    def corpus_info(self):
+        for label in sorted(self._corpus_info):
+            print ("\n******%s******" %label)
+            for value, hits in sorted(self._corpus_info[label].items()):
+                print (value, hits)
+
+    @corpus_info.setter
+    def corpus_info(self, page_info):
+        for info in page_info:
+            label = info['label']
             for item in info['items']:
-                print (item['value'], item['hits'])
+                value, hits = item['value'], item['hits']
+                if label == 'Date':
+                    # dates are different from other fields: they are shown for a given page
+                    self._corpus_info[label][value] += hits
+                else:
+                    # other fields are shown for the whole query
+                    if value in self._corpus_info[label]:
+                        try:
+                            assert(self._corpus_info[label][value]==hits)
+                        except AssertionError as e:
+                            warnings.warn("Assumptions on 'facets' field in search response are wrong; \
+                                             corpus_info on %s is unreliable" %label, RuntimeWarning)
+                    else:
+                        self._corpus_info[label][value] = hits
+                    
+                
+                
             
     # TODO: slow, should be a separate task with results (indexes) stored in db
     # TODO: run in parallel
@@ -293,7 +317,6 @@ class Corpus(object):
                 sum_ts[date] += count
         return sum_ts
 
-# TODO: 1. make more general     
     def compare_word_to_group(self, word, group, item="lemma", granularity="month", min_count = 10):           
         # output of this function is a timeseries, where key is a date
         # and value is a funciton that takes as an input word and group distributions
