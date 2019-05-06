@@ -59,10 +59,6 @@ class FrProcessor(TextProcessor):
         super(FrProcessor, self).__init__()
         self.output_lemmas = True
         self.remove = self.remove.replace("'", "")  # import symbol for French
-
-    def get_tokens(self, text):
-        # TODO: glue hyphenated
-        return super().get_tokens(text)
         
     def get_lemma(self, token):
         # that's not actually lemmatisation, just trying to map together words with/without articles
@@ -247,7 +243,7 @@ class Corpus(object):
         timeseries = self._timeseries[item][granularity][min_count]
         if word_list:
             word_to_docids = self.find_word_to_doc_dict(item)
-            ts = {w:ts for w,ts in timeseries.items() if len(word_to_docids[w]) >= min_count}
+            timeseries = {w:ts for w,ts in timeseries.items() if w in word_list}
 
         total = self._timeseries[item][granularity]['total']        
 
@@ -292,6 +288,10 @@ class Corpus(object):
         self._timeseries[item][granularity][min_count] = timeseries
         self._timeseries[item][granularity]['total'] = total
 
+    def find_the_most_interesting_ts():
+        #TODO: entropy-based comparison
+        pass
+        
     @staticmethod
     def sum_up_timeseries(timeseries):
         sum_ts = defaultdict(int)
@@ -313,6 +313,7 @@ class Corpus(object):
             word_ts = ts_ipm[word]
         except KeyError:
             raise KeyError("No information for word '%s'" %word)
+
         group_ts = self.sum_up_timeseries({w:ts_ipm[w] for w in group})
 
         # insert zeros for dates when these words are not mentioned
@@ -322,12 +323,28 @@ class Corpus(object):
         return assessment.weighted_frequency_ratio(word_ts, group_ts, weights=total)
         
     
-    def find_group_outlier(group, item="lemma", granularity="month", min_count = 10):
+    def find_group_outlier(self, group, item="lemma", granularity="month", min_count = 10):
         ts, ts_ipm = self.timeseries(item=item, granularity=granularity, min_count = min_count, word_list=group)
-        group_ts_ipm = self.sum_up_timeseries({w:ts_ipm[w] for w in group})
+        group_ts_ipm = self.sum_up_timeseries({w:ts_ipm[w] for w in group})        
+        total = self._timeseries[item][granularity]['total']
+
+        assessment.align_dicts_from_to(total, group_ts_ipm)
+        group_dist = assessment.ts_to_dist(group_ts_ipm)
+
         kl = {}
-        for w in ts_ipm:           
-            pass
+        for w in ts_ipm:
+            assessment.align_dicts_from_to(total, ts_ipm[w])
+            kl[w] = assessment.kl_divergence(assessment.ts_to_dist(ts_ipm[w]), group_dist)
+
+        kl = assessment.find_large_numbers(kl)
+        
+        print("Words most different from the group:")
+        
+        for w,kl in kl.items():
+            print(w,kl)
+
+        
+            
         
         
     # SUFFIX/PREFIX SEARCH
@@ -421,7 +438,7 @@ def example_ism(corpus, word = 'patriotisme', suffix = 'isme'):
     print ("'%s': averaged count %3.2f, averaged relative count (ipm) %3.2f" \
          %(suffix, np.mean(list(group_ts.values())), np.mean(list(group_ts_ipm.values()))))
 
-    spikes = assessment.find_spikes(wfr)
+    spikes = assessment.find_large_numbers(wfr)
     print("Potentially interesting dates:")
     for k in sorted(spikes, key = lambda k: wfr[k], reverse = True):
         print("%s: '%s': %d (%2.2f ipm), '%s': %d (%2.2f ipm)"\

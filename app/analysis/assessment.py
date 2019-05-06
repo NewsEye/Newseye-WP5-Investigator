@@ -21,10 +21,10 @@ class Distribution(object):
 def ensure_distributions(*dist):
     ret = []
     for d in dist:
-        if isinstance(data, Distribution):
-            ret.append(data)
+        if isinstance(d, Distribution):
+            ret.append(d)
         else:
-            ret.append(Distribution(data))
+            ret.append(Distribution(d))
     return ret
             
             
@@ -32,20 +32,20 @@ def ensure_distributions(*dist):
     
 def kl_divergence(p,q):
     p,q = ensure_distributions(p,q)
-    return np.sum(p*np.log2(p/q))
+    return np.sum(p.dist*np.log2(p.dist/q.dist))
 
 def kl_distance(p,q):
     p,q = ensure_distributions(p,q)
     # this one is symmetrical
-    return np.sum((p-q)*np.log2(p/q))
+    return np.sum((p.dist-q.dist)*np.log2(p.dist/q.dist))
     
 def normalized_kl_divergence(p,q):
     p,q = ensure_distributions(p,q)
-    return kl_divergence(p,q) / (np.log2(q.number_of_outcomes)-q.entropy())
+    return kl_divergence(p.dist,q.dist) / (np.log2(q.number_of_outcomes)-q.entropy())
                 
 def cross_entropy(p,q):
     p,q = ensure_distributions(p,q)
-    return -np.sum((p*np.log2(q)))
+    return -np.sum((p.dist*np.log2(q.dist)))
 
 
 # DICTIONARY ALIGNMENT AND COMPARISON METHODS
@@ -76,17 +76,19 @@ def weighted_frequency_ratio(dict1, dict2, weights=None, weight_func=np.log10):
 
 # TIMESERIES
 
-def find_spikes(ts):
+def find_large_numbers(data):
     # dummy function, most probably will be replaced with something more clever
     # at least we can use this one as a baseline
-    vals = [ts[k] for k in sorted(ts)]
+    vals = list(data.values())
     mean = np.mean(vals)
     std = np.std(vals)
-    return [k for k in ts if np.mean(ts[k] - mean) > 2*std]
-    
+    return {k:v for (k,v) in data.items() if (v - mean) > 2*std}
+
+def ts_to_dist(ts):
+    return Distribution([ts[k] for k in sorted(ts)])
+
 def timeseries_entropy(ts):
     # convert timeseries to distribution
-    dist = Distribution([ts[k] for k in sorted(ts)])
-    return dist.entropy()
-   
+    return dist.entropy(ts_to_dict(ts))
 
+    
