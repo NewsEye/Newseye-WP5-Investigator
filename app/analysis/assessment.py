@@ -48,8 +48,8 @@ def cross_entropy(p,q):
     return -np.sum((p.dist*np.log2(q.dist)))
 
 
-# DICTIONARY ALIGNMENT AND COMPARISON METHODS
-    
+# DICTIONARY COMPARISON METHODS
+
 def align_dicts_from_to(from_dict, to_dict, default_value=0.0):
     # insert missed values, so that all keys from_dict have values in to_dict
     for k in from_dict.keys():
@@ -73,9 +73,6 @@ def weighted_frequency_ratio(dict1, dict2, weights=None, weight_func=np.log10):
     fr = frequency_ratio(dict1, dict2)
     return {k:fr[k]*weight_func(weights[k]) for k in dict1.keys()}  
 
-
-# TIMESERIES
-
 def find_large_numbers(data):
     # dummy function, most probably will be replaced with something more clever
     # at least we can use this one as a baseline
@@ -84,11 +81,5 @@ def find_large_numbers(data):
     std = np.std(vals)
     return {k:v for (k,v) in data.items() if (v - mean) > 2*std}
 
-def ts_to_dist(ts):
-    return Distribution([ts[k] for k in sorted(ts)])
-
-def timeseries_entropy(ts):
-    # convert timeseries to distribution
-    return dist.entropy(ts_to_dict(ts))
 
     

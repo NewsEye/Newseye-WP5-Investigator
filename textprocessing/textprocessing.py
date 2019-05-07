@@ -4,7 +4,6 @@ from shelltools import *
 import app.analysis.assessment as assessment
 
 from collections import defaultdict
-import json
 from omorfi.omorfi import Omorfi
 
 from polyglot.text import Text
@@ -288,57 +287,6 @@ class Corpus(object):
         self._timeseries[item][granularity][min_count] = timeseries
         self._timeseries[item][granularity]['total'] = total
 
-    def find_the_most_interesting_ts():
-        #TODO: entropy-based comparison
-        pass
-        
-    @staticmethod
-    def sum_up_timeseries(timeseries):
-        sum_ts = defaultdict(int)
-        for ts in timeseries.values():
-            for date, count in ts.items():
-                sum_ts[date] += count
-        return sum_ts
-
-    def compare_word_to_group(self, word, group, item="lemma", granularity="month", min_count = 10):           
-        # output of this function is a timeseries, where key is a date
-        # and value is a funciton that takes as an input word and group distributions
-        # this means that an output might be sent to timeseries
-        # processing functions to find steps
-        word_list = set(group + [word])
-        ts, ts_ipm = self.timeseries(item=item, granularity=granularity, min_count = min_count, word_list=word_list)
-        total = self._timeseries[item][granularity]['total']
-
-        try:
-            word_ts = ts_ipm[word]
-        except KeyError:
-            raise KeyError("No information for word '%s'" %word)
-
-        group_ts = self.sum_up_timeseries({w:ts_ipm[w] for w in group})
-
-        # insert zeros for dates when these words are not mentioned
-        assessment.align_dicts_from_to(total, word_ts)
-        assessment.align_dicts_from_to(total, group_ts, assessment.EPSILON)
-        
-        return assessment.weighted_frequency_ratio(word_ts, group_ts, weights=total)
-        
-
-    def find_group_kl(self, group, item="lemma", granularity="month", min_count = 10):
-        ts, ts_ipm = self.timeseries(item=item, granularity=granularity, min_count = min_count, word_list=group)
-        group_ts_ipm = self.sum_up_timeseries({w:ts_ipm[w] for w in group})        
-        total = self._timeseries[item][granularity]['total']
-
-        assessment.align_dicts_from_to(total, group_ts_ipm)
-        group_dist = assessment.ts_to_dist(group_ts_ipm)
-
-        for w in ts_ipm: assessment.align_dicts_from_to(total, ts_ipm[w]) 
-        return {w:assessment.kl_divergence(assessment.ts_to_dist(ts_ipm[w]), group_dist) for w in ts_ipm}
-
-
-    def find_group_outlier(self, group, item="lemma", granularity="month", min_count = 10):       
-        # return kl weighted by word frequency (more evidence)
-        return assessment.find_large_numbers(self.find_group_kl(group, item="lemma", granularity="month", min_count = 10))
-        
                 
     # SUFFIX/PREFIX SEARCH
     @staticmethod
@@ -389,56 +337,6 @@ class SubCorpus(Corpus):
         # there is a utility for that in analysis_utils.py, SplitDocumentSetByFacet
 
         raise NotImplementedError
-
-
-##### EXAMPLES #######
-import numpy as np
-
-def example_load_corpora():
-    # SLOOOOW
-    # run this function in advance, before showing actual fun with other functions
-    fr = Corpus('fr')
-    de = Corpus('de')
-    fi = Corpus('fi')
-
-    for corp in [fr]:   #[fr, de, fi]:
-        corp.build_substring_structures()
-
-    return fr, de, fi
-
-def example_ism(corpus, word = 'patriotisme', suffix = 'isme'):  
-    # TODO: make impressive example, add plots    
-    print ("\n******************************************************")
-    print ("Corpus: %s, word: '%s', group: all words with suffix '%s'" \
-           %(corpus.lang_id, word, suffix))
-    
-    group = corpus.find_lemmas_by_suffix(suffix)
-    counts = {w:len(corpus.lemma_to_docids[w]) for w in group}
-    print("Words with suffix '%s', sorted by count:" %suffix)
-    for (w,c) in sorted(counts.items(), key=lambda x: x[1], reverse = True):
-        print (w, c)
-
-    wfr = corpus.compare_word_to_group(word, group)
-
-    ts, ts_ipm = corpus.timeseries('lemma', 'month')
-
-    
-    group_ts = corpus.sum_up_timeseries({w:ts[w] for w in group})
-    group_ts_ipm = corpus.sum_up_timeseries({w:ts_ipm[w] for w in group})
-
-    print ("'%s': averaged count %3.2f, averaged relative count (ipm) %3.2f" \
-         %(word, np.mean(list(ts[word].values())), np.mean(list(ts_ipm[word].values()))))
-    print ("'%s': averaged count %3.2f, averaged relative count (ipm) %3.2f" \
-         %(suffix, np.mean(list(group_ts.values())), np.mean(list(group_ts_ipm.values()))))
-
-    spikes = assessment.find_large_numbers(wfr)
-    print("Potentially interesting dates:")
-    for k in sorted(spikes, key = lambda k: wfr[k], reverse = True):
-        print("%s: '%s': %d (%2.2f ipm), '%s': %d (%2.2f ipm)"\
-          %(k, word, ts[word][k], ts_ipm[word][k], suffix, group_ts[k], group_ts_ipm[k]))
-
-    print ("Needs further investigations... stay tuned!")
-    print ("******************************************************\n")           
            
     
     
