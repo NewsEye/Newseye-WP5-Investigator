@@ -6,3 +6,4 @@ logs/*
 .python-version
 *~
 *bkp
+*.pickle
