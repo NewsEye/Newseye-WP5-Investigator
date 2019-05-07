@@ -58,7 +58,7 @@ class FrProcessor(TextProcessor):
     def __init__(self):
         super(FrProcessor, self).__init__()
         self.output_lemmas = True
-        self.remove = self.remove.replace("'", "")  # import symbol for French
+        self.remove = self.remove.replace("'", "")  # important symbol for French
         
     def get_lemma(self, token):
         # that's not actually lemmatisation, just trying to map together words with/without articles
@@ -322,8 +322,8 @@ class Corpus(object):
         
         return assessment.weighted_frequency_ratio(word_ts, group_ts, weights=total)
         
-    
-    def find_group_outlier(self, group, item="lemma", granularity="month", min_count = 10):
+
+    def find_group_kl(self, group, item="lemma", granularity="month", min_count = 10):
         ts, ts_ipm = self.timeseries(item=item, granularity=granularity, min_count = min_count, word_list=group)
         group_ts_ipm = self.sum_up_timeseries({w:ts_ipm[w] for w in group})        
         total = self._timeseries[item][granularity]['total']
@@ -331,22 +331,15 @@ class Corpus(object):
         assessment.align_dicts_from_to(total, group_ts_ipm)
         group_dist = assessment.ts_to_dist(group_ts_ipm)
 
-        kl = {}
-        for w in ts_ipm:
-            assessment.align_dicts_from_to(total, ts_ipm[w])
-            kl[w] = assessment.kl_divergence(assessment.ts_to_dist(ts_ipm[w]), group_dist)
+        for w in ts_ipm: assessment.align_dicts_from_to(total, ts_ipm[w]) 
+        return {w:assessment.kl_divergence(assessment.ts_to_dist(ts_ipm[w]), group_dist) for w in ts_ipm}
 
-        kl = assessment.find_large_numbers(kl)
-        
-        print("Words most different from the group:")
-        
-        for w,kl in kl.items():
-            print(w,kl)
 
+    def find_group_outlier(self, group, item="lemma", granularity="month", min_count = 10):       
+        # return kl weighted by word frequency (more evidence)
+        return assessment.find_large_numbers(self.find_group_kl(group, item="lemma", granularity="month", min_count = 10))
         
-            
-        
-        
+                
     # SUFFIX/PREFIX SEARCH
     @staticmethod
     def build_tries_from_dict(item_to_doc, min_count):
