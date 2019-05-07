@@ -251,7 +251,7 @@ class FindStepsFromTimeSeries(AnalysisUtility):
                 'parameter_name': 'step_threshold',
                 'parameter_description': 'Not yet written',
                 'parameter_type': 'float',
-                'parameter_default': 0.5,
+                'parameter_default': None,
                 'parameter_is_required': False
             },
             {
@@ -353,6 +353,7 @@ class FindStepsFromTimeSeries(AnalysisUtility):
             prod *= current
             s_new = np.convolve(s, hz)
             s = s_new[n_pnts + hn[j]:2 * n_pnts + hn[j]]
+        prod = prod / max(abs(prod))
         return prod
 
     @staticmethod
@@ -385,14 +386,14 @@ class FindStepsFromTimeSeries(AnalysisUtility):
         array : numpy array
             1 dimensional array that represents time series of data points
         threshold : int / float
-            Threshold value that defines a step. If no threshold value is specified, it is set to 3 standard deviations
+            Threshold value that defines a step. If no threshold value is specified, it is set to 2 standard deviations
         Returns
         -------
         steps : list
             List of indices of the detected steps
         """
         if threshold is None:
-            threshold = 9 * np.var(array)  # TODO: check whether the Stetson constant of 3 sd:s makes any sense
+            threshold = 4 * np.var(array)  # Use 2 standard deviations as the threshold
         steps = []
         array = np.abs(array)
         above_points = np.where(array > threshold, 1, 0)
