@@ -23,6 +23,12 @@ def load_corpora():
     return fr, de, fi
 
 
+def stay_tuned():
+    print ("Needs further investigations... stay tuned!")
+    print ("******************************************************\n")           
+
+
+
 def ism(corpus, word = 'patriotisme', suffix = 'isme'):  
     # TODO: make impressive example, add plots    
     print ("\n******************************************************")
@@ -54,5 +60,37 @@ def ism(corpus, word = 'patriotisme', suffix = 'isme'):
         print("%s: '%s': %d (%2.2f ipm), '%s': %d (%2.2f ipm)"\
           %(k, word, ts[word][k], ts_ipm[word][k], suffix, group_ts[k], group_ts_ipm[k]))
 
-    print ("Needs further investigations... stay tuned!")
-    print ("******************************************************\n")           
+    stay_tuned()
+
+def group_outliers(corpus, suffix="isme", weights=False):
+    # try running this function with and without weights 
+    # 'gargarisme' is the act of bubbling liquid in the mouth
+    # for more details see: https://fr.wikipedia.org/wiki/Gargarisme
+
+    print ("\n******************************************************")
+    print ("Corpus: %s, group: all words with suffix '%s'" %(corpus.lang_id, suffix))
+    group = corpus.find_lemmas_by_suffix(suffix)
+    print("Words with suffix '%s': " %suffix, group)
+
+    if weights:
+        weights = {w:np.log10(len(corpus.lemma_to_docids[w])) for w in group}
+    
+    outliers = timeseries.find_group_outliers(corpus, group, weights = weights)
+    print("Group outliers: ")
+    
+    ts, _ = corpus.timeseries("lemma", "month", word_list = outliers.keys())
+    for w in outliers:
+        print("")
+        print (w, ts[w])
+
+
+    stay_tuned()
+        
+
+def interesting_words(corpus):
+    # TODO:
+    # 1. select words with count more than smth
+    # 2. find the most interesting words
+    # 3. find the most interestind dates for these words
+    pass
+    
