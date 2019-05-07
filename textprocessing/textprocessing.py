@@ -1,7 +1,6 @@
 import os, sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from shelltools import *
-import app.analysis.assessment as assessment
 
 from collections import defaultdict
 #from omorfi.omorfi import Omorfi
@@ -241,7 +240,6 @@ class Document(object):
                     yield l
 
 
-                    
 class Corpus(object):
 
     def __init__(self, lang_id, debug_count=10e100, verbose=True): 
@@ -249,20 +247,16 @@ class Corpus(object):
         self.text_processor = LANG_PROCESSOR_MAP[lang_id]
         self.DEBUG_COUNT = debug_count  # limits number of documents
         self.verbose = verbose
-        
+
+        # This can be used to define only a subset of all documents for analysis
+        self.target_query = {'f[language_ssi][]': self.lang_id}
+
         # stuff we want to compute only once, potentially useful for many tasks
 
         self.docid_to_date = {}
 
         self.token_to_docids = defaultdict(list)
         self.lemma_to_docids = defaultdict(list)
-
-        # we cannot store the same document trice in memory
-        # it make sense to store pre-processed documents but in the db or file system
-        # we cannot load all documents in memory like that, it'll never work
-        
-        #self.docid_to_tokens = defaultdict(list)
-        #self.docid_to_lemmas = defaultdict(list)
 
         # Tries are slow, so we don't use them as main storing structures
         self.prefix_token_vocabulary = Trie()
@@ -272,9 +266,12 @@ class Corpus(object):
 
         # slow and seems to be important for analysis
         self._timeseries = {}
-        
 
-    def loop_db(self, per_page = 100, force_refresh = False):
+    def set_target_query(self, query):
+        self.target_query = {'f[language_ssi][]': self.lang_id}
+        self.target_query.update(query)
+
+    def loop_db(self, per_page=100, force_refresh=False):
         # 100 is a maximum number of documents per page allowed through web interface
         # currently relies on shelltools
         # TODO: integrate into main processing
@@ -282,11 +279,12 @@ class Corpus(object):
         page = 1
 
         pb = ProgressBar("Loop DB", verbose=self.verbose)
-        query = {'f[language_ssi][]': self.lang_id, 'per_page':per_page}
+        query = {'per_page': per_page}
+        query.update(self.target_query)
         if force_refresh:
-                query.update({'force_refresh':'T'})
+                query.update({'force_refresh': 'T'})
         while True:
-            query.update({'page':page})
+            query.update({'page': page})
             task = search(query)
             docs = task.task_result.result['docs']
 
@@ -304,15 +302,13 @@ class Corpus(object):
                 break
             page += 1
         pb.end()
-            
 
     def download_db(self):
         # dummy function for initial download
         # after running that all data will be in the local db
-        for d in self.loop_db(force_refresh = True):
-            pass                
-                
-            
+        for d in self.loop_db(force_refresh=True):
+            pass
+
     # TODO: slow, should be a separate task with results (indexes) stored in db
     # TODO: run in parallel
     def build_indexes(self):
@@ -371,8 +367,7 @@ class Corpus(object):
                                              if len(self.find_word_to_doc_dict(item)[w]) >= min_count}
             else:
                 self.build_timeseries(item=item, granularity=granularity, min_count=min_count)
-                
-                                  
+
         timeseries = self._timeseries[item][granularity][min_count]
         if word_list:
             word_to_docids = self.find_word_to_doc_dict(item)
@@ -399,7 +394,6 @@ class Corpus(object):
             print("Indexes are not ready, building indexes...")
             self.build_indexes()
 
-        
         # timeseries are faster to build but probably we would need to store them in self variables and reuse
         total = defaultdict(int)
         timeseries = defaultdict(lambda: defaultdict(int))
@@ -425,7 +419,6 @@ class Corpus(object):
         self._timeseries[item][granularity][min_count] = timeseries
         self._timeseries[item][granularity]['total'] = total
 
-                
     # SUFFIX/PREFIX SEARCH
     @staticmethod
     def build_tries_from_dict(item_to_doc, min_count):
@@ -463,14 +456,14 @@ class Corpus(object):
     def _find_group_by_affix(self, affix, item):
         if affix[0] == "suffix":
             if item == "lemma":
-                return  self.find_lemmas_by_suffix(affix[1])
+                return self.find_lemmas_by_suffix(affix[1])
             else:
-                return  self.find_tokens_by_suffix(affix[1])
+                return self.find_tokens_by_suffix(affix[1])
         else:
             if item == "lemma":
-                return  self.find_lemmas_by_prefix(affix[1])
+                return self.find_lemmas_by_prefix(affix[1])
             else:
-                return  self.find_tokens_by_prefix(affix[1])    
+                return self.find_tokens_by_prefix(affix[1])
         
     def find_group_by_affix(self, affix, item):
         # affix is a tuple, e.g. ("suffix", "ismi"), ("prefix", "kansalais")
@@ -486,7 +479,6 @@ class Corpus(object):
         
         return group
 
-    
 
 class SubCorpus(Corpus):
     # SubCorpus should behave more-or-less as Corpus but
@@ -502,8 +494,3 @@ class SubCorpus(Corpus):
         # there is a utility for that in analysis_utils.py, SplitDocumentSetByFacet
 
         raise NotImplementedError
-           
-    
-    
-    
-    
