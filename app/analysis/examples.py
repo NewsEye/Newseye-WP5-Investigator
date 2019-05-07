@@ -17,7 +17,7 @@ def load_corpora():
     de = Corpus('de')
     fi = Corpus('fi')
 
-    for corp in [fr]:   #[fr, de, fi]:
+    for corp in [fr, de, fi]:
         corp.build_substring_structures()
 
     return fr, de, fi
@@ -56,7 +56,7 @@ def ism(corpus, word = 'patriotisme', suffix = 'isme'):
 
     spikes = assessment.find_large_numbers(wfr)
     print("Potentially interesting dates:")
-    for k in sorted(spikes, key = lambda k: wfr[k], reverse = True):
+    for k in sorted(spikes, key = spikes.get, reverse = True):
         print("%s: '%s': %d (%2.2f ipm), '%s': %d (%2.2f ipm)"\
           %(k, word, ts[word][k], ts_ipm[word][k], suffix, group_ts[k], group_ts_ipm[k]))
 
@@ -87,10 +87,42 @@ def group_outliers(corpus, suffix="isme", weights=False):
     stay_tuned()
         
 
-def interesting_words(corpus):
-    # TODO:
-    # 1. select words with count more than smth
-    # 2. find the most interesting words
-    # 3. find the most interestind dates for these words
-    pass
+def find_interesting_words(corpus, item="lemma", granularity="month", min_count = 100,
+                           threshold = 0.7, coefficient=1.2):
+    normalized_entropy = timeseries.normalized_entropy_for_aligned_ts_ipm(corpus=corpus,
+                                                                          item=item,
+                                                                          granularity=granularity,
+                                                                          min_count=min_count)
+
+    ts, ts_ipm = corpus.timeseries(item, granularity, min_count=min_count)
+    total = corpus._timeseries[item][granularity]['total']
+
+    word_to_docid = corpus.find_word_to_doc_dict(item)
     
+    print ("\n******************************************************")
+    print ("The most interesting words in corpus '%s'" %corpus.lang_id)
+    
+    # the smaller normalized_entropy, the more interesting word is
+    # small NE means that probability mass is concentrated on some particular dates
+    for (w, ne) in sorted(normalized_entropy.items(),
+                          key = lambda x: (x[1], -len(word_to_docid[x[0]]))):
+        if 1 - ne < threshold:
+            break
+        print ("")
+        print (w)
+        print ('interestness %2.2f' %(1-ne)) # entropy 0 means word is only used in a certain date; superinteresting
+        print("Potentially interesting dates:")
+
+        assessment.align_dicts_from_to(total, ts_ipm[w])
+        assessment.align_dicts_from_to(total, ts[w])
+        
+        interesting_dates = assessment.find_large_numbers(ts_ipm[w], coefficient=coefficient)
+        for date in sorted(interesting_dates):
+            print("%s: %d (%2.2f ipm)" %(date, ts[w][date], ts_ipm[w][date]))
+
+        print("average count in other dates: %2.2f (%2.2fipm)"
+              %(np.mean([ts[w][d]     for d in ts[w]     if d not in interesting_dates]),
+                np.mean([ts_ipm[w][d]   for d in ts_ipm[w] if d not in interesting_dates])))
+        print("total count: %d" %len(word_to_docid[w]))
+        
+    stay_tuned()

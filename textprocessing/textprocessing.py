@@ -10,6 +10,8 @@ from polyglot.text import Text
 from pytrie import StringTrie as Trie
 import string
 
+from progress import ProgressBar
+
 
 class TextProcessor(object):
     # DEFAULT PROCESSOR
@@ -133,10 +135,11 @@ class Document(object):
                
 class Corpus(object):
 
-    def __init__(self, lang_id, debug_count=10e100):
+    def __init__(self, lang_id, debug_count=10e100, verbose=True):
         self.lang_id = lang_id
         self.text_processor = LANG_PROCESSOR_MAP[lang_id]
         self.DEBUG_COUNT = debug_count  # limits number of documents
+        self.verbose = verbose
 
         # stuff we want to compute only once, potentially useful for many tasks
 
@@ -169,21 +172,23 @@ class Corpus(object):
         # TODO: run in parallel (in future, for really big corpora)
         page = 1
 
+        pb = ProgressBar("Loop DB", verbose=self.verbose)
         query = {'f[language_ssi][]': self.lang_id, 'per_page':per_page}
         if force_refresh:
                 query.update({'force_refresh':'T'})
         while True:
-            print("page: ", page)
             query.update({'page':page})
             task = search(query)
             docs = task.task_result.result['docs']
 
             for doc in docs:
+                pb.next()
                 yield doc
 
             if task.task_result.result['pages']['last_page?']:
                 break
             page += 1
+        pb.end()
             
 
     def download_db(self):
@@ -204,7 +209,6 @@ class Corpus(object):
         doc_count = 0
         for d in self.loop_db():
             doc = Document(d, self.text_processor, self.lang_id)
-            print(doc.doc_id)
 
             self.docid_to_date[doc.doc_id] = doc.date
 
@@ -234,11 +238,22 @@ class Corpus(object):
 
     # TIMESERIES    
     def timeseries(self, item="token", granularity="year", min_count=10, word_list=None):
-        if not (item in self._timeseries \
-           and granularity in self._timeseries[item] \
-           and min_count in self._timeseries[item][granularity]):
+        if not (item in self._timeseries and granularity in self._timeseries[item]):
             self.build_timeseries(item=item, granularity=granularity, min_count=min_count)
-
+        elif not min_count in self._timeseries[item][granularity]:
+            # let's see if there is timeseries with smaller min_count, that's would be fine as well
+            smaller_min_counts = [mc for mc in self._timeseries[item][granularity].keys() \
+                                     if (isinstance(mc, int) and mc < min_count)]
+            if smaller_min_counts:
+                # still we are storing the same information multiple times
+                # TODO: rethink, how to store timeseries in a more compact way
+                self._timeseries[item][granularity][min_count] = \
+                                            {w:ts for w,ts in self._timeseries[item][granularity][max(smaller_min_counts)].items() \
+                                             if len(self.find_word_to_doc_dict(item)[w]) >= min_count}
+            else:
+                self.build_timeseries(item=item, granularity=granularity, min_count=min_count)
+                
+                                  
         timeseries = self._timeseries[item][granularity][min_count]
         if word_list:
             word_to_docids = self.find_word_to_doc_dict(item)
@@ -252,7 +267,7 @@ class Corpus(object):
             {w: {date: (count*10e5)/total[date] for (date, count) in ts.items()} for (w, ts) in timeseries.items()}
 
         return timeseries, timeseries_ipm
-                
+
     def build_timeseries(self, item="token", granularity="year", min_count=10):        
         gran_to_field_map = {"year": 0, "month": 1, "day": 2}
         field = gran_to_field_map[granularity]
@@ -265,16 +280,20 @@ class Corpus(object):
             print("Indexes are not ready, building indexes...")
             self.build_indexes()
 
+        
         # timeseries are faster to build but probably we would need to store them in self variables and reuse
         total = defaultdict(int)
         timeseries = defaultdict(lambda: defaultdict(int))
+
+        pb = ProgressBar("Building timeseries", total = len(word_to_docids), verbose=self.verbose)
         for (w, docids) in word_to_docids.items():
+            pb.next()
             for docid in docids:
                 date = "-".join(self.docid_to_date[docid][:field+1])
                 total[date] += 1
-                if len(docid) >= min_count:
+                if len(docids) >= min_count:
                     timeseries[w][date] += 1
-
+        pb.end()
 
         if item not in self._timeseries:
             self._timeseries[item] = {}

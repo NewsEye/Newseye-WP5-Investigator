@@ -1,19 +1,14 @@
 import assessment
 from collections import defaultdict
 
+import numpy as np
+
 # timeseries is a dictionary where keys are dates
 # assume keys could be sorted by built-in sort() function
 
 def ts_to_dist(ts):
     # converts timeseries to distribution
     return assessment.Distribution([ts[k] for k in sorted(ts)])
-
-def ts_entropy(ts):
-    return dist.entropy(ts_to_dict(ts))
-
-def find_the_most_interesting(corpus, group, item="lemma", granularity="month", min_count = 10):
-        #TODO: entropy-based comparison
-        pass
         
 def sum_up(timeseries):
     sum_ts = defaultdict(int)
@@ -63,6 +58,18 @@ def find_group_outliers(corpus, group, item="lemma", granularity="month", min_co
         kl = {w:kl[w]*weights[w] for w in kl}
     return assessment.find_large_numbers(kl)
 
+
+def normalized_entropy_for_aligned_ts_ipm(corpus, item="lemma", granularity="month", min_count = 10):
+    # 1. select words with count more than smth
+    # 2. find the most interesting words
+    # 3. find the most interestind dates for these words
+    ts, ts_ipm = corpus.timeseries("lemma", "month", min_count=min_count)
+    total = corpus._timeseries[item][granularity]['total']
+
+    for w in ts_ipm: assessment.align_dicts_from_to(total, ts_ipm[w])
+    
+    return {w:ts_to_dist(ts_ipm[w]).normalized_entropy for w in ts_ipm}
+    
 
 
 

@@ -17,7 +17,12 @@ class Distribution(object):
         arr = np.array(list_of_counts)               
         return (arr + EPSILON) / (np.sum(arr) + len(arr) * EPSILON)
 
-   
+    @property
+    def normalized_entropy(self):
+        if self.number_of_outcomes == 1:
+            return 0
+        return self.entropy/np.log2(self.number_of_outcomes)
+    
 def ensure_distributions(*dist):
     ret = []
     for d in dist:
@@ -73,13 +78,13 @@ def weighted_frequency_ratio(dict1, dict2, weights=None, weight_func=np.log10):
     fr = frequency_ratio(dict1, dict2)
     return {k:fr[k]*weight_func(weights[k]) for k in dict1.keys()}  
 
-def find_large_numbers(data):
+def find_large_numbers(data, coefficient=2):
     # dummy function, most probably will be replaced with something more clever
     # at least we can use this one as a baseline
     vals = list(data.values())
     mean = np.mean(vals)
     std = np.std(vals)
-    return {k:v for (k,v) in data.items() if (v - mean) > 2*std}
+    return {k:v for (k,v) in data.items() if (v - mean) > coefficient*std}
 
 
     
