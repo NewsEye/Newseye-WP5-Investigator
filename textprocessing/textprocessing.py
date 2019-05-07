@@ -4,7 +4,6 @@ from shelltools import *
 import app.analysis.assessment as assessment
 
 from collections import defaultdict
-import json
 from omorfi.omorfi import Omorfi
 
 from polyglot.text import Text
@@ -58,11 +57,7 @@ class FrProcessor(TextProcessor):
     def __init__(self):
         super(FrProcessor, self).__init__()
         self.output_lemmas = True
-        self.remove = self.remove.replace("'", "")  # import symbol for French
-
-    def get_tokens(self, text):
-        # TODO: glue hyphenated
-        return super().get_tokens(text)
+        self.remove = self.remove.replace("'", "")  # important symbol for French
         
     def get_lemma(self, token):
         # that's not actually lemmatisation, just trying to map together words with/without articles
@@ -164,7 +159,7 @@ class Corpus(object):
         self.suffix_lemma_vocabulary = Trie()
 
         # slow and seems to be important for analysis
-        self.timeseries = {}
+        self._timeseries = {}
         
 
     def loop_db(self, per_page = 100, force_refresh = False):
@@ -224,26 +219,46 @@ class Corpus(object):
             doc_count += 1
 
             if doc_count == self.DEBUG_COUNT:
+
                 break
 
-    # TIMESERIES
-    def build_time_series(self, item="token", granularity="year", min_count=10, word_list=None):
-        # kinda slow
-        # if we gonna use it frequently, better to store ts
-        # (all six in a dictionary ts[item][granularity])
-        
-        gran_to_field_map = {"year": 0, "month": 1, "day": 2}
-        field = gran_to_field_map[granularity]
-
+    def find_word_to_doc_dict(self, item):
         if item == "token":
-            word_to_docids = self.token_to_docids
+            return self.token_to_docids
         elif item == "lemma":
             if not self.text_processor.output_lemmas:
                 raise NotImplementedError("Lemmas are not available for %s." % self.lang_id.upper())
-            word_to_docids = self.lemma_to_docids
+            return self.lemma_to_docids
         else:
             raise ValueError("item must be token or lemma")
 
+    # TIMESERIES    
+    def timeseries(self, item="token", granularity="year", min_count=10, word_list=None):
+        if not (item in self._timeseries \
+           and granularity in self._timeseries[item] \
+           and min_count in self._timeseries[item][granularity]):
+            self.build_timeseries(item=item, granularity=granularity, min_count=min_count)
+
+        timeseries = self._timeseries[item][granularity][min_count]
+        if word_list:
+            word_to_docids = self.find_word_to_doc_dict(item)
+            timeseries = {w:ts for w,ts in timeseries.items() if w in word_list}
+
+        total = self._timeseries[item][granularity]['total']        
+
+        # ipm - items per million
+        # relative count (relative to all items in this date slice)
+        timeseries_ipm = \
+            {w: {date: (count*10e5)/total[date] for (date, count) in ts.items()} for (w, ts) in timeseries.items()}
+
+        return timeseries, timeseries_ipm
+                
+    def build_timeseries(self, item="token", granularity="year", min_count=10):        
+        gran_to_field_map = {"year": 0, "month": 1, "day": 2}
+        field = gran_to_field_map[granularity]
+
+        word_to_docids = self.find_word_to_doc_dict(item)
+                
         if not self.docid_to_date:
             # TODO: build_indexes will be a separate task
             # the general controlling mechanism will take care that it has been done
@@ -254,61 +269,25 @@ class Corpus(object):
         total = defaultdict(int)
         timeseries = defaultdict(lambda: defaultdict(int))
         for (w, docids) in word_to_docids.items():
-            # record only words that are frequent and relevant
-            # but count everything for total counts
-            # so that return ipms there relatives
-            # TODO: maybe need to store totals in corpus variable, for speed up or maybe store all time series
-            if (word_list and w not in word_list) or len(docids) < min_count:
-                record = False
-            else:
-                record = True
-
             for docid in docids:
                 date = "-".join(self.docid_to_date[docid][:field+1])
                 total[date] += 1
-                if record:
+                if len(docid) >= min_count:
                     timeseries[w][date] += 1
 
-        # ipm - items per million
-        # relative count (relative to all items in this date slice)
-        timeseries_ipm = {w: {date: (count*10e5)/total[date] for (date, count) in ts.items()} for (w, ts) in timeseries.items()}
 
-        # TODO: write to db
-        # probably we don't need to return ipm, since they can be computed from ts and totals
-        return timeseries, timeseries_ipm, total
+        if item not in self._timeseries:
+            self._timeseries[item] = {}
+        if granularity not in self._timeseries[item]:
+            self._timeseries[item][granularity] = {}
+                                        
+        # need both ts and total, since total takes
+        # into account everything, including items that are less
+        # frequent than min_count        
+        self._timeseries[item][granularity][min_count] = timeseries
+        self._timeseries[item][granularity]['total'] = total
 
-    @staticmethod
-    def sum_up_timeseries(timeseries):
-        sum_ts = defaultdict(int)
-        for ts in timeseries.values():
-            for date, count in ts.items():
-                sum_ts[date] += count
-        return sum_ts
-
-    def compare_word_to_group(self, word, group, item="lemma", granularity="month", min_count = 10):           
-        # output of this function is a timeseries, where key is a date
-        # and value is a funciton that takes as an input word and group distributions
-        # this means that an output might be sent to timeseries
-        # processing functions to find steps
-        word_list = set(group + [word])
-        ts, ts_ipm, total = self.build_time_series(
-            item=item, granularity=granularity, min_count = min_count, word_list=word_list)
-
-        word_ts = ts_ipm[word]
-        group_ts = self.sum_up_timeseries({w:ts_ipm[w] for w in group})
-
-        # insert zeros for dates when these words are not mentioned
-        assessment.align_dicts_from_to(total, word_ts)
-        assessment.align_dicts_from_to(total, group_ts, assessment.EPSILON)
-        
-        # TODO: compute ts once and store instead of sending like this
-        return assessment.weighted_frequency_ratio(word_ts, group_ts, weights=total), ts, ts_ipm
-        
-    
-    def find_group_outlier(group, item="lemma", granularity="month"):
-        #TODO
-        pass
-    
+                
     # SUFFIX/PREFIX SEARCH
     @staticmethod
     def build_tries_from_dict(item_to_doc, min_count):
@@ -358,53 +337,6 @@ class SubCorpus(Corpus):
         # there is a utility for that in analysis_utils.py, SplitDocumentSetByFacet
 
         raise NotImplementedError
-
-
-##### EXAMPLES #######
-import numpy as np
-
-def example_load_corpora():
-    # SLOOOOW
-    # run this function in advance, before showing actual fun with other functions
-    fr = Corpus('fr')
-    de = Corpus('de')
-    fi = Corpus('fi')
-
-    for corp in [fr]:   #[fr, de, fi]:
-        corp.build_substring_structures()
-
-    return fr, de, fi
-
-def example_ism(corpus, word = 'patriotisme', suffix = 'isme'):  
-    # TODO: make impressive example, add plots    
-    print ("\n******************************************************")
-    print ("Corpus: %s, word: '%s', group: all words with suffix '%s'" \
-           %(corpus.lang_id, word, suffix))
-    
-    group = corpus.find_lemmas_by_suffix(suffix)
-    counts = {w:len(corpus.lemma_to_docids[w]) for w in group}
-    print("Words with suffix '%s', sorted by count:" %suffix)
-    for (w,c) in sorted(counts.items(), key=lambda x: x[1], reverse = True):
-        print (w, c)
-
-    wfr, ts, ts_ipm = corpus.compare_word_to_group(word, group)
-
-    group_ts = corpus.sum_up_timeseries({w:ts[w] for w in group})
-    group_ts_ipm = corpus.sum_up_timeseries({w:ts_ipm[w] for w in group})
-
-    print ("'%s': averaged count %3.2f, averaged relative count (ipm) %3.2f" \
-         %(word, np.mean(list(ts[word].values())), np.mean(list(ts_ipm[word].values()))))
-    print ("'%s': averaged count %3.2f, averaged relative count (ipm) %3.2f" \
-         %(suffix, np.mean(list(group_ts.values())), np.mean(list(group_ts_ipm.values()))))
-
-    spikes = assessment.find_spikes(wfr)
-    print("Potentially interesting dates:")
-    for k in sorted(spikes, key = lambda k: wfr[k], reverse = True):
-        print("%s: '%s': %d (%2.2f ipm), '%s': %d (%2.2f ipm)"\
-          %(k, word, ts[word][k], ts_ipm[word][k], suffix, group_ts[k], group_ts_ipm[k]))
-
-    print ("Needs further investigations... stay tuned!")
-    print ("******************************************************\n")           
            
     
     
