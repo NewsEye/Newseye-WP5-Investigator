@@ -21,15 +21,13 @@ class Config(object):
     ADMINS = ['jari.avikainen@helsinki.fi']
 
     # This should contain the URI for the reporters api, ending in /api
-    REPORTER_URI = ""
-
+    REPORTER_URI = "http://newseye-wp5.cs.helsinki.fi:4218/api"
 
     # This should contain the URI for the topic modelling tools
     TOPIC_MODEL_URI = ""
 
     # external database to fetch data from
-
-    DATABASE_IN_USE = 'demo'
+    # DATABASE_IN_USE = 'demo'
     DATABASE_IN_USE = 'newseye'
 
     if DATABASE_IN_USE == 'demo':
