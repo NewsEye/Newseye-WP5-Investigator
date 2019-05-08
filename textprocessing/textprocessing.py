@@ -181,6 +181,12 @@ class Corpus(object):
             task = search(query)
             docs = task.task_result.result['docs']
 
+            try:
+                pb.total = min(task.task_result.result['pages']['total_count'],
+                               self.DEBUG_COUNT)
+            except KeyError:
+                pass
+            
             for doc in docs:
                 pb.next()
                 yield doc
@@ -341,6 +347,33 @@ class Corpus(object):
     def find_lemmas_by_suffix(self, suffix):
         return [(k[::-1]) for k in self.suffix_lemma_vocabulary.keys(prefix=suffix[::-1])]
 
+    def _find_group_by_affix(self, affix, item):
+        if affix[0] == "suffix":
+            if item == "lemma":
+                return  self.find_lemmas_by_suffix(affix[1])
+            else:
+                return  self.find_tokens_by_suffix(affix[1])
+        else:
+            if item == "lemma":
+                return  self.find_lemmas_by_prefix(affix[1])
+            else:
+                return  self.find_tokens_by_prefix(affix[1])    
+        
+    def find_group_by_affix(self, affix, item):
+        # affix is a tuple, e.g. ("suffix", "ismi"), ("prefix", "kansalais")
+        group = self._find_group_by_affix(affix, item)
+        try:
+            assert(group)
+        except:
+            self.build_substring_structures()
+            group = self._find_group_by_affix(affix, item)
+
+        if not group:
+            print ("Group is empty, nothing found")
+        
+        return group
+
+    
 
 class SubCorpus(Corpus):
     # SubCorpus should behave more-or-less as Corpus but

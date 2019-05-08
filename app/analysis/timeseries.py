@@ -53,7 +53,7 @@ def find_group_kl(corpus, group, item="lemma", granularity="month", min_count = 
 
 
 def find_group_outliers(corpus, group, item="lemma", granularity="month", min_count = 10, weights = None):
-    kl = (find_group_kl(corpus, group, item="lemma", granularity="month", min_count = 10))
+    kl = (find_group_kl(corpus, group, item=item, granularity=granularity, min_count = 10))
     if weights:
         kl = {w:kl[w]*weights[w] for w in kl}
     return assessment.find_large_numbers(kl)
@@ -63,11 +63,12 @@ def normalized_entropy_for_aligned_ts_ipm(corpus, item="lemma", granularity="mon
     # 1. select words with count more than smth
     # 2. find the most interesting words
     # 3. find the most interestind dates for these words
-    ts, ts_ipm = corpus.timeseries("lemma", "month", min_count=min_count)
+    ts, ts_ipm = corpus.timeseries(item, granularity, min_count=min_count)
     total = corpus._timeseries[item][granularity]['total']
 
     for w in ts_ipm: assessment.align_dicts_from_to(total, ts_ipm[w])
-    
+
+    # TODO: normalized entropy with apriory probability weights
     return {w:ts_to_dist(ts_ipm[w]).normalized_entropy for w in ts_ipm}
     
 

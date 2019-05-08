@@ -14,7 +14,11 @@ class Distribution(object):
     def make_distribution(self, list_of_counts):
         # Normalize a non-negative discrete distribution onto the
         # range [0-1], ensuring no zero value.
-        arr = np.array(list_of_counts)               
+        arr = np.array(list_of_counts)
+
+        # IDEA: manipulate EPSILON to deply *evidence*, i.e. total count
+        # e.g. eps = 1/total_count or eps = exp(-total_count)
+        # epsilon is a *apriory* probability
         return (arr + EPSILON) / (np.sum(arr) + len(arr) * EPSILON)
 
     @property

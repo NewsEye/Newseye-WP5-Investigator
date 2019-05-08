@@ -29,21 +29,33 @@ def stay_tuned():
 
 
 
-def ism(corpus, word = 'patriotisme', suffix = 'isme'):  
-    # TODO: make impressive example, add plots    
-    print ("\n******************************************************")
-    print ("Corpus: %s, word: '%s', group: all words with suffix '%s'" \
-           %(corpus.lang_id, word, suffix))
-    
-    group = corpus.find_lemmas_by_suffix(suffix)
-    counts = {w:len(corpus.lemma_to_docids[w]) for w in group}
-    print("Words with suffix '%s', sorted by count:" %suffix)
+def print_group_count(corpus, item, group):
+    if item == 'lemma':
+        counts = {w:len(corpus.lemma_to_docids[w]) for w in group}
+    else:
+        counts = {w:len(corpus.token_to_docids[w]) for w in group}
+        
+    print("Group words, sorted by count:")
     for (w,c) in sorted(counts.items(), key=lambda x: x[1], reverse = True):
         print (w, c)
 
-    wfr = timeseries.compare_word_to_group(corpus, word, group)
+    
+def ism(corpus, word = 'patriotisme', affix=("suffix", "isme"),
+                      item="lemma", granularity="month"):  
+    # TODO: make impressive example, add plots    
+    print ("\n******************************************************")
+    print ("Corpus: %s, word: '%s', group: all words with %s '%s'" \
+           %(corpus.lang_id, word, affix[0], affix[1]))
+    
+    group = corpus.find_group_by_affix(affix, item)
+    if not group: return
+    
+    print_group_count(corpus, item, group)    
+    
+    wfr = timeseries.compare_word_to_group(corpus, word, group, item=item)
 
-    ts, ts_ipm = corpus.timeseries('lemma', 'month')
+    
+    ts, ts_ipm = corpus.timeseries(item, granularity)
 
     
     group_ts = timeseries.sum_up({w:ts[w] for w in group})
@@ -52,47 +64,59 @@ def ism(corpus, word = 'patriotisme', suffix = 'isme'):
     print ("'%s': averaged count %3.2f, averaged relative count (ipm) %3.2f" \
          %(word, np.mean(list(ts[word].values())), np.mean(list(ts_ipm[word].values()))))
     print ("'%s': averaged count %3.2f, averaged relative count (ipm) %3.2f" \
-         %(suffix, np.mean(list(group_ts.values())), np.mean(list(group_ts_ipm.values()))))
+         %(affix[1], np.mean(list(group_ts.values())), np.mean(list(group_ts_ipm.values()))))
 
     spikes = assessment.find_large_numbers(wfr)
     print("Potentially interesting dates:")
     for k in sorted(spikes, key = spikes.get, reverse = True):
         print("%s: '%s': %d (%2.2f ipm), '%s': %d (%2.2f ipm)"\
-          %(k, word, ts[word][k], ts_ipm[word][k], suffix, group_ts[k], group_ts_ipm[k]))
+          %(k, word, ts[word][k], ts_ipm[word][k], affix[1], group_ts[k], group_ts_ipm[k]))
 
     stay_tuned()
 
-def group_outliers(corpus, suffix="isme", weights=False):
+def group_outliers(corpus,
+                   item="lemma",
+                   granularity="month",
+                   affix=("suffix", "isme"),
+                   weights=False):
     # try running this function with and without weights 
     # 'gargarisme' is the act of bubbling liquid in the mouth
     # for more details see: https://fr.wikipedia.org/wiki/Gargarisme
 
     print ("\n******************************************************")
-    print ("Corpus: %s, group: all words with suffix '%s'" %(corpus.lang_id, suffix))
-    group = corpus.find_lemmas_by_suffix(suffix)
-    print("Words with suffix '%s': " %suffix, group)
+    print ("Corpus: %s, group: all words with '%s' '%s'" %(corpus.lang_id, affix[0], affix[1]))
 
-    if weights:
-        weights = {w:np.log10(len(corpus.lemma_to_docids[w])) for w in group}
+    group = corpus.find_group_by_affix(affix, item)
+    if not group: return
     
-    outliers = timeseries.find_group_outliers(corpus, group, weights = weights)
+    print_group_count(corpus, item, group)
+
+    
+    if weights:
+        word_to_docid = corpus.find_word_to_doc_dict(item)
+        weights = {w:np.log10(len(corpus.word_to_docids[w])) for w in group}
+    
+    outliers = timeseries.find_group_outliers(corpus, group,
+                                              weights = weights, item=item,
+                                              granularity = granularity)
     print("Group outliers: ")
     
-    ts, _ = corpus.timeseries("lemma", "month", word_list = outliers.keys())
+    ts, _ = corpus.timeseries(item, granularity, word_list = outliers.keys())
     for w in outliers:
         print("")
-        print (w, ts[w])
+        print (w, dict(ts[w]))
 
 
     stay_tuned()
-        
 
+    
 def find_interesting_words(corpus, item="lemma", granularity="month", min_count = 100,
                            threshold = 0.7, coefficient=1.2):
-    normalized_entropy = timeseries.normalized_entropy_for_aligned_ts_ipm(corpus=corpus,
-                                                                          item=item,
-                                                                          granularity=granularity,
-                                                                          min_count=min_count)
+    normalized_entropy = timeseries.normalized_entropy_for_aligned_ts_ipm(
+        corpus=corpus,
+        item=item,
+        granularity=granularity,
+        min_count=min_count)
 
     ts, ts_ipm = corpus.timeseries(item, granularity, min_count=min_count)
     total = corpus._timeseries[item][granularity]['total']
