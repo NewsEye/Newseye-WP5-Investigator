@@ -39,6 +39,7 @@ class Report(db.Model):
     report_format = db.Column(db.String(255))
     report_content = db.Column(db.JSON)
     report_generated = db.Column(db.DateTime, default=datetime.utcnow)
+    # TODO: Add cascading delete when the task is deleted
     task = db.relationship('Task', back_populates='task_reports', foreign_keys=[task_uuid])
 
     def __repr__(self):

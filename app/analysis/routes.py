@@ -9,7 +9,8 @@ from app.analysis.analysis_utils import UTILITY_MAP
 @bp.route('/', methods=['GET'])
 @login_required
 def get_analysis_tasks():
-    tasks = [task.dict(style='result') for task in Task.query.filter_by(user_id=current_user.id, task_type='analysis').all()]
+    tasks = [task.dict(style='result') for task in
+             Task.query.filter_by(user_id=current_user.id, task_type='analysis').all()]
     if len(tasks) == 1:
         tasks = tasks[0]
     return jsonify(tasks)

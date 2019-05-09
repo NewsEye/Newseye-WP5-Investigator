@@ -1,7 +1,8 @@
-import assessment
+from app.analysis import assessment
 from collections import defaultdict
 
 import numpy as np
+
 
 # timeseries is a dictionary where keys are dates
 # assume keys could be sorted by built-in sort() function
@@ -10,6 +11,7 @@ def ts_to_dist(ts, smoothing=None):
     # converts timeseries to distribution
     return assessment.Distribution([ts[k] for k in sorted(ts)], smoothing=smoothing)
         
+
 def sum_up(timeseries):
     sum_ts = defaultdict(int)
     for ts in timeseries.values():
@@ -66,11 +68,4 @@ def normalized_entropy_for_aligned_ts_ipm(corpus, item="lemma", granularity="mon
     for w in ts_ipm: assessment.align_dicts_from_to(total, ts_ipm[w])
 
     return {w:ts_to_dist(ts_ipm[w], smoothing=smoothing).normalized_entropy
-            for w in ts_ipm} 
-    
-
-
-
-
-
-
+            for w in ts_ipm}

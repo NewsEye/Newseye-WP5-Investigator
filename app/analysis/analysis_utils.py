@@ -84,7 +84,8 @@ class ExtractFacets(AnalysisUtility):
                     continue
                 values = {}
                 for item in feature[Config.FACET_ATTRIBUTES_KEY][Config.FACET_ITEMS_KEY]:
-                    values[item[Config.FACET_ATTRIBUTES_KEY][Config.FACET_VALUE_LABEL_KEY]] = item[Config.FACET_ATTRIBUTES_KEY][Config.FACET_VALUE_HITS_KEY]
+                    values[item[Config.FACET_ATTRIBUTES_KEY][Config.FACET_VALUE_LABEL_KEY]] = \
+                        item[Config.FACET_ATTRIBUTES_KEY][Config.FACET_VALUE_HITS_KEY]
                 facets[feature[Config.FACET_ID_KEY]] = values
             elif Config.DATABASE_IN_USE == 'newseye':
                 values = {}
@@ -353,7 +354,7 @@ class FindStepsFromTimeSeries(AnalysisUtility):
             prod *= current
             s_new = np.convolve(s, hz)
             s = s_new[n_pnts + hn[j]:2 * n_pnts + hn[j]]
-        prod = prod / max(abs(prod))
+        prod /= np.abs(prod).max()
         return prod
 
     @staticmethod
@@ -408,7 +409,7 @@ class FindStepsFromTimeSeries(AnalysisUtility):
         return steps
 
     # TODO: instead of using just the original data, perhaps by odd-symmetric periodical extension??
-    # TODO: This should improve the accuracy close to the beginning and end of the signal
+    #  This should improve the accuracy close to the beginning and end of the signal
     @staticmethod
     def get_step_sizes(array, indices, window=1000):
         """
@@ -450,15 +451,16 @@ class FindStepsFromTimeSeries(AnalysisUtility):
             elif i == last:
                 q = min(window, index - indices[i - 1], len(array) - 1 - index)
             else:
-                q = min(window, index-indices[i - 1], indices[i + 1] - index)
+                q = min(window, index - indices[i - 1], indices[i + 1] - index)
             a = array[index - q: index - 1]
             b = array[index + 1: index + q]
             step_sizes.append((a.mean(), b.mean()))
             step_error.append(sqrt(a.var() + b.var()))
         return step_sizes, step_error
 
-### TODO: planner plans the task according to the task dependencies tree
-### Later on this will become an investigator
+
+# TODO: planner plans the task according to the task dependencies tree
+#  Later on this will become an investigator
 class Planner(AnalysisUtility):
     def __init__(self):
         super(Planner, self).__init__()
@@ -488,7 +490,6 @@ class Planner(AnalysisUtility):
 
 
 class CompareDocumentSets(AnalysisUtility):
-
     async def __call__(self, task):
         input_task = await self.get_input_task(task)
         input_data = input_task.task_result.result
@@ -504,6 +505,7 @@ class WordCount(AnalysisUtility):
     @staticmethod
     def do_magic(data):
         return {'Stuff': 1}
+
 
 class ExtractDocumentIds(AnalysisUtility):
     def __init__(self):

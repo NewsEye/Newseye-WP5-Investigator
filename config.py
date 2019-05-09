@@ -20,7 +20,7 @@ class Config(object):
     MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
     ADMINS = ['jari.avikainen@helsinki.fi']
 
-    # This should contain the URI for the reporters api, ending in /api
+    # The URI for the Reporter API
     REPORTER_URI = "http://newseye-wp5.cs.helsinki.fi:4218/api"
 
     # This should contain the URI for the topic modelling tools
@@ -51,15 +51,13 @@ class Config(object):
         }
 
     if DATABASE_IN_USE == 'newseye':
-        
-        
         BLACKLIGHT_URI = "https://platform.newseye.eu/en/catalog.json"
         BLACKLIGHT_DEFAULT_PARAMETERS = {
             # 'utf8': "%E2%9C%93",
             # 'locale': 'en',
             # 'search_field': 'all_fields,'
         }
-        COOKIES = {'_newseye_samvera_session' : os.environ.get('SESSION_COOKIE')}
+        COOKIES = {'_newseye_samvera_session': os.environ.get('SESSION_COOKIE')}
         DOCUMENTS_KEY = 'docs'
         FACETS_KEY = 'facets'
         FACET_ID_KEY = 'name'

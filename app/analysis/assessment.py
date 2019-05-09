@@ -92,6 +92,3 @@ def find_large_numbers(data, coefficient=2):
     mean = np.mean(vals)
     std = np.std(vals)
     return {k:v for (k,v) in data.items() if (v - mean) > coefficient*std}
-
-
-    
