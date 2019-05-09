@@ -4,14 +4,21 @@ from shelltools import *
 import app.analysis.assessment as assessment
 
 from collections import defaultdict
-from omorfi.omorfi import Omorfi
+#from omorfi.omorfi import Omorfi
 
+from uralicNLP import uralicApi
+if not any(os.path.exists(p) for p in uralicApi.__model_base_folders()):
+    # download models locally, only once for each machine
+    uralicApi.download("fin")
+from uralicNLP.cg3 import Cg3
+    
 from polyglot.text import Text
 from pytrie import StringTrie as Trie
 import string
 
 from progress import ProgressBar
-
+import warnings
+warnings.filterwarnings("ignore")
 
 class TextProcessor(object):
     # DEFAULT PROCESSOR
@@ -21,22 +28,37 @@ class TextProcessor(object):
         # might be insufficient
         self.remove = string.punctuation + '—»■„™®«§£•€□►▼♦“»★✓❖’▲°©‘*®'
         self.token_to_lemma = {}
-        self.skip_item = {}
+        self.skip_item = {} 
+
+    def preprocess(self, text):
+        # any low-level preprocessing (e.g. fixing hyphenations)
+        return text
         
-    def get_tokens(self, text):
+    def get_sentences(self, text):
+        # useful feature (if works), should be used in analytical tools
+        return Text(self.preprocess(text)).sentences
+
+    def get_tokens(self, sentence):
         # default relies on tokenization from polyglot package
-        return Text(text).words
-   
+        return sentence.tokens
+    
     def get_lemmas(self, tokens):
-        # ensures that processing is called for each string only once, to make it faster
+        # depending on language, some processors may take as an input
+        # tokens, some -- raw text
+        # will fix when(if) we have more text processors
         if self.output_lemmas:
-            for t in tokens:
-                if not t in self.token_to_lemma:
-                    self.token_to_lemma[t] = self.get_lemma(t)
-            return [self.token_to_lemma[t] for t in tokens]
+            return [self._get_lemma(t) for t in tokens]
         return []
 
-    def get_lemma(token):
+    def _get_lemma(self, token):
+        # ensures that processing is called for each string only once, to make it faster
+        try:
+            return self.token_to_lemma[token]
+        except KeyError:
+            self.token_to_lemma[token] = self.get_lemma(token)
+            return self.token_to_lemma[token]
+            
+    def get_lemma(self, token):
         # language-specific processing
         pass
         
@@ -66,11 +88,72 @@ class FrProcessor(TextProcessor):
         # e.g. "antagonisme", "d'antagonisme", "l'antagonisme"
         return token.replace("l'", "").replace("d'", "")
 
-    
 class FinProcessor(TextProcessor):
     # simplest lemmatization for Finnish; slow and non-accurate
     # TODO: replace with processing tools that Mark is using 
     # run in parallel
+    def __init__(self):
+        super(FinProcessor, self).__init__()
+        # constraint grammar for disambiguation
+        self.output_lemmas = True
+
+    def preprocess(self, text):
+        return text.translate(str.maketrans('wW','vV'))
+        
+    def get_lemma(self, token):
+       readings = uralicApi.lemmatize(token, "fin")
+       if readings:
+           # just get the first one, no disambiguation
+           return readings[0]
+       else:
+           # no readings for unknown words
+           return token
+                       
+                       
+
+class FinProcessor_CG3(TextProcessor):
+    # incredibly slow
+    # ETR 20 days, 3:40:50
+    def __init__(self):
+        super(FinProcessor, self).__init__()
+        # constraint grammar for disambiguation
+        self.cg = Cg3("fin")
+        self.output_lemmas = True
+
+    def preprocess(self, text):
+        return text.translate(str.maketrans('wW','vV'))
+        
+    def get_lemmas(self, tokens):
+        # process the whole sentence, rather than single token, because
+        # relies on Constraint Grammar for disambiguation
+
+        lemmas = []
+    
+        for output in self.cg.disambiguate(tokens):
+            
+                if len(output[1]) == 1:
+                    # trivial case, no ambiguity
+                    lemmas.append(output[1][0].lemma)
+                else:
+                    # more than one reading
+                    readings = [r for r in output[1]]
+                    if readings[0].morphology[-1] == 'Cmpnd' and readings[1].lemma.startswith('"'):
+                        # compounds, example:
+                        # >>> cg.disambiguate(['presidenttivaaleissa'])
+                        # [('presidenttivaaleissa', [<vaalea - N, Pl, Ine, <W:0.000000>, Cmpnd>, <"presidentti - N, Sg, Nom, <W:0.000000>>, <vaali - N, Pl, Ine, <W:0.000000>, Cmpnd>, <"presidentti - N, Sg, Nom, <W:0.000000>>])]
+                        lemmas.append(readings[1].lemma[1:] + readings[0].lemma)
+                    else:
+                        # ambiguity but no compounds, let's take the first one 
+                        # TODO: make proper lemma selection---we might prefer
+                        # compounds if the end users have special iterest in compounds
+                        lemma = readings[0].lemma
+            
+        return lemmas
+
+  
+class FinProcessor_Omorfi(TextProcessor):
+    # omorfi version
+    # requires omorfi to be installed
     def __init__(self):
         super(FinProcessor, self).__init__()
         self.output_lemmas = True
@@ -91,10 +174,10 @@ class FinProcessor(TextProcessor):
         # TODO: make proper lemma selection---we might prefer
         # compounds if the end users have special iterest in compounds
         return "".join(self.omorfi.analyse(token)[-1].lemmas)
-            
+
 
 LANG_PROCESSOR_MAP = defaultdict(TextProcessor,
-    {'fi':FinProcessor(), 'fr':FrProcessor()}
+    {'fr':FrProcessor(), 'fi':FinProcessor()}
 )
 
 
@@ -108,17 +191,21 @@ class Document(object):
                                                           # don't know what it mean,
                                                           # let's hope it won't change
         self.text = doc[text_field]
-        
+
         # dates are lists of strings in format 'yyyy-mm-dd'
         # why lists, could it be more than one date for a document???
         # lets take the first
         self.date = doc['date_created_ssim'][0].split('-')
-        
-        self.tokens = self.text_processor.get_tokens(self.text)
-        # depending on language, some processors may take as an input
-        # tokens, some -- raw text
-        # will fix when(if) we have more text processors
-        self.lemmas = self.text_processor.get_lemmas(self.tokens)
+
+        self.sentences = self.text_processor.get_sentences(self.text)
+        self.tokens = []
+        self.lemmas = []
+        for sentence in self.sentences:
+            tokens = self.text_processor.get_tokens(sentence)
+            self.tokens += tokens
+            lemmas = self.text_processor.get_lemmas(tokens)
+            self.lemmas += lemmas
+
 
     def iter_tokens(self):
         for t in self.tokens:
@@ -132,7 +219,9 @@ class Document(object):
                     yield l.lower()
                 else:
                     yield l
-               
+
+
+                    
 class Corpus(object):
 
     def __init__(self, lang_id, debug_count=10e100, verbose=True):
