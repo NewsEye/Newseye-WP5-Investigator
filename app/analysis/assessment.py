@@ -6,26 +6,27 @@ from collections import Iterable
 EPSILON = sys.float_info.epsilon  # smallest possible number
 
 class Distribution(object):   
-    def __init__(self, data):
+    def __init__(self, data, smoothing = None):
+        self.smoothing = smoothing
         self.dist = self.make_distribution(data)
         self.entropy = -np.sum((self.dist*np.log2(self.dist)))
         self.number_of_outcomes = len(self.dist)
-                               
+        
     def make_distribution(self, list_of_counts):
         # Normalize a non-negative discrete distribution onto the
         # range [0-1], ensuring no zero value.
         arr = np.array(list_of_counts)
-
-        # IDEA: manipulate EPSILON to deply *evidence*, i.e. total count
-        # e.g. eps = 1/total_count or eps = exp(-total_count)
-        # epsilon is a *apriory* probability
-        return (arr + EPSILON) / (np.sum(arr) + len(arr) * EPSILON)
+        
+        # TODO: smoothing factor depending on number of outcomes
+        smoothing_factor = smoothing if self.smoothing else EPSILON
+        return (arr + smoothing_factor) / (np.sum(arr) + len(arr) * smoothing_factor)
 
     @property
     def normalized_entropy(self):
         if self.number_of_outcomes == 1:
             return 0
         return self.entropy/np.log2(self.number_of_outcomes)
+
     
 def ensure_distributions(*dist):
     ret = []
@@ -70,6 +71,8 @@ def align_dicts(dict1, dict2, default_value=0.0):
     align_dicts_from_to(dict2, dict1, default_value)
 
 def frequency_ratio(dict1, dict2):
+    # do not try other smoothing factors here, this is just to avoid zero-division
+    # to take evidence into account there is the next function, weighted_frequency_ratio
     align_dicts(dict1, dict2, EPSILON)
     return {k:float(dict1[k])/dict2[k] for k in dict1.keys()}
     

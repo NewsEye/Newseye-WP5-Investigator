@@ -83,6 +83,8 @@ def group_outliers(corpus,
     # 'gargarisme' is the act of bubbling liquid in the mouth
     # for more details see: https://fr.wikipedia.org/wiki/Gargarisme
 
+    #TODO: add smoothing
+    
     print ("\n******************************************************")
     print ("Corpus: %s, group: all words with '%s' '%s'" %(corpus.lang_id, affix[0], affix[1]))
 
@@ -94,7 +96,7 @@ def group_outliers(corpus,
     
     if weights:
         word_to_docid = corpus.find_word_to_doc_dict(item)
-        weights = {w:np.log10(len(corpus.word_to_docids[w])) for w in group}
+        weights = {w:np.log10(len(word_to_docid[w])) for w in group}
     
     outliers = timeseries.find_group_outliers(corpus, group,
                                               weights = weights, item=item,
@@ -110,13 +112,17 @@ def group_outliers(corpus,
     stay_tuned()
 
     
-def find_interesting_words(corpus, item="lemma", granularity="month", min_count = 100,
-                           threshold = 0.7, coefficient=1.2):
+def find_interesting_words(corpus, item="lemma", granularity="month", min_count = 10,
+                           threshold = 0.7, coefficient=1.2, smoothing=1):
+
+    # when smoothing is used (highly recommended) min_count is needed
+    # only to speed up comutations
     normalized_entropy = timeseries.normalized_entropy_for_aligned_ts_ipm(
         corpus=corpus,
         item=item,
         granularity=granularity,
-        min_count=min_count)
+        min_count=min_count,
+        smoothing=smoothing)
 
     ts, ts_ipm = corpus.timeseries(item, granularity, min_count=min_count)
     total = corpus._timeseries[item][granularity]['total']
