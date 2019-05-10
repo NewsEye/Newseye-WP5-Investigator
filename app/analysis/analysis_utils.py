@@ -560,7 +560,7 @@ class QueryTopicModel(AnalysisUtility):
                 'parameter_description': 'The name of the topic model to use',
                 'parameter_type': 'string',
                 'parameter_default': None,
-                'parameter_is_required': True,
+                'parameter_is_required': False,
             },
         ]
         self.input_type = 'id_list'
@@ -572,7 +572,8 @@ class QueryTopicModel(AnalysisUtility):
             raise KeyError
         model_name = task.task_parameters.get('model_name')
         if model_name is None:
-            raise KeyError
+            available_models = self.request_topic_models(model_type)
+            model_name = available_models['models'][0]['name']
         input_task = await self.get_input_task(task)
         db.session.commit()
         payload = {
