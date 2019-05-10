@@ -27,7 +27,7 @@ def generate_report(task, report_language, report_format):
     payload = {
         'language': report_language,
         'format': report_format,
-        'data': task.task_result.result
+        'data': {'root': [task.dict('full')]}
     }
     response = requests.post(Config.REPORTER_URI + "/report", data=payload)
     report_content = response.json()
