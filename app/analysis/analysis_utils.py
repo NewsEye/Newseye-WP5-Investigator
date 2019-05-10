@@ -269,10 +269,7 @@ class FindStepsFromTimeSeries(AnalysisUtility):
 
     async def __call__(self, task, use_data=False):
         if not use_data:
-            column_name = task.task_parameters.get('facet_name')
-            if column_name:
-                column_name = Config.AVAILABLE_FACETS.get(column_name, column_name)
-
+            column_name = task.task_parameters.get('column_name')
             step_threshold = task.task_parameters.get('step_threshold')
 
             # looks for tasks to be done before this one
@@ -398,7 +395,6 @@ class FindStepsFromTimeSeries(AnalysisUtility):
         steps : list
             List of indices of the detected steps
         """
-        step_offset = 3 # A handwavy magic number, needs to be looked into
         if threshold is None:
             threshold = 4 * np.var(array)  # Use 2 standard deviations as the threshold
         steps = []
@@ -416,9 +412,9 @@ class FindStepsFromTimeSeries(AnalysisUtility):
         if len(neg_cross_ups) > len(neg_cross_dns):
             neg_cross_ups = neg_cross_ups[1:]
         for upi, dni in zip(pos_cross_ups, pos_cross_dns):
-            steps.append(np.argmax(array[upi: dni]) + upi + step_offset)
+            steps.append(np.argmax(array[upi: dni]) + upi)
         for dni, upi in zip(neg_cross_dns, neg_cross_ups):
-            steps.append(np.argmin(array[dni: upi]) + dni+ step_offset)
+            steps.append(np.argmin(array[dni: upi]) + dni)
         return sorted(steps)
 
     # TODO: instead of using just the original data, perhaps by odd-symmetric periodical extension??
@@ -465,8 +461,8 @@ class FindStepsFromTimeSeries(AnalysisUtility):
                 q = min(window, index - indices[i - 1], len(array) - 1 - index)
             else:
                 q = min(window, index - indices[i - 1], indices[i + 1] - index)
-            a = array[index - q: index]
-            b = array[index: index + q]
+            a = array[index - q: index + 1]
+            b = array[index: index + q + 1]
             step_sizes.append((a.mean(), b.mean()))
             error = sqrt(a.var() + b.var())
             if isnan(error):
