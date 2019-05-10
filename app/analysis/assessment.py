@@ -18,7 +18,7 @@ class Distribution(object):
         arr = np.array(list_of_counts)
         
         # TODO: smoothing factor depending on number of outcomes
-        smoothing_factor = smoothing if self.smoothing else EPSILON
+        smoothing_factor = self.smoothing if self.smoothing else EPSILON
         return (arr + smoothing_factor) / (np.sum(arr) + len(arr) * smoothing_factor)
 
     @property
