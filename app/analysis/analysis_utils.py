@@ -530,7 +530,7 @@ class ExtractDocumentIds(AnalysisUtility):
         self.output_type = 'id_list'
 
     async def __call__(self, task):
-        demo_documents = task.task_parameters.get('demo_mode', None)
+        demo_documents = int(task.task_parameters.get('demo_mode', None))
         if demo_documents:
             return [random.randint(0, 9458) for i in range(demo_documents)]
         else:
