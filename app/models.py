@@ -115,6 +115,18 @@ class Task(db.Model):
                 'task_finished': self.task_finished,
                 'last_accessed': self.last_accessed,
             }
+        elif style == 'reporter':
+            return {
+                'uuid': str(self.uuid),
+                'task_type': self.task_type,
+                'task_parameters': self.task_parameters,
+                'task_status': self.task_status,
+                'task_result': self.task_result.result if self.task_result else None,
+                'hist_parent_id': str(self.hist_parent_id),
+                'task_started': str(self.task_started),
+                'task_finished': str(self.task_finished),
+                'last_accessed': str(self.last_accessed),
+            }
         else:
             raise KeyError('''Unknown value for parameter 'style'! Valid options: status, result, full. ''')
 
