@@ -39,12 +39,13 @@ class TextProcessor(object):
         # but only when ATR is working properly
         try:
             return Text(self.preprocess(text)).sentences
-        except Exception e:
+        except Exception as e:
             # polyglot crashes with broken utf ('pycld2.error:')
             return Text(self.preprocess(
                 # remove non-printable symbols
                 ''.join(x for x in self.preprocess(text) if x.isprintable()))
-                       ).sentences
+            ).sentences
+                
         
 
     def get_tokens(self, sentence):
@@ -205,19 +206,24 @@ class Document(object):
                                                           # let's hope it won't change
         self.text = doc[text_field]
 
-        # dates are lists of strings in format 'yyyy-mm-dd'
-        # why lists, could it be more than one date for a document???
-        # lets take the first
-        self.date = doc['date_created_ssim'][0].split('-')
+        if not self.text:
+            # empty document, useless
+            print ("Empty document %s" %self.doc_id)
 
-        self.sentences = self.text_processor.get_sentences(self.text)            
+        else:
+            # dates are lists of strings in format 'yyyy-mm-dd'
+            # why lists, could it be more than one date for a document???
+            # lets take the first
+            self.date = doc['date_created_ssim'][0].split('-')
             
-        self.tokens = []
-        self.lemmas = []
-        for sentence in self.sentences:
-            tokens = self.text_processor.get_tokens(sentence)
-            self.tokens += tokens
-            self.lemmas += self.text_processor.get_lemmas(tokens)
+            self.sentences = self.text_processor.get_sentences(self.text)            
+            
+            self.tokens = []
+            self.lemmas = []
+            for sentence in self.sentences:
+                tokens = self.text_processor.get_tokens(sentence)
+                self.tokens += tokens
+                self.lemmas += self.text_processor.get_lemmas(tokens)
 
             
 
@@ -238,12 +244,12 @@ class Document(object):
                     
 class Corpus(object):
 
-    def __init__(self, lang_id, debug_count=10e100, verbose=True):
+    def __init__(self, lang_id, debug_count=10e100, verbose=True): 
         self.lang_id = lang_id
         self.text_processor = LANG_PROCESSOR_MAP[lang_id]
         self.DEBUG_COUNT = debug_count  # limits number of documents
         self.verbose = verbose
-
+        
         # stuff we want to compute only once, potentially useful for many tasks
 
         self.docid_to_date = {}
@@ -314,11 +320,13 @@ class Corpus(object):
         # build only once
         if self.docid_to_date:
             return
-
+        
         doc_count = 0
         for d in self.loop_db():
             doc = Document(d, self.text_processor, self.lang_id)
-
+            if not doc.text:
+                continue
+                
             self.docid_to_date[doc.doc_id] = doc.date
 
             # self.docid_to_tokens[doc.doc_id] = list(doc.iter_tokens())
