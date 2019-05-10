@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import requests
 from math import sqrt, isnan
+import random
 
 
 async def async_analysis(tasks):
@@ -533,12 +534,16 @@ class ExtractDocumentIds(AnalysisUtility):
         self.output_type = 'id_list'
 
     async def __call__(self, task):
-        input_task = await self.get_input_task(task)
-        task.hist_parent_id = input_task.uuid
-        db.session.commit()
-        input_data = input_task.task_result.result
-        document_ids = [item['id'] for item in input_data['data']]
-        return document_ids
+        demo_documents = task.task_parameters.get('demo_mode', None)
+        if demo_documents:
+            return [random.randint(0, 9458) for i in range(demo_documents)]
+        else:
+            input_task = await self.get_input_task(task)
+            task.hist_parent_id = input_task.uuid
+            db.session.commit()
+            input_data = input_task.task_result.result
+            document_ids = [item['id'] for item in input_data['data']]
+            return document_ids
 
 
 class QueryTopicModel(AnalysisUtility):
@@ -586,7 +591,7 @@ class QueryTopicModel(AnalysisUtility):
         while True:
             await asyncio.sleep(delay)
             delay *= 1.5
-            response = requests.get('{}/{}/query/{}'.format(Config.TOPIC_MODEL_URI, model_type, uuid))
+            response = requests.post('{}/query-results/'.format(Config.TOPIC_MODEL_URI), json={'task_uuid': uuid})
             if response.status_code == 200:
                 break
         return response.json()
