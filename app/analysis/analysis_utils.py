@@ -573,29 +573,29 @@ class QueryTopicModel(AnalysisUtility):
         model_name = task.task_parameters.get('model_name')
         if model_name is None:
             available_models = self.request_topic_models(model_type)
-            model_name = available_models['models'][0]['name']
+            model_name = available_models[0]['name']
         input_task = await self.get_input_task(task)
         db.session.commit()
         payload = {
             'model': model_name,
             'documents': input_task.task_result.result
         }
-        response = requests.post('{}/{}/query/'.format(Config.TOPIC_MODEL_URI, model_type), json=payload)
-        uuid = response.json().get('uuid')
+        response = requests.post('{}/{}/query'.format(Config.TOPIC_MODEL_URI, model_type), json=payload)
+        uuid = response.json().get('task_uuid')
         if not uuid:
             raise ValueError('Invalid response from the Topic Model API')
         delay = 60
-        while True:
+        while delay < 300:
             await asyncio.sleep(delay)
             delay *= 1.5
-            response = requests.post('{}/query-results/'.format(Config.TOPIC_MODEL_URI), json={'task_uuid': uuid})
+            response = requests.post('{}/query-results'.format(Config.TOPIC_MODEL_URI), json={'task_uuid': uuid})
             if response.status_code == 200:
                 break
         return response.json()
 
     @staticmethod
     def request_topic_models(model_type):
-        response = requests.get('{}/{}/list/'.format(Config.TOPIC_MODEL_URI, model_type))
+        response = requests.get('{}/{}/list-models'.format(Config.TOPIC_MODEL_URI, model_type))
         return response.json()
 
 
