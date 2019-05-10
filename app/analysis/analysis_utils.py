@@ -7,7 +7,7 @@ import asyncio
 import numpy as np
 import pandas as pd
 import requests
-from math import sqrt
+from math import sqrt, isnan
 
 
 async def async_analysis(tasks):
@@ -260,45 +260,49 @@ class FindStepsFromTimeSeries(AnalysisUtility):
                 'parameter_description': 'Not yet written',
                 'parameter_type': 'string',
                 'parameter_default': None,
-                'parameter_is_required': True
+                'parameter_is_required': False
             }
         ]
         self.input_type = 'time_series'
         self.output_type = 'step_list'
 
-    async def __call__(self, task):
-        facet_name = task.task_parameters.get('facet_name')
-        facet_string = Config.AVAILABLE_FACETS.get(facet_name)
-        if facet_string is None:
-            raise TypeError("Facet not specified or specified facet not available in current database")
+    async def __call__(self, task, use_data=False):
+        if not use_data:
+            column_name = task.task_parameters.get('facet_name')
+            if column_name:
+                column_name = Config.AVAILABLE_FACETS.get(column_name, column_name)
 
-        step_threshold = task.task_parameters.get('step_threshold')
+            step_threshold = task.task_parameters.get('step_threshold')
 
-        # looks for tasks to be done before this one
-        # TODO: avoid it, will be done by Planner
-        input_task = await self.get_input_task(task)
-        task.hist_parent_id = input_task.uuid
-        db.session.commit()
-        if input_task is None or input_task.task_status != 'finished':
-            raise TypeError("No task results available for analysis")
-        input_data = input_task.task_result.result
+            # looks for tasks to be done before this one
+            # TODO: avoid it, will be done by Planner
+            input_task = await self.get_input_task(task)
+            task.hist_parent_id = input_task.uuid
+            db.session.commit()
+            if input_task is None or input_task.task_status != 'finished':
+                raise TypeError("No task results available for analysis")
+            input_data = input_task.task_result.result
 
-        absolute_counts = pd.DataFrame(input_data['absolute_counts'])
-        absolute_counts.index = pd.to_numeric(absolute_counts.index)
-        relative_counts = pd.DataFrame(input_data['relative_counts'])
-        relative_counts.index = pd.to_numeric(absolute_counts.index)
-        index_start = absolute_counts.index.min()
-        index_end = absolute_counts.index.max()
-        idx = np.arange(index_start, index_end + 1)
-        absolute_counts = absolute_counts.reindex(idx, fill_value=0)
-        relative_counts = relative_counts.reindex(idx, fill_value=0)
+            input_data = pd.DataFrame(input_data['relative_counts'])
+            input_data.index = pd.to_numeric(input_data.index)
+            index_start = input_data.index.min()
+            index_end = input_data.index.max()
+            idx = np.arange(index_start, index_end + 1)
+            input_data = input_data.reindex(idx, fill_value=0)
+        else:
+            input_data = task
+            step_threshold = None
         steps = {}
-        for column in relative_counts.columns:
-            data = relative_counts[column]
+        if column_name:
+            columns = [column_name]
+        else:
+            columns = input_data.columns
+        for column in columns:
+            data = input_data[column]
             prod = self.mz_fwt(data, 3)
             step_indices = self.find_steps(prod, step_threshold)
-            step_sizes, errors = self.get_step_sizes(relative_counts[column], step_indices)
-            step_times = [int(relative_counts.index[idx]) for idx in step_indices]
+            step_sizes, errors = self.get_step_sizes(input_data[column], step_indices)
+            step_times = [int(input_data.index[idx]) for idx in step_indices]
             steps[column] = list(zip(step_times, step_sizes, errors))
         # TODO: Fix output to match documentation
         # TODO: Implement interestingness values
@@ -393,20 +397,28 @@ class FindStepsFromTimeSeries(AnalysisUtility):
         steps : list
             List of indices of the detected steps
         """
+        step_offset = 3 # A handwavy magic number, needs to be looked into
         if threshold is None:
             threshold = 4 * np.var(array)  # Use 2 standard deviations as the threshold
         steps = []
-        array = np.abs(array)
         above_points = np.where(array > threshold, 1, 0)
+        below_points = np.where(array < -threshold, 1, 0)
         ap_dif = np.diff(above_points)
-        cross_ups = np.where(ap_dif == 1)[0]
-        cross_dns = np.where(ap_dif == -1)[0]
+        bp_dif = np.diff(below_points)
+        pos_cross_ups = np.where(ap_dif == 1)[0]
+        pos_cross_dns = np.where(ap_dif == -1)[0]
+        neg_cross_dns = np.where(bp_dif == 1)[0]
+        neg_cross_ups = np.where(bp_dif == -1)[0]
         # If cross_dns is longer that cross_ups, the first entry in cross_dns is zero, which will cause a crash
-        if len(cross_dns) > len(cross_ups):
-            cross_dns = cross_dns[1:]
-        for upi, dni in zip(cross_ups, cross_dns):
-            steps.append(np.argmax(array[upi: dni]) + upi)
-        return steps
+        if len(pos_cross_dns) > len(pos_cross_ups):
+            pos_cross_dns = pos_cross_dns[1:]
+        if len(neg_cross_ups) > len(neg_cross_dns):
+            neg_cross_ups = neg_cross_ups[1:]
+        for upi, dni in zip(pos_cross_ups, pos_cross_dns):
+            steps.append(np.argmax(array[upi: dni]) + upi + step_offset)
+        for dni, upi in zip(neg_cross_dns, neg_cross_ups):
+            steps.append(np.argmin(array[dni: upi]) + dni+ step_offset)
+        return sorted(steps)
 
     # TODO: instead of using just the original data, perhaps by odd-symmetric periodical extension??
     #  This should improve the accuracy close to the beginning and end of the signal
@@ -452,10 +464,14 @@ class FindStepsFromTimeSeries(AnalysisUtility):
                 q = min(window, index - indices[i - 1], len(array) - 1 - index)
             else:
                 q = min(window, index - indices[i - 1], indices[i + 1] - index)
-            a = array[index - q: index - 1]
-            b = array[index + 1: index + q]
+            a = array[index - q: index]
+            b = array[index: index + q]
             step_sizes.append((a.mean(), b.mean()))
-            step_error.append(sqrt(a.var() + b.var()))
+            error = sqrt(a.var() + b.var())
+            if isnan(error):
+                step_error.append(abs(step_sizes[-1][1] - step_sizes[-1][0]))
+            else:
+                step_error.append(error)
         return step_sizes, step_error
 
 
