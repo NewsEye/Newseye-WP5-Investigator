@@ -1,32 +1,71 @@
-import os, sys
-sys.path.append(os.path.abspath(os.path.dirname(__file__)))
-#sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
-
 from textprocessing.textprocessing import Corpus
-import app.analysis.assessment as assessment
-import app.analysis.timeseries as timeseries
+from app.analysis import assessment, timeseries
 
+import numpy as np
+import pickle
 
 ##### EXAMPLES #######
-import numpy as np
 
-def load_corpora():
+
+def build_corpus(language, query=None):
     # SLOOOOW
     # run this function in advance, before showing actual fun with other functions
-    fr = Corpus('fr')
-    de = Corpus('de')
-    fi = Corpus('fi')
+    corpus = Corpus(language)
+    if query:
+        corpus.set_target_query(query)
+    corpus.build_substring_structures()
 
-    for corp in [fr, de, fi]:
-        corp.build_substring_structures()
+    return corpus
 
-    return fr, de, fi
+
+def store_corpus_to_pickle(corpus, filename):
+    """
+    Store the dicts in the specified corpus into pickle files for faster retrieval until we get the database set up.
+    :param corpus: the corpus to be stored
+    :param filename: the descriptive part for the pickled files, etc. "fi_uusisuometar". Needs to start with the language code.
+    :return: 0 if everything went fine.
+    """
+    picklepath = 'pickled/'
+    with open('{}_docid_to_date.pickle'.format(picklepath + filename), 'wb') as f:
+        pickle.dump(corpus.docid_to_date, f, protocol=pickle.HIGHEST_PROTOCOL)
+    with open('{}_lemma_to_docids.pickle'.format(picklepath + filename), 'wb') as f:
+        pickle.dump(corpus.lemma_to_docids, f, protocol=pickle.HIGHEST_PROTOCOL)
+    with open('{}_token_to_docids.pickle'.format(picklepath + filename), 'wb') as f:
+        pickle.dump(corpus.token_to_docids, f, protocol=pickle.HIGHEST_PROTOCOL)
+    with open('{}_prefix_lemma_vocabulary.pickle'.format(picklepath + filename), 'wb') as f:
+        pickle.dump(corpus.prefix_lemma_vocabulary, f, protocol=pickle.HIGHEST_PROTOCOL)
+    with open('{}_suffix_lemma_vocabulary.pickle'.format(picklepath + filename), 'wb') as f:
+        pickle.dump(corpus.suffix_lemma_vocabulary, f, protocol=pickle.HIGHEST_PROTOCOL)
+    with open('{}_prefix_token_vocabulary.pickle'.format(picklepath + filename), 'wb') as f:
+        pickle.dump(corpus.prefix_token_vocabulary, f, protocol=pickle.HIGHEST_PROTOCOL)
+    with open('{}_suffix_token_vocabulary.pickle'.format(picklepath + filename), 'wb') as f:
+        pickle.dump(corpus.suffix_token_vocabulary, f, protocol=pickle.HIGHEST_PROTOCOL)
+    return corpus
+
+
+def load_corpus_from_pickle(filename):
+    corpus = Corpus(filename[:2])
+    picklepath = 'pickled/'
+    with open('{}_docid_to_date.pickle'.format(picklepath + filename), 'rb') as f:
+        corpus.docid_to_date = pickle.load(f)
+    with open('{}_lemma_to_docids.pickle'.format(picklepath + filename), 'rb') as f:
+        corpus.lemma_to_docids = pickle.load(f)
+    with open('{}_token_to_docids.pickle'.format(picklepath + filename), 'rb') as f:
+        corpus.token_to_docids = pickle.load(f)
+    with open('{}_prefix_lemma_vocabulary.pickle'.format(picklepath + filename), 'rb') as f:
+        corpus.prefix_lemma_vocabulary = pickle.load(f)
+    with open('{}_suffix_lemma_vocabulary.pickle'.format(picklepath + filename), 'rb') as f:
+        corpus.suffix_lemma_vocabulary = pickle.load(f)
+    with open('{}_prefix_token_vocabulary.pickle'.format(picklepath + filename), 'rb') as f:
+        corpus.prefix_token_vocabulary = pickle.load(f)
+    with open('{}_suffix_token_vocabulary.pickle'.format(picklepath + filename), 'rb') as f:
+        corpus.suffix_token_vocabulary = pickle.load(f)
+    return corpus
 
 
 def stay_tuned():
     print ("Needs further investigations... stay tuned!")
     print ("******************************************************\n")           
-
 
 
 def print_group_count(corpus, item, group):
