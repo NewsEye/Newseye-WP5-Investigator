@@ -35,8 +35,17 @@ class TextProcessor(object):
         return text
         
     def get_sentences(self, text):
-        # useful feature (if works), should be used in analytical tools
-        return Text(self.preprocess(text)).sentences
+        # useful feature, should be used in analytical tools
+        # but only when ATR is working properly
+        try:
+            return Text(self.preprocess(text)).sentences
+        except Exception e:
+            # polyglot crashes with broken utf ('pycld2.error:')
+            return Text(self.preprocess(
+                # remove non-printable symbols
+                ''.join(x for x in self.preprocess(text) if x.isprintable()))
+                       ).sentences
+        
 
     def get_tokens(self, sentence):
         # default relies on tokenization from polyglot package
@@ -75,7 +84,11 @@ class TextProcessor(object):
             else:
                 self.skip_item[item] = False
         return self.skip_item[item]
-        
+
+    def dismiss(self):
+        # textprocessing is finnished, no need to keep token_to_lemma dict in memory
+        # this dict is huge
+        self.token_to_lemma = {}
 
 class FrProcessor(TextProcessor):
     def __init__(self):
@@ -88,6 +101,7 @@ class FrProcessor(TextProcessor):
         # e.g. "antagonisme", "d'antagonisme", "l'antagonisme"
         return token.replace("l'", "").replace("d'", "")
 
+    
 class FinProcessor(TextProcessor):
     # simplest lemmatization for Finnish; slow and non-accurate
     # TODO: replace with processing tools that Mark is using 
@@ -106,10 +120,9 @@ class FinProcessor(TextProcessor):
            # just get the first one, no disambiguation
            return readings[0]
        else:
-           # no readings for unknown words
+           # no readings for oov words
            return token
-                       
-                       
+                                         
 
 class FinProcessor_CG3(TextProcessor):
     # incredibly slow
@@ -197,15 +210,16 @@ class Document(object):
         # lets take the first
         self.date = doc['date_created_ssim'][0].split('-')
 
-        self.sentences = self.text_processor.get_sentences(self.text)
+        self.sentences = self.text_processor.get_sentences(self.text)            
+            
         self.tokens = []
         self.lemmas = []
         for sentence in self.sentences:
             tokens = self.text_processor.get_tokens(sentence)
             self.tokens += tokens
-            lemmas = self.text_processor.get_lemmas(tokens)
-            self.lemmas += lemmas
+            self.lemmas += self.text_processor.get_lemmas(tokens)
 
+            
 
     def iter_tokens(self):
         for t in self.tokens:
@@ -320,6 +334,8 @@ class Corpus(object):
             if doc_count == self.DEBUG_COUNT:
 
                 break
+
+        self.text_processor.dismiss()
 
     def find_word_to_doc_dict(self, item):
         if item == "token":
