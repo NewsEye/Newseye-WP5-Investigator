@@ -29,11 +29,12 @@ class Config(object):
     # external database to fetch data from
     # DATABASE_IN_USE = 'demo'
     DATABASE_IN_USE = 'newseye'
+    HEADERS = {}
+    COOKIES = {}
 
     if DATABASE_IN_USE == 'demo':
         BLACKLIGHT_URI = "https://demo.projectblacklight.org/catalog.json"
         BLACKLIGHT_DEFAULT_PARAMETERS = {'utf8': "%E2%9C%93"}
-        COOKIES = {}
         DOCUMENTS_KEY = 'data'
         FACETS_KEY = 'included'
         FACET_ID_KEY = 'id'
@@ -57,7 +58,9 @@ class Config(object):
             # 'locale': 'en',
             # 'search_field': 'all_fields,'
         }
-        COOKIES = {'_newseye_samvera_session': os.environ.get('SESSION_COOKIE')}
+        # Replace 'username' and 'password' with your own for dev purposes
+        NEWSEYE_USERNAME = os.environ.get('NEWSEYE_USERNAME') or 'username'
+        NEWSEYE_PASSWORD = os.environ.get('NEWSEYE_PASSWORD') or 'password'
         DOCUMENTS_KEY = 'docs'
         FACETS_KEY = 'facets'
         FACET_ID_KEY = 'name'
