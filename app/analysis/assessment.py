@@ -76,7 +76,9 @@ def frequency_ratio(dict1, dict2):
     align_dicts(dict1, dict2, EPSILON)
     return {k:float(dict1[k])/dict2[k] for k in dict1.keys()}
     
-def weighted_frequency_ratio(dict1, dict2, weights=None, weight_func=np.log10):
+def weighted_frequency_ratio(dict1, dict2, weights=None, weight_func=np.log10): 
+    # TODO: slowish, check what's going on
+    # maybe switch to np arrays, pandas, whatever
     # frequency ratio where more weight given to some cases
     # default weight is a log10 of denominator, the bigger denominator (e.g. corpus frequency) the mpre relyable considered result
     # maybe better to replace all hacks with statistical significance
