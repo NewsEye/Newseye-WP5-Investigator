@@ -257,7 +257,7 @@ class FindStepsFromTimeSeries(AnalysisUtility):
                 'parameter_is_required': False
             },
             {
-                'parameter_name': 'facet_name',
+                'parameter_name': 'column_name',
                 'parameter_description': 'Not yet written',
                 'parameter_type': 'string',
                 'parameter_default': None,
@@ -297,7 +297,7 @@ class FindStepsFromTimeSeries(AnalysisUtility):
             columns = input_data.columns
         for column in columns:
             data = input_data[column]
-            prod = self.mz_fwt(data, 3)
+            prod, _ = self.mz_fwt(data, 3)
             step_indices = self.find_steps(prod, step_threshold)
             step_sizes, errors = self.get_step_sizes(input_data[column], step_indices)
             step_times = [int(input_data.index[idx]) for idx in step_indices]
@@ -306,7 +306,7 @@ class FindStepsFromTimeSeries(AnalysisUtility):
         # TODO: Implement interestingness values
         return steps
 
-    def mz_fwt(self, x, n=2):
+    def mz_fwt(self, x, n=3):
         """
         A modified version of the code at https://github.com/thomasbkahn/step-detect:
 
@@ -346,18 +346,20 @@ class FindStepsFromTimeSeries(AnalysisUtility):
 
         s = x
         prod = np.ones(n_pnts)
+        wavelets = np.ones((n, n_pnts))
         for j in range(n):
             s = np.concatenate((s[::-1], s, s[::-1]))
             n_zeros = 2 ** j - 1
             gz = self._insert_zeros(g, n_zeros)
             hz = self._insert_zeros(h, n_zeros)
             current = (1.0 / lambda_j[j]) * np.convolve(s, gz)
-            current = current[n_pnts + gn[j]:2 * n_pnts + gn[j]]
+            current = current[n_pnts + gn[j] - 1:2 * n_pnts + gn[j] - 1]
             prod *= current
+            wavelets[j] *= current
             s_new = np.convolve(s, hz)
-            s = s_new[n_pnts + hn[j]:2 * n_pnts + hn[j]]
+            s = s_new[n_pnts + hn[j] - 1:2 * n_pnts + hn[j] - 1]
         prod /= np.abs(prod).max()
-        return prod
+        return prod, wavelets
 
     @staticmethod
     def _insert_zeros(x, n):
@@ -412,9 +414,9 @@ class FindStepsFromTimeSeries(AnalysisUtility):
         if len(neg_cross_ups) > len(neg_cross_dns):
             neg_cross_ups = neg_cross_ups[1:]
         for upi, dni in zip(pos_cross_ups, pos_cross_dns):
-            steps.append(np.argmax(array[upi: dni]) + upi)
+            steps.append(np.argmax(array[upi: dni]) + upi + 1)
         for dni, upi in zip(neg_cross_dns, neg_cross_ups):
-            steps.append(np.argmin(array[dni: upi]) + dni)
+            steps.append(np.argmin(array[dni: upi]) + dni + 1)
         return sorted(steps)
 
     # TODO: instead of using just the original data, perhaps by odd-symmetric periodical extension??
