@@ -40,8 +40,13 @@ def store_corpus_to_pickle(corpus, filename):
         pickle.dump(corpus.prefix_token_vocabulary, f, protocol=pickle.HIGHEST_PROTOCOL)
     with open('{}_suffix_token_vocabulary.pickle'.format(picklepath + filename), 'wb') as f:
         pickle.dump(corpus.suffix_token_vocabulary, f, protocol=pickle.HIGHEST_PROTOCOL)
-    return corpus
+    with open('{}_token_bi_to_docids.pickle'.format(picklepath + filename), 'wb') as f:
+        pickle.dump(corpus.token_bi_to_docids, f, protocol=pickle.HIGHEST_PROTOCOL)
+    with open('{}_lemma_bi_to_docids.pickle'.format(picklepath + filename), 'wb') as f:
+        pickle.dump(corpus.lemma_bi_to_docids, f, protocol=pickle.HIGHEST_PROTOCOL)
 
+
+    return corpus
 
 def load_corpus_from_pickle(filename):
     corpus = Corpus(filename[:2])
@@ -60,6 +65,15 @@ def load_corpus_from_pickle(filename):
         corpus.prefix_token_vocabulary = pickle.load(f)
     with open('{}_suffix_token_vocabulary.pickle'.format(picklepath + filename), 'rb') as f:
         corpus.suffix_token_vocabulary = pickle.load(f)
+    try:
+        with open('{}_token_bi_to_docids.pickle'.format(picklepath + filename), 'rb') as f:
+            corpus.token_bi_to_docids = pickle.load(f)
+        with open('{}_lemma_bi_to_docids.pickle'.format(picklepath + filename), 'rb') as f:
+            corpus.lemma_bi_to_docids = pickle.load(f)
+    except:
+        pass
+
+        
     return corpus
 
 
@@ -71,12 +85,15 @@ def stay_tuned():
 def print_group_count(corpus, item, group):
     if item == 'lemma':
         counts = {w:len(corpus.lemma_to_docids[w]) for w in group}
+        total = len(corpus.lemma_to_docids)
     else:
         counts = {w:len(corpus.token_to_docids[w]) for w in group}
+        total = len(corpus.token_to_docids)
+    
         
     print("Group words, sorted by count:")
     for (w,c) in sorted(counts.items(), key=lambda x: x[1], reverse = True):
-        print (w, c)
+        print (w, c, "%2.2fipm" % (c*1000000/total))
 
     
 def ism(corpus, word = 'patriotisme', affix=("suffix", "isme"),
@@ -152,7 +169,7 @@ def group_outliers(corpus,
 
     
 def find_interesting_words(corpus, item="lemma", granularity="month", min_count = 10,
-                           threshold = 0.7, coefficient=1.2, smoothing=1):
+                           threshold = 0.5, coefficient=1.2, smoothing=0.5):
 
     # when smoothing is used (highly recommended) min_count is needed
     # only to speed up comutations
@@ -195,3 +212,7 @@ def find_interesting_words(corpus, item="lemma", granularity="month", min_count 
         print("total count: %d" %len(word_to_docid[w]))
         
     stay_tuned()
+    # 
+
+
+

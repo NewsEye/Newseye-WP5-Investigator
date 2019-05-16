@@ -19,6 +19,9 @@ from progress import ProgressBar
 import warnings
 warnings.filterwarnings("ignore")
 
+import textract
+import re
+
 class TextProcessor(object):
     # DEFAULT PROCESSOR
     def __init__(self):
@@ -195,6 +198,52 @@ LANG_PROCESSOR_MAP = defaultdict(TextProcessor,
 
 
 class Document(object):
+    def __init__(self, text_processor, lang_id=None):
+        self.doc_id = None
+        self.text = None
+        self.doc_id = doc['id']
+        self.text_processor = Text_Processor()    
+
+    def get_tokens_and_lemmas(self):
+
+        self.sentences = self.text_processor.get_sentences(self.text)            
+        
+        self.tokens = []
+        self.lemmas = []
+        for sentence in self.sentences:
+            tokens = self.text_processor.get_tokens(sentence)
+            self.tokens += tokens
+            self.lemmas += self.text_processor.get_lemmas(tokens)
+        
+    def iter_tokens(self):
+        for t in self.tokens:
+            if not self.text_processor.skipitem(t):
+                yield t
+
+    def iter_lemmas(self, lowercase=True):
+        for l in self.lemmas:
+            if not self.text_processor.skipitem(l):
+                if lowercase:
+                    yield l.lower()
+                else:
+                    yield l
+
+
+class Document_Format1(Document):
+    def __init__(self, title_line, text, text_processor, lang_id=None):
+        self.doc_id = title_line.strip().replace('-', '').replace(' ', '_')
+        self.lang_id = lang_id
+        self.text_processor = text_processor
+
+        self.text = text
+
+        date = title_line.split('-')[1].strip()
+        self.date = [date[:4], date[4:6], date[6:]]
+
+        self.get_tokens_and_lemmas()
+        
+
+class Document_DB(Document):
     def __init__(self, doc, text_processor, lang_id=None):        
         self.doc_id = doc['id']
         self.lang_id = lang_id or doc['language_ssi']
@@ -214,40 +263,21 @@ class Document(object):
             # why lists, could it be more than one date for a document???
             # lets take the first
             self.date = doc['date_created_ssim'][0].split('-')
-            
-            self.sentences = self.text_processor.get_sentences(self.text)            
-            
-            self.tokens = []
-            self.lemmas = []
-            for sentence in self.sentences:
-                tokens = self.text_processor.get_tokens(sentence)
-                self.tokens += tokens
-                self.lemmas += self.text_processor.get_lemmas(tokens)
+            self.get_tokens_and_lemmas()
 
             
-
-    def iter_tokens(self):
-        for t in self.tokens:
-            if not self.text_processor.skipitem(t):
-                yield t
-
-    def iter_lemmas(self, lowercase=True):
-        for l in self.lemmas:
-            if not self.text_processor.skipitem(l):
-                if lowercase:
-                    yield l.lower()
-                else:
-                    yield l
-
 
 class Corpus(object):
 
-    def __init__(self, lang_id, debug_count=10e100, verbose=True): 
+    def __init__(self, lang_id, debug_count=10e100, verbose=True, input_dir=None, input_format = None): 
         self.lang_id = lang_id
         self.text_processor = LANG_PROCESSOR_MAP[lang_id]
         self.DEBUG_COUNT = debug_count  # limits number of documents
         self.verbose = verbose
 
+        self.input_dir = input_dir
+        self.input_format = input_format
+        
         # This can be used to define only a subset of all documents for analysis
         self.target_query = {'f[language_ssi][]': self.lang_id}
 
@@ -258,6 +288,10 @@ class Corpus(object):
         self.token_to_docids = defaultdict(list)
         self.lemma_to_docids = defaultdict(list)
 
+        # bigrams
+        self.token_bi_to_docids = defaultdict(list)
+        self.lemma_bi_to_docids = defaultdict(list)
+        
         # Tries are slow, so we don't use them as main storing structures
         self.prefix_token_vocabulary = Trie()
         self.prefix_lemma_vocabulary = Trie()
@@ -303,12 +337,60 @@ class Corpus(object):
             page += 1
         pb.end()
 
+    
+        
     def download_db(self):
         # dummy function for initial download
         # after running that all data will be in the local db
         for d in self.loop_db(force_refresh=True):
             pass
+        
+        
+    def readin_docs(self):
+        if self.input_dir:
+            for doc in self.read_from_dir():
+                yield(doc)
+        else:
+            # read from db
+            for d in self.loop_db():
+                doc = Document_DB(d, self.text_processor, self.lang_id)
+                yield(doc)
 
+
+    def read_from_dir(self):
+        # this function is done during hackathon to load quickly some small data
+        # if loading from files become a common practice we'll make a cleaner solution
+
+        if self.input_format == 1:
+            pb = ProgressBar("Reading %s" %self.input_dir)
+            for f in os.listdir(self.input_dir):
+                text = ''
+                title_line = None
+                if os.path.splitext(f)[1] == ".docx":
+                    pb.next()
+                    text = textract.process(os.path.join(self.input_dir,f)).decode("utf-8")
+                    for line in text.split('\n'):
+                        if re.search('\d{8}', line):
+                            if title_line:
+                                doc = Document_Format1(title_line,
+                                                       text,
+                                                       self.text_processor,
+                                                       self.lang_id)
+                                yield(doc)
+                            title_line = line
+                            text = ''
+                        else:
+                            text += line
+                    if title_line:
+                        doc = Document_Format1(title_line,
+                                               text,
+                                               self.text_processor,
+                                               self.lang_id)
+                        yield(doc)
+            pb.end()
+                                
+    
+        
     # TODO: slow, should be a separate task with results (indexes) stored in db
     # TODO: run in parallel
     def build_indexes(self):
@@ -318,29 +400,28 @@ class Corpus(object):
             return
         
         doc_count = 0
-        for d in self.loop_db():
-            doc = Document(d, self.text_processor, self.lang_id)
+        for doc in self.readin_docs():
+
             if not doc.text:
+                print ("Doc without text")
                 continue
-                
+          
             self.docid_to_date[doc.doc_id] = doc.date
 
-            # self.docid_to_tokens[doc.doc_id] = list(doc.iter_tokens())
             for token in doc.iter_tokens():
                 self.token_to_docids[token].append(doc.doc_id)
 
-            # self.docid_to_lemmas[doc.doc_id] = list(doc.iter_lemmas())
             for lemma in doc.iter_lemmas():
                 self.lemma_to_docids[lemma].append(doc.doc_id)
 
             doc_count += 1
 
             if doc_count == self.DEBUG_COUNT:
-
                 break
 
         self.text_processor.dismiss()
 
+        
     def find_word_to_doc_dict(self, item):
         if item == "token":
             return self.token_to_docids
@@ -419,6 +500,38 @@ class Corpus(object):
         self._timeseries[item][granularity][min_count] = timeseries
         self._timeseries[item][granularity]['total'] = total
 
+    # BIGRAMS
+
+    @staticmethod
+    def make_counts(w_to_docids, min_count):
+        return {k:len(v) for k,v in w_to_docids.items() if len(v) >= min_count}
+    
+    def build_bi_indexes(self, token_min_count = 10, lemma_min_count = 10):
+        # disclaimer: function implemented during hackathon, might need improvement
+
+        lemma_counts = self.make_counts(self.lemma_to_docids, lemma_min_count)
+        token_counts = self.make_counts(self.token_to_docids, token_min_count)
+
+        pb = ProgressBar("Collectiong bigrams")
+        for doc in self.readin_docs():
+            # now we start loop through documents ones again and
+            # *procces* them once again looping is fine---no way to
+            # store the corpus in memory---but processing is not fine
+            # later on we should loop through lemmatized documents and
+            # ensure processing them only once
+            # during hackathon we use it for German, without lemmatization
+
+            for t1, t2 in zip(doc.tokens[:-1], doc.tokens[1:]):
+                if t1 in token_counts and t2 in token_counts:
+                    self.token_bi_to_docids[(t1, t2)].append(doc.doc_id)
+            
+            for l1, l2 in zip(doc.lemmas[:-1], doc.lemmas[1:]):
+                if l1 in lemma_counts and l2 in lemma_counts:
+                    self.lemma_bi_to_docids[(l1, l2)].append(doc.doc_id)
+
+            pb.next()
+        pb.end()
+        
     # SUFFIX/PREFIX SEARCH
     @staticmethod
     def build_tries_from_dict(item_to_doc, min_count):
