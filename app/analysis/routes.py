@@ -60,5 +60,5 @@ def get_analysis_task(task_uuid):
 @bp.route('/utilities/')
 @login_required
 def get_utility_list():
-    response = [utility.__dict__ for utility in UTILITY_MAP.values()]
+    response = [utility.get_description() for utility in UTILITY_MAP.values()]
     return jsonify(response), 200

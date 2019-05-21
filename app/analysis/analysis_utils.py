@@ -62,6 +62,15 @@ class AnalysisUtility(object):
                                                                   parent_id=task.hist_parent_id)
         return input_task
 
+    def get_description(self):
+        return {
+            'utility_name': self.utility_name,
+            'utility_description': self.utility_description,
+            'utility_parameters': self.utility_parameters,
+            'input_type': self.input_type,
+            'output_type': self.output_type
+        }
+
 
 class ExtractFacets(AnalysisUtility):
     def __init__(self):
