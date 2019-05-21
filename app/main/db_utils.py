@@ -3,8 +3,9 @@ from sqlalchemy.exc import IntegrityError
 from flask_login import current_user
 from app import db
 from app.models import Task, Result
-import uuid
+import uuid, pickle
 from datetime import datetime
+from textprocessing.textprocessing import Corpus
 
 
 def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=False):
@@ -80,3 +81,23 @@ def store_results(tasks, task_results):
             res.last_updated = datetime.utcnow()
     current_app.logger.info("Storing results into database")
     db.session.commit()
+
+
+def load_corpus_from_pickle(filename):
+    corpus = Corpus(filename[:2])
+    picklepath = 'pickled/'
+    with open('{}_docid_to_date.pickle'.format(picklepath + filename), 'rb') as f:
+        corpus.docid_to_date = pickle.load(f)
+    with open('{}_lemma_to_docids.pickle'.format(picklepath + filename), 'rb') as f:
+        corpus.lemma_to_docids = pickle.load(f)
+    with open('{}_token_to_docids.pickle'.format(picklepath + filename), 'rb') as f:
+        corpus.token_to_docids = pickle.load(f)
+    with open('{}_prefix_lemma_vocabulary.pickle'.format(picklepath + filename), 'rb') as f:
+        corpus.prefix_lemma_vocabulary = pickle.load(f)
+    with open('{}_suffix_lemma_vocabulary.pickle'.format(picklepath + filename), 'rb') as f:
+        corpus.suffix_lemma_vocabulary = pickle.load(f)
+    with open('{}_prefix_token_vocabulary.pickle'.format(picklepath + filename), 'rb') as f:
+        corpus.prefix_token_vocabulary = pickle.load(f)
+    with open('{}_suffix_token_vocabulary.pickle'.format(picklepath + filename), 'rb') as f:
+        corpus.suffix_token_vocabulary = pickle.load(f)
+    return corpus
