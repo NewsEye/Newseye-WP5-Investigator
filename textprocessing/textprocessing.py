@@ -46,7 +46,8 @@ class TextProcessor(object):
             return Text(self.preprocess(
                 # remove non-printable symbols
                 ''.join(x for x in self.preprocess(text) if x.isprintable()))
-            ).sentences
+                ).sentences
+                
                 
         
 
@@ -205,9 +206,13 @@ class Document(object):
         self.text_processor = Text_Processor()    
 
     def get_tokens_and_lemmas(self):
+        try: 
+            self.sentences = self.text_processor.get_sentences(self.text)            
+        except Exception as e:
+            print(self.doc_id)
+            raise e
 
-        self.sentences = self.text_processor.get_sentences(self.text)            
-        
+            
         self.tokens = []
         self.lemmas = []
         for sentence in self.sentences:
@@ -230,7 +235,7 @@ class Document(object):
 
 
 class Document_Format1(Document):
-    def __init__(self, title_line, text, text_processor, lang_id=None):
+    def __init__(self, title_line, text, text_processor, lang_id=None, process = True):
         self.doc_id = title_line.strip().replace('-', '').replace(' ', '_')
         self.lang_id = lang_id
         self.text_processor = text_processor
@@ -240,11 +245,29 @@ class Document_Format1(Document):
         date = title_line.split('-')[1].strip()
         self.date = [date[:4], date[4:6], date[6:]]
 
-        self.get_tokens_and_lemmas()
-        
+        if process:
+            self.get_tokens_and_lemmas()
 
+        
+class Document_Format2(Document):
+    month_to_number_map = {'September':'09', 'Oktober':'10'}
+    
+    def __init__(self, filename, text, text_processor, lang_id=None,  process = True):
+        filename = filename.replace('.txt', '')
+        self.doc_id = filename.replace(' ','_')
+        self.lang_id = lang_id
+        self.text_processor = text_processor
+        self.text = text
+
+        date = filename.split(',')[1].strip().split(' ')
+        self.date = [date[2], self.month_to_number_map[date[1]], date[0].replace('.', '')]
+        if process:
+            self.get_tokens_and_lemmas()
+        
+        
+        
 class Document_DB(Document):
-    def __init__(self, doc, text_processor, lang_id=None):        
+    def __init__(self, doc, text_processor, lang_id=None,  process = True):        
         self.doc_id = doc['id']
         self.lang_id = lang_id or doc['language_ssi']
         self.text_processor = text_processor
@@ -259,11 +282,12 @@ class Document_DB(Document):
             print ("Empty document %s" %self.doc_id)
 
         else:
-            # dates are lists of strings in format 'yyyy-mm-dd'
+            # dates are lists of strings in format 'yyyy-mm-dd-'
             # why lists, could it be more than one date for a document???
             # lets take the first
-            self.date = doc['date_created_ssim'][0].split('-')
-            self.get_tokens_and_lemmas()
+            self.date = doc['date_created_ssim'][0].strip().split('-')
+            if process:
+                self.get_tokens_and_lemmas()
 
             
 
@@ -346,18 +370,18 @@ class Corpus(object):
             pass
         
         
-    def readin_docs(self):
+    def readin_docs(self, process = True):
         if self.input_dir:
-            for doc in self.read_from_dir():
+            for doc in self.read_from_dir(process=process):
                 yield(doc)
         else:
             # read from db
             for d in self.loop_db():
-                doc = Document_DB(d, self.text_processor, self.lang_id)
+                doc = Document_DB(d, self.text_processor, self.lang_id, process=process)
                 yield(doc)
 
 
-    def read_from_dir(self):
+    def read_from_dir(self, process=True):
         # this function is done during hackathon to load quickly some small data
         # if loading from files become a common practice we'll make a cleaner solution
 
@@ -375,20 +399,35 @@ class Corpus(object):
                                 doc = Document_Format1(title_line,
                                                        text,
                                                        self.text_processor,
-                                                       self.lang_id)
+                                                       self.lang_id,
+                                                       process)
                                 yield(doc)
                             title_line = line
                             text = ''
                         else:
                             text += line
                     if title_line:
+                        # the last document within a file
                         doc = Document_Format1(title_line,
                                                text,
                                                self.text_processor,
-                                               self.lang_id)
+                                               self.lang_id,
+                                               process)
                         yield(doc)
             pb.end()
-                                
+
+        elif self.input_format == 2:
+            pb = ProgressBar("Reading %s" %self.input_dir)
+            for f in os.listdir(self.input_dir):
+                with open(os.path.join(self.input_dir,f), 'rb') as inp:
+                    text = inp.read().decode(errors='ignore')
+                yield Document_Format2(f, text, self.text_processor, self.lang_id, process)
+                pb.next()
+            pb.end()
+            
+
+        else:
+            raise NotImplementedError("Unknown format %s" %self.input_format)
     
         
     # TODO: slow, should be a separate task with results (indexes) stored in db
@@ -506,13 +545,24 @@ class Corpus(object):
     def make_counts(w_to_docids, min_count):
         return {k:len(v) for k,v in w_to_docids.items() if len(v) >= min_count}
     
-    def build_bi_indexes(self, token_min_count = 10, lemma_min_count = 10):
+    def build_bi_indexes(self, token_min_count = 10, lemma_min_count = 10, force=False): 
         # disclaimer: function implemented during hackathon, might need improvement
 
+        if self.token_bi_to_docids:
+            if force:
+                # clean up the dictionary, otherwise appending may distort computations
+                self.token_bi_to_docids = defaultdict(list)
+            else:
+                return
+
+
+        if not self.token_to_docids:
+            print("Need to build main indexes first")
+            self.build_indexes()
+            
         lemma_counts = self.make_counts(self.lemma_to_docids, lemma_min_count)
         token_counts = self.make_counts(self.token_to_docids, token_min_count)
 
-        pb = ProgressBar("Collectiong bigrams")
         for doc in self.readin_docs():
             # now we start loop through documents ones again and
             # *procces* them once again looping is fine---no way to
@@ -528,9 +578,6 @@ class Corpus(object):
             for l1, l2 in zip(doc.lemmas[:-1], doc.lemmas[1:]):
                 if l1 in lemma_counts and l2 in lemma_counts:
                     self.lemma_bi_to_docids[(l1, l2)].append(doc.doc_id)
-
-            pb.next()
-        pb.end()
         
     # SUFFIX/PREFIX SEARCH
     @staticmethod

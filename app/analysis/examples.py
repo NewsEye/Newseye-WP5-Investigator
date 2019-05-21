@@ -1,3 +1,5 @@
+import os
+
 from textprocessing.textprocessing import Corpus
 from app.analysis import assessment, timeseries
 
@@ -208,11 +210,44 @@ def find_interesting_words(corpus, item="lemma", granularity="month", min_count 
 
         print("average count in other dates: %2.2f (%2.2fipm)"
               %(np.mean([ts[w][d]     for d in ts[w]     if d not in interesting_dates]),
-                np.mean([ts_ipm[w][d]   for d in ts_ipm[w] if d not in interesting_dates])))
+                np.mean([ts_ipm[w][d] for d in ts_ipm[w] if d not in interesting_dates])))
         print("total count: %d" %len(word_to_docid[w]))
         
     stay_tuned()
     # 
 
 
+def print_top_counts(counts_dict, min_count=0, top=1000):
+    iterator = 1
+    for k in sorted(counts_dict, key=counts_dict.get, reverse=True):
+        if iterator==top or counts_dict[k]<min_count:
+            break
+        print ("%s, %0.2f" %(k, counts_dict[k]))
+        iterator+=1
 
+def print_top(dict_of_mentions, min_count=1, top=1000):
+    print_top_counts({k:len(v) for k,v in dict_of_mentions.items()
+                      if len(v)>=min_count}, min_count)
+
+
+
+
+def dump_corpus(corpus, corpus_name = None, output_dir = "dump/"): 
+#### dump corpus (for Elaine, for TM, maybe we will use it for smth else)
+
+    if not corpus_name: corpus_name = corpus.lang_id
+    output_dir = os.path.join(os.path.abspath(output_dir), corpus.lang_id)
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    print("Dumping corpus into %s" %output_dir)
+        
+    for doc in corpus.readin_docs(process=False):
+        with open(os.path.join(output_dir, doc.doc_id), 'w') as out:
+            print(doc.doc_id, file=out)
+            print("-".join(doc.date[:3]), file=out)
+            print(doc.text, file=out)
+
+        
+    
+    
