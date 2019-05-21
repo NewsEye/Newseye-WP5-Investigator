@@ -78,7 +78,7 @@ class ExtractFacets(AnalysisUtility):
         self.utility_name = 'extract_facets'
         self.utility_description = 'Examines the document set given as input, and finds all the different facets for which values have been set in at least some of the documents.'
         self.utility_parameters = []
-        self.input_type = 'search'
+        self.input_type = 'search_result'
         self.output_type = 'facet_list'
 
     async def __call__(self, task):
