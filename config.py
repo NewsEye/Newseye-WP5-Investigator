@@ -72,4 +72,5 @@ class Config(object):
             'NEWSPAPER_NAME': 'member_of_collection_ids_ssim',
             'PUB_DATE': 'date_created_dtsi',
             'TYPE_OF_DOCUMENT': 'has_model_ssim',
+            'PUB_YEAR': 'year_isi',
         }
