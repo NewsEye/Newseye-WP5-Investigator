@@ -17,7 +17,7 @@ async def fetch(session, params={}):
 
 
 # Runs the query/queries using aiohttp. The return value is a list containing the results in the corresponding order.
-async def search_database(queries, return_all=False):
+async def search_database(queries):
     if not isinstance(queries, list):
         queries = [queries]
     tasks = []

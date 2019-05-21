@@ -16,8 +16,6 @@ def execute_tasks(queries, return_tasks=True):
     """
     Generate tasks from queries and execute them.
     :param queries: a single query or a list of queries
-    :param switch_task: If true, the current task for the user will be updated to the one generated. If multiple
-    queries are run in parallel, the current task will not be updated.
     :param return_tasks: If true, the task object (or a list of task objects) is returned to the user in json format.
     If false, only the task_id (or a list of task_ids) is returned
     :return: A list of task_objects or task_ids corresponding to the queries.
