@@ -1,6 +1,6 @@
 from app import db
 from app.models import Task
-from app.main import controller
+from app.search.search_utils import search_database
 from config import Config
 from flask import current_app
 import asyncio
@@ -9,19 +9,6 @@ import pandas as pd
 import requests
 from math import sqrt, isnan
 import random
-
-
-async def async_analysis(tasks):
-    """ Generate asyncio tasks and run them, returning when all tasks are done"""
-
-    # generates coroutines out of task obects
-    async_tasks = [UTILITY_MAP[task.task_parameters.get('utility')](task) for task in tasks]
-
-    # here tasks are actually executed asynchronously
-    # returns list of results *or* exceptions if a task fail
-    results = await asyncio.gather(*async_tasks, return_exceptions=True)
-    current_app.logger.info("Tasks finished, returning results")
-    return results
 
 
 class AnalysisUtility(object):
@@ -37,29 +24,14 @@ class AnalysisUtility(object):
             'error': 'This utility has not yet been implemented'
         }
 
-    # TODO: Now the toolchain generation simply searches backwards from the final tool, this needs to be improved to a
-    #       proper graph search in the future
-    async def get_input_task(self, task):
+    def get_input_task(self, task):
         input_task_uuid = task.task_parameters.get('target_uuid')
         if input_task_uuid:
             input_task = Task.query.filter_by(uuid=input_task_uuid).first()
             if input_task is None:
                 raise ValueError('Invalid target_uuid')
         else:
-            search_parameters = task.task_parameters.get('target_search')
-            if search_parameters is None:
-                return None
-            source_utilities = [key for key, value in UTILITY_MAP.items() if key != self.utility_name
-                                and value.output_type == self.input_type]
-            if not source_utilities:
-                input_task = await controller.execute_async_tasks(user=task.user, queries=('search', search_parameters))
-            else:
-                # Copy the task parameters from the originating task, replacing the utility parameter with the
-                # correct value
-                task_parameters = task.task_parameters.copy()
-                task_parameters['utility'] = source_utilities[0]
-                input_task = await controller.execute_async_tasks(user=task.user, queries=('analysis', task_parameters),
-                                                                  parent_id=task.hist_parent_id)
+            input_task = None
         return input_task
 
     def get_description(self):
@@ -83,7 +55,7 @@ class ExtractFacets(AnalysisUtility):
 
     async def __call__(self, task):
         """ Extract all facet values found in the input data and the number of occurrences for each."""
-        input_task = await self.get_input_task(task)
+        input_task = self.get_input_task(task)
         task.hist_parent_id = input_task.uuid
         db.session.commit()
         input_data = input_task.task_result.result
@@ -138,7 +110,7 @@ class CommonFacetValues(AnalysisUtility):
         facet_name = task.task_parameters.get('facet_name', default_parameters['facet_name'])
         facet_name = Config.AVAILABLE_FACETS.get(facet_name, facet_name)
 
-        input_task = await self.get_input_task(task)
+        input_task = self.get_input_task(task)
         task.hist_parent_id = input_task.uuid
         db.session.commit()
 
@@ -166,37 +138,45 @@ class GenerateTimeSeries(AnalysisUtility):
                 'parameter_is_required': True
             }
         ]
-        self.input_type = 'time_split_query'
+        self.input_type = 'search'
         self.output_type = 'time_series'
 
-    async def __call__(self, task):
-        # TODO: Add parameter for imputting zeroes?
-        facet_name = task.task_parameters.get('facet_name')
+    async def __call__(self, query):
+        # TODO Add support for total document count
+
+        input_task = self.get_input_task(query)
+        input_data = input_task.task_result.result
+
+        facet_name = query.task_parameters.get('facet_name')
         facet_string = Config.AVAILABLE_FACETS.get(facet_name)
         if facet_string is None:
             raise TypeError("Facet not specified or specified facet not available in current database")
 
-        input_task = await self.get_input_task(task)
-        task.hist_parent_id = input_task.uuid
-        db.session.commit()
-        if input_task is None or input_task.task_status != 'finished':
-            raise TypeError("No task results available for analysis")
-
-        input_data = input_task.task_result.result
-        subquery_tasks = Task.query.filter(Task.uuid.in_(input_data)).all()
+        year_facet = Config.AVAILABLE_FACETS['PUB_YEAR']
+        for facet in input_data[Config.FACETS_KEY]:
+            if facet[Config.FACET_ID_KEY] == year_facet:
+                facet_values = [item['value'] for item in facet['items']]
+                break
+        else:
+            raise TypeError(
+                "Search results don't contain required facet {}".format(year_facet))
+        year_parameter_names = ['f[{}][]'.format(year_facet), 'range[{}][begin]'.format(year_facet), 'range[{}][end]'.format(year_facet)]
+        original_search = {key: value for key, value in input_task.task_parameters.items() if key not in year_parameter_names}
+        queries = [{'f[{}][]'.format(year_facet): item} for item in facet_values]
+        for query in queries:
+            query.update(original_search)
+        query_results = await search_database(queries)
         f_counts = []
-        for task in subquery_tasks:
-            if task.task_result is None:
-                current_app.logger.error('Empty task result in input for task_analysis')
+        for query, result in zip(queries, query_results):
+            if result is None:
+                current_app.logger.error('Empty query result in generate_time_series')
                 continue
-            task_result = task.task_result.result
-            year = task.task_parameters['f[{}][]'.format(Config.AVAILABLE_FACETS['PUB_YEAR'])]
-            total_hits = task_result['meta']['pages']['total_count']
-            for item in task_result[Config.FACETS_KEY]:
-                if item['id'] == facet_string and item['type'] == 'facet':
-                    f_counts.extend([[year, facet['attributes']['value'], facet['attributes']['hits'],
-                                      facet['attributes']['hits'] / total_hits] for facet in
-                                     item['attributes']['items']])
+            year = query['f[{}][]'.format(year_facet)]
+            total_hits = result['pages']['total_count']
+            for facet in result[Config.FACETS_KEY]:
+                if facet[Config.FACET_ID_KEY] == facet_string:
+                    f_counts.extend([[year, item['value'], item['hits'], item['hits'] / total_hits]
+                                     for item in facet['items']])
                     break
             # TODO: count the number of items with no value defined for the desired facet
         df = pd.DataFrame(f_counts, columns=['year', facet_name, 'count', 'rel_count'])
@@ -207,49 +187,6 @@ class GenerateTimeSeries(AnalysisUtility):
             'relative_counts': rel_counts.to_dict(orient='index')
         }
         return analysis_results
-
-
-class SplitDocumentSetByFacet(AnalysisUtility):
-    def __init__(self):
-        super(SplitDocumentSetByFacet, self).__init__()
-        self.utility_name = 'split_document_set_by_facet'
-        self.utility_description = ''
-        self.utility_parameters = [
-            {
-                'parameter_name': 'facet_name',
-                'parameter_description': 'Not yet written',
-                'parameter_type': 'string',
-                'parameter_default': None,
-                'parameter_is_required': True
-            }
-        ]
-        self.input_type = 'search'
-        self.output_type = 'time_split_query'
-
-    async def __call__(self, task):
-        default_parameters = {
-            'split_facet': 'PUB_YEAR'
-        }
-        input_task = await self.get_input_task(task)
-        input_data = input_task.task_result.result
-        split_facet = task.task_parameters.get('split_facet', default_parameters['split_facet'])
-        for item in input_data[Config.FACETS_KEY]:
-            if item['id'] == Config.AVAILABLE_FACETS[split_facet] and item['type'] == 'facet':
-                facet_totals = [(facet['attributes']['value'], facet['attributes']['hits']) for facet in
-                                item['attributes']['items']]
-                break
-        else:
-            raise TypeError(
-                "Search results don't contain required facet {}".format(Config.AVAILABLE_FACETS[split_facet]))
-        facet_totals.sort()
-        original_search = input_task.task_parameters
-        queries = [{'f[{}][]'.format(Config.AVAILABLE_FACETS[split_facet]): item[0]} for item in facet_totals]
-        for query in queries:
-            query.update(original_search)
-        queries = [('search', query) for query in queries]
-        task_ids = await controller.execute_async_tasks(user=task.user, queries=queries, return_tasks=False,
-                                                        parent_id=input_task.uuid)
-        return [str(task_id) for task_id in task_ids]
 
 
 class FindStepsFromTimeSeries(AnalysisUtility):
@@ -283,7 +220,7 @@ class FindStepsFromTimeSeries(AnalysisUtility):
 
             # looks for tasks to be done before this one
             # TODO: avoid it, will be done by Planner
-            input_task = await self.get_input_task(task)
+            input_task = self.get_input_task(task)
             task.hist_parent_id = input_task.uuid
             db.session.commit()
             if input_task is None or input_task.task_status != 'finished':
@@ -297,6 +234,7 @@ class FindStepsFromTimeSeries(AnalysisUtility):
             idx = np.arange(index_start, index_end + 1)
             input_data = input_data.reindex(idx, fill_value=0)
         else:
+            column_name = None
             input_data = task
             step_threshold = None
         steps = {}
@@ -483,45 +421,15 @@ class FindStepsFromTimeSeries(AnalysisUtility):
         return step_sizes, step_error
 
 
-# TODO: planner plans the task according to the task dependencies tree
-#  Later on this will become an investigator
-class Planner(AnalysisUtility):
-    def __init__(self):
-        super(Planner, self).__init__()
-        self.utility_name = None
-        self.utility_description = None
-        self.utility_parameters = None
-        self.input_type = None
-        self.output_type = None
-
-    async def __call__(self, task):
-        results = []
-        while not self.satisfied(results):
-            research_plan = self.plan_the_research(task, results)
-            results = await async_analysis(research_plan)
-
-        return {
-            'error': 'This utility has not yet been implemented'
-        }
-
-    @staticmethod
-    def satisfied(task, results):
-        return True
-
-    @staticmethod
-    def plan_the_research(task, results):
-        return []  # return a list of new tasks
-
-
 class CompareDocumentSets(AnalysisUtility):
     async def __call__(self, task):
-        input_task = await self.get_input_task(task)
+        input_task = self.get_input_task(task)
         input_data = input_task.task_result.result
 
 
 class WordCount(AnalysisUtility):
     async def __call__(self, task):
-        input_task = await self.get_input_task(task)
+        input_task = self.get_input_task(task)
         input_data = input_task.task_result.result
         word_counts = self.do_magic(input_data)
         return word_counts
@@ -545,7 +453,7 @@ class ExtractDocumentIds(AnalysisUtility):
         if demo_documents:
             return [random.randint(0, 9458) for i in range(demo_documents)]
         else:
-            input_task = await self.get_input_task(task)
+            input_task = self.get_input_task(task)
             task.hist_parent_id = input_task.uuid
             db.session.commit()
             input_data = input_task.task_result.result
@@ -585,7 +493,7 @@ class QueryTopicModel(AnalysisUtility):
         if model_name is None:
             available_models = self.request_topic_models(model_type)
             model_name = available_models[0]['name']
-        input_task = await self.get_input_task(task)
+        input_task = self.get_input_task(task)
         db.session.commit()
         payload = {
             'model': model_name,
@@ -614,7 +522,6 @@ UTILITY_MAP = {
     'extract_facets': ExtractFacets(),
     'common_facet_values': CommonFacetValues(),
     'generate_time_series': GenerateTimeSeries(),
-    'split_document_set_by_facet': SplitDocumentSetByFacet(),
     'find_steps_from_time_series': FindStepsFromTimeSeries(),
     'extract_document_ids': ExtractDocumentIds(),
     'query_topic_model': QueryTopicModel(),
