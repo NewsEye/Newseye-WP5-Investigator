@@ -8,7 +8,10 @@ import numpy as np
 import pandas as pd
 import requests
 from math import sqrt, isnan
+from app.analysis import assessment, timeseries
+from operator import itemgetter
 import random
+from main.db_utils import load_corpus_from_pickle
 
 
 class AnalysisUtility(object):
@@ -24,7 +27,8 @@ class AnalysisUtility(object):
             'error': 'This utility has not yet been implemented'
         }
 
-    def get_input_task(self, task):
+    @staticmethod
+    def get_input_task(task):
         input_task_uuid = task.task_parameters.get('target_uuid')
         if input_task_uuid:
             input_task = Task.query.filter_by(uuid=input_task_uuid).first()
@@ -518,6 +522,109 @@ class QueryTopicModel(AnalysisUtility):
         return response.json()
 
 
+class LemmaFrequencyTimeseries(AnalysisUtility):
+    def __init__(self):
+        super(LemmaFrequencyTimeseries, self).__init__()
+        self.utility_name = 'lemma_frequency_timeseries'
+        self.utility_description = ''
+        self.utility_parameters = [
+            {
+                'parameter_name': 'corpus_filename',
+                'parameter_description': 'File where the corpus is pickled',
+                'parameter_type': 'string',
+                'parameter_default': None,
+                'parameter_is_required': True
+            },
+            {
+                'parameter_name': 'word',
+                'parameter_description': 'Word to be analysed',
+                'parameter_type': 'string',
+                'parameter_default': None,
+                'parameter_is_required': True
+            },
+            {
+                'parameter_name': 'word_type',
+                'parameter_description': "'lemma' or 'token",
+                'parameter_type': 'string',
+                'parameter_default': None,
+                'parameter_is_required': True
+            }
+        ]
+        self.input_type = 'corpus'
+        self.output_type = 'timeseries'
+
+    async def __call__(self, task):
+        filename, word, word_type = itemgetter('corpus_filename', 'word', 'word_type')(task.task_parameters)
+        corpus = load_corpus_from_pickle(filename)
+        if corpus is None:
+            return None
+        ts, ts_ipm = corpus.timeseries(word_type, 'year', word_list=[word])
+
+        return {'absolute_counts': ts, 'relative_counts': ts_ipm}
+
+
+class AnalyseLemmaFrequency(AnalysisUtility):
+    def __init__(self):
+        super(AnalyseLemmaFrequency, self).__init__()
+        self.utility_name = 'analyse_lemma_frequency'
+        self.utility_description = ''
+        self.utility_parameters = [
+            {
+                'parameter_name': 'corpus_filename',
+                'parameter_description': 'File where the corpus is pickled',
+                'parameter_type': 'string',
+                'parameter_default': None,
+                'parameter_is_required': True
+            },
+            {
+                'parameter_name': 'word',
+                'parameter_description': 'Word to be analysed',
+                'parameter_type': 'string',
+                'parameter_default': None,
+                'parameter_is_required': True
+            },
+            {
+                'parameter_name': 'suffix',
+                'parameter_description': 'Suffix used for comparison',
+                'parameter_type': 'string',
+                'parameter_default': None,
+                'parameter_is_required': True
+            }
+        ]
+        self.input_type = None
+        self.output_type = 'something_cool'
+
+    async def __call__(self, task):
+        filename, word, suffix = itemgetter('corpus_filename', 'word', 'suffix')(task.task_parameters)
+        corpus = load_corpus_from_pickle(filename)
+        if corpus is None:
+            return None
+        group = corpus.find_lemmas_by_suffix(suffix)
+        counts = {w: len(corpus.lemma_to_docids[w]) for w in group}
+        print("Words with suffix '%s', sorted by count:" % suffix)
+        for (w, c) in sorted(counts.items(), key=lambda x: x[1], reverse=True):
+            print(w, c)
+
+        wfr = timeseries.compare_word_to_group(corpus, word, group)
+
+        ts, ts_ipm = corpus.timeseries('lemma', 'month')
+
+        group_ts = timeseries.sum_up({w: ts[w] for w in group})
+        group_ts_ipm = timeseries.sum_up({w: ts_ipm[w] for w in group})
+
+        print("'%s': averaged count %3.2f, averaged relative count (ipm) %3.2f" %
+              (word, np.mean(list(ts[word].values())), np.mean(list(ts_ipm[word].values()))))
+        print("'%s': averaged count %3.2f, averaged relative count (ipm) %3.2f" %
+              (suffix, np.mean(list(group_ts.values())), np.mean(list(group_ts_ipm.values()))))
+
+        spikes = assessment.find_large_numbers(wfr)
+        print("Potentially interesting dates:")
+        for k in sorted(spikes, key=spikes.get, reverse=True):
+            print("%s: '%s': %d (%2.2f ipm), '%s': %d (%2.2f ipm)" %
+                  (k, word, ts[word][k], ts_ipm[word][k], suffix, group_ts[k], group_ts_ipm[k]))
+        return {'wfr': wfr, 'ts': ts, 'ts_ipm': ts_ipm, 'spikes': spikes}
+
+
 UTILITY_MAP = {
     'extract_facets': ExtractFacets(),
     'common_facet_values': CommonFacetValues(),
@@ -525,4 +632,6 @@ UTILITY_MAP = {
     'find_steps_from_time_series': FindStepsFromTimeSeries(),
     'extract_document_ids': ExtractDocumentIds(),
     'query_topic_model': QueryTopicModel(),
+    'lemma_frequency_timeseries': LemmaFrequencyTimeseries(),
+    'analyse_lemma_frequency': AnalyseLemmaFrequency(),
 }
