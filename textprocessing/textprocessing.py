@@ -1,295 +1,17 @@
 import os, sys
+from collections import defaultdict
+from pytrie import StringTrie as Trie
+from progress import ProgressBar
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from shelltools import search
-from collections import defaultdict
-
-from uralicNLP import uralicApi
-
-if not any(os.path.exists(p) for p in uralicApi.__model_base_folders()):
-    # download models locally, only once for each machine
-    uralicApi.download("fin")
-from uralicNLP.cg3 import Cg3
-
-from polyglot.text import Text
-from pytrie import StringTrie as Trie
-import string
-from progress import ProgressBar
-import warnings
-
-warnings.filterwarnings("ignore")
-
-import textract
-import re
-
-
-class TextProcessor(object):
-    # DEFAULT PROCESSOR
-    def __init__(self):
-        self.output_lemmas = False
-        # this should remove OCR bugs but would skip "legal" punctuation also
-        # might be insufficient
-        self.remove = string.punctuation + '—»■„™®«§£•€□►▼♦“»★✓❖’▲°©‘*®'
-        self.token_to_lemma = {}
-        self.skip_item = {}
-
-    def preprocess(self, text):
-        # any low-level preprocessing (e.g. fixing hyphenations)
-        return text
-
-    def get_sentences(self, text):
-        # useful feature, should be used in analytical tools
-        # but only when ATR is working properly
-        try:
-            return Text(self.preprocess(text)).sentences
-        except Exception as e:
-            # polyglot crashes with broken utf ('pycld2.error:')
-            return Text(self.preprocess(
-                # remove non-printable symbols
-                ''.join(x for x in self.preprocess(text) if x.isprintable()))
-            ).sentences
-
-    def get_tokens(self, sentence):
-        # default relies on tokenization from polyglot package
-        return sentence.tokens
-
-    def get_lemmas(self, tokens):
-        # depending on language, some processors may take as an input
-        # tokens, some -- raw text
-        # will fix when(if) we have more text processors
-        if self.output_lemmas:
-            return [self._get_lemma(t) for t in tokens]
-        return []
-
-    def _get_lemma(self, token):
-        # ensures that processing is called for each string only once, to make it faster
-        try:
-            return self.token_to_lemma[token]
-        except KeyError:
-            self.token_to_lemma[token] = self.get_lemma(token)
-            return self.token_to_lemma[token]
-
-    def get_lemma(self, token):
-        # language-specific processing
-        pass
-
-    def skipitem(self, item):
-        if item not in self.skip_item:
-            # remove items that don't look like human language
-            # may add more filters here in the future
-            if len(item) < 2:
-                self.skip_item[item] = True
-            elif any(char.isdigit() for char in item):
-                self.skip_item[item] = True
-            elif any(char in self.remove for char in item):
-                self.skip_item[item] = True
-            else:
-                self.skip_item[item] = False
-        return self.skip_item[item]
-
-    def dismiss(self):
-        # textprocessing is finished, no need to keep token_to_lemma dict in memory
-        # this dict is huge
-        self.token_to_lemma = {}
-
-
-class FrProcessor(TextProcessor):
-    def __init__(self):
-        super(FrProcessor, self).__init__()
-        self.output_lemmas = True
-        self.remove = self.remove.replace("'", "")  # important symbol for French
-
-    def get_lemma(self, token):
-        # that's not actually lemmatisation, just trying to map together words with/without articles
-        # e.g. "antagonisme", "d'antagonisme", "l'antagonisme"
-        return token.replace("l'", "").replace("d'", "")
-
-
-class FinProcessor(TextProcessor):
-    # simplest lemmatization for Finnish; slow and non-accurate
-    # TODO: replace with processing tools that Mark is using 
-    # run in parallel
-    def __init__(self):
-        super(FinProcessor, self).__init__()
-        # constraint grammar for disambiguation
-        self.output_lemmas = True
-
-    def preprocess(self, text):
-        return text.translate(str.maketrans('wW', 'vV'))
-
-    def get_lemma(self, token):
-        readings = uralicApi.lemmatize(token, "fin")
-        if readings:
-            # just get the first one, no disambiguation
-            return readings[0]
-        else:
-            # no readings for oov words
-            return token
-
-
-class FinProcessor_CG3(TextProcessor):
-    # incredibly slow
-    # ETR 20 days, 3:40:50
-    def __init__(self):
-        super(FinProcessor, self).__init__()
-        # constraint grammar for disambiguation
-        self.cg = Cg3("fin")
-        self.output_lemmas = True
-
-    def preprocess(self, text):
-        return text.translate(str.maketrans('wW', 'vV'))
-
-    def get_lemmas(self, tokens):
-        # process the whole sentence, rather than single token, because
-        # relies on Constraint Grammar for disambiguation
-
-        lemmas = []
-
-        for output in self.cg.disambiguate(tokens):
-
-            if len(output[1]) == 1:
-                # trivial case, no ambiguity
-                lemmas.append(output[1][0].lemma)
-            else:
-                # more than one reading
-                readings = [r for r in output[1]]
-                if readings[0].morphology[-1] == 'Cmpnd' and readings[1].lemma.startswith('"'):
-                    # compounds, example:
-                    # >>> cg.disambiguate(['presidenttivaaleissa'])
-                    # [('presidenttivaaleissa', [<vaalea - N, Pl, Ine, <W:0.000000>, Cmpnd>, <"presidentti - N, Sg, Nom, <W:0.000000>>, <vaali - N, Pl, Ine, <W:0.000000>, Cmpnd>, <"presidentti - N, Sg, Nom, <W:0.000000>>])]
-                    lemmas.append(readings[1].lemma[1:] + readings[0].lemma)
-                else:
-                    # ambiguity but no compounds, let's take the first one
-                    # TODO: make proper lemma selection---we might prefer
-                    # compounds if the end users have special iterest in compounds
-                    lemma = readings[0].lemma
-
-        return lemmas
-
-
-# class FinProcessor_Omorfi(TextProcessor):
-#     # omorfi version
-#     # requires omorfi to be installed
-#     def __init__(self):
-#         super(FinProcessor, self).__init__()
-#         self.output_lemmas = True
-#         self.analyser_path = os.path.abspath(os.path.join(os.path.dirname(__file__),
-#                                                           "../venv/share/omorfi/omorfi.describe.hfst"))
-#         self.omorfi = Omorfi()
-#         self.omorfi.load_analyser(self.analyser_path)
-#
-#     def get_tokens(self, text):
-#         # simple preprocessing (remove punctuation, replace 'w' with 'v')
-#         cleanup = str.maketrans('wW', 'vV', self.remove)
-#         return [t.surf.translate(cleanup) for t in self.omorfi.tokenise(text)]
-#
-#     def get_lemma(self, token):
-#         # omorfi may produce more than one analyses, lets get the last one (-1)
-#         # lemmas are lists, can be more than one lemma (compounds) --> join
-#         # TODO: make proper lemma selection---we might prefer
-#         #  compounds if the end users have special interest in compounds
-#         return "".join(self.omorfi.analyse(token)[-1].lemmas)
-
-
-LANG_PROCESSOR_MAP = defaultdict(TextProcessor, {'fr': FrProcessor(), 'fi': FinProcessor()})
-
-
-class Document(object):
-    def __init__(self, text_processor, lang_id=None):
-        self.doc_id = None
-        self.text = None
-        # self.doc_id = doc['id']
-        self.text_processor = text_processor
-
-    def get_tokens_and_lemmas(self):
-        try:
-            self.sentences = self.text_processor.get_sentences(self.text)
-        except Exception as e:
-            print(self.doc_id)
-            raise e
-
-        self.tokens = []
-        self.lemmas = []
-        for sentence in self.sentences:
-            tokens = self.text_processor.get_tokens(sentence)
-            self.tokens += tokens
-            self.lemmas += self.text_processor.get_lemmas(tokens)
-
-    def iter_tokens(self):
-        for t in self.tokens:
-            if not self.text_processor.skipitem(t):
-                yield t
-
-    def iter_lemmas(self, lowercase=True):
-        for l in self.lemmas:
-            if not self.text_processor.skipitem(l):
-                if lowercase:
-                    yield l.lower()
-                else:
-                    yield l
-
-
-class Document_Format1(Document):
-    def __init__(self, title_line, text, text_processor, lang_id=None, process=True):
-        self.doc_id = title_line.strip().replace('-', '').replace(' ', '_')
-        self.lang_id = lang_id
-        self.text_processor = text_processor
-
-        self.text = text
-
-        date = title_line.split('-')[1].strip()
-        self.date = [date[:4], date[4:6], date[6:]]
-
-        if process:
-            self.get_tokens_and_lemmas()
-
-
-class Document_Format2(Document):
-    month_to_number_map = {'September': '09', 'Oktober': '10'}
-
-    def __init__(self, filename, text, text_processor, lang_id=None, process=True):
-        filename = filename.replace('.txt', '')
-        self.doc_id = filename.replace(' ', '_')
-        self.lang_id = lang_id
-        self.text_processor = text_processor
-        self.text = text
-
-        date = filename.split(',')[1].strip().split(' ')
-        self.date = [date[2], self.month_to_number_map[date[1]], date[0].replace('.', '')]
-        if process:
-            self.get_tokens_and_lemmas()
-
-
-class Document_DB(Document):
-    def __init__(self, doc, text_processor, lang_id=None, process=True):
-        self.doc_id = doc['id']
-        self.lang_id = lang_id or doc['language_ssi']
-        self.text_processor = text_processor
-
-        text_field = 'all_text_t' + self.lang_id + '_siv'  # e.g. 'all_text_tfr_siv',
-        # don't know what it mean,
-        # let's hope it won't change
-        self.text = doc[text_field]
-
-        if not self.text:
-            # empty document, useless
-            print("Empty document %s" % self.doc_id)
-
-        else:
-            # dates are lists of strings in format 'yyyy-mm-dd-'
-            # why lists, could it be more than one date for a document???
-            # lets take the first
-            self.date = doc['date_created_ssim'][0].strip().split('-')
-            if process:
-                self.get_tokens_and_lemmas()
 
 
 class Corpus(object):
 
-    def __init__(self, lang_id, debug_count=10e100, verbose=True, input_dir=None, input_format=None):
+    def __init__(self, lang_id, verbose=True, input_dir=None, input_format=None):
         self.lang_id = lang_id
-        self.text_processor = LANG_PROCESSOR_MAP[lang_id]
-        self.DEBUG_COUNT = debug_count  # limits number of documents
+        # self.text_processor = LANG_PROCESSOR_MAP[lang_id]
+        # self.DEBUG_COUNT = debug_count  # limits number of documents
         self.verbose = verbose
 
         self.input_dir = input_dir
@@ -322,141 +44,17 @@ class Corpus(object):
         self.target_query = {'f[language_ssi][]': self.lang_id}
         self.target_query.update(query)
 
-    def loop_db(self, per_page=100, force_refresh=False):
-        # 100 is a maximum number of documents per page allowed through web interface
-        # currently relies on shelltools
-        # TODO: integrate into main processing
-        # TODO: run in parallel (in future, for really big corpora)
-        page = 1
-
-        pb = ProgressBar("Loop DB", verbose=self.verbose)
-        query = {'per_page': per_page}
-        query.update(self.target_query)
-        if force_refresh:
-            query.update({'force_refresh': 'T'})
-        while True:
-            query.update({'page': page})
-            task = search(query)
-            docs = task.task_result.result['docs']
-
-            try:
-                pb.total = min(task.task_result.result['pages']['total_count'], self.DEBUG_COUNT)
-            except KeyError:
-                pass
-
-            for doc in docs:
-                pb.next()
-                yield doc
-
-            if task.task_result.result['pages']['last_page?']:
-                break
-            page += 1
-        pb.end()
-
-    def download_db(self):
-        # dummy function for initial download
-        # after running that all data will be in the local db
-        for d in self.loop_db(force_refresh=True):
-            pass
-
-    def readin_docs(self, process=True):
-        if self.input_dir:
-            for doc in self.read_from_dir(process=process):
-                yield (doc)
-        else:
-            # read from db
-            for d in self.loop_db():
-                doc = Document_DB(d, self.text_processor, self.lang_id, process=process)
-                yield (doc)
-
-    def read_from_dir(self, process=True):
-        # this function is done during hackathon to load quickly some small data
-        # if loading from files become a common practice we'll make a cleaner solution
-
-        if self.input_format == 1:
-            pb = ProgressBar("Reading %s" % self.input_dir)
-            for f in os.listdir(self.input_dir):
-                text = ''
-                title_line = None
-                if os.path.splitext(f)[1] == ".docx":
-                    pb.next()
-                    text = textract.process(os.path.join(self.input_dir, f)).decode("utf-8")
-                    for line in text.split('\n'):
-                        if re.search('\d{8}', line):
-                            if title_line:
-                                doc = Document_Format1(title_line,
-                                                       text,
-                                                       self.text_processor,
-                                                       self.lang_id,
-                                                       process)
-                                yield (doc)
-                            title_line = line
-                            text = ''
-                        else:
-                            text += line
-                    if title_line:
-                        # the last document within a file
-                        doc = Document_Format1(title_line,
-                                               text,
-                                               self.text_processor,
-                                               self.lang_id,
-                                               process)
-                        yield (doc)
-            pb.end()
-
-        elif self.input_format == 2:
-            pb = ProgressBar("Reading %s" % self.input_dir)
-            for f in os.listdir(self.input_dir):
-                with open(os.path.join(self.input_dir, f), 'rb') as inp:
-                    text = inp.read().decode(errors='ignore')
-                yield Document_Format2(f, text, self.text_processor, self.lang_id, process)
-                pb.next()
-            pb.end()
-
-        else:
-            raise NotImplementedError("Unknown format %s" % self.input_format)
-
-    # TODO: slow, should be a separate task with results (indexes) stored in db
-    # TODO: run in parallel
-    def build_indexes(self):
-
-        # build only once
-        if self.docid_to_date:
-            return
-
-        doc_count = 0
-        for doc in self.readin_docs():
-
-            if not doc.text:
-                print("Doc without text")
-                continue
-
-            self.docid_to_date[doc.doc_id] = doc.date
-
-            for token in doc.iter_tokens():
-                self.token_to_docids[token].append(doc.doc_id)
-
-            for lemma in doc.iter_lemmas():
-                self.lemma_to_docids[lemma].append(doc.doc_id)
-
-            doc_count += 1
-
-            if doc_count == self.DEBUG_COUNT:
-                break
-
-        self.text_processor.dismiss()
-
     def find_word_to_doc_dict(self, item):
         if item == "token":
             return self.token_to_docids
         elif item == "lemma":
-            if not self.text_processor.output_lemmas:
+            if not self.lemma_to_docids:
                 raise NotImplementedError("Lemmas are not available for %s." % self.lang_id.upper())
             return self.lemma_to_docids
         else:
             raise ValueError("item must be token or lemma")
 
-    # TIMESERIES    
+    # TIMESERIES
     def timeseries(self, item="token", granularity="year", min_count=10, word_list=None):
         if not (item in self._timeseries and granularity in self._timeseries[item]):
             self.build_timeseries(item=item, granularity=granularity, min_count=min_count)
@@ -494,10 +92,8 @@ class Corpus(object):
         word_to_docids = self.find_word_to_doc_dict(item)
 
         if not self.docid_to_date:
-            # TODO: build_indexes will be a separate task
-            # the general controlling mechanism will take care that it has been done
-            print("Indexes are not ready, building indexes...")
-            self.build_indexes()
+            print("Invalid corpus: required indexes are missing")
+            return
 
         # timeseries are faster to build but probably we would need to store them in self variables and reuse
         total = defaultdict(int)
@@ -520,7 +116,7 @@ class Corpus(object):
 
         # need both ts and total, since total takes
         # into account everything, including items that are less
-        # frequent than min_count        
+        # frequent than min_count
         self._timeseries[item][granularity][min_count] = timeseries
         self._timeseries[item][granularity]['total'] = total
 
@@ -529,59 +125,6 @@ class Corpus(object):
     @staticmethod
     def make_counts(w_to_docids, min_count):
         return {k: len(v) for k, v in w_to_docids.items() if len(v) >= min_count}
-
-    def build_bi_indexes(self, token_min_count=10, lemma_min_count=10, force=False):
-        # disclaimer: function implemented during hackathon, might need improvement
-
-        if self.token_bi_to_docids:
-            if force:
-                # clean up the dictionary, otherwise appending may distort computations
-                self.token_bi_to_docids = defaultdict(list)
-            else:
-                return
-
-        if not self.token_to_docids:
-            print("Need to build main indexes first")
-            self.build_indexes()
-
-        lemma_counts = self.make_counts(self.lemma_to_docids, lemma_min_count)
-        token_counts = self.make_counts(self.token_to_docids, token_min_count)
-
-        for doc in self.readin_docs():
-            # now we start loop through documents ones again and
-            # *procces* them once again looping is fine---no way to
-            # store the corpus in memory---but processing is not fine
-            # later on we should loop through lemmatized documents and
-            # ensure processing them only once
-            # during hackathon we use it for German, without lemmatization
-
-            for t1, t2 in zip(doc.tokens[:-1], doc.tokens[1:]):
-                if t1 in token_counts and t2 in token_counts:
-                    self.token_bi_to_docids[(t1, t2)].append(doc.doc_id)
-
-            for l1, l2 in zip(doc.lemmas[:-1], doc.lemmas[1:]):
-                if l1 in lemma_counts and l2 in lemma_counts:
-                    self.lemma_bi_to_docids[(l1, l2)].append(doc.doc_id)
-
-    # SUFFIX/PREFIX SEARCH
-    @staticmethod
-    def build_tries_from_dict(item_to_doc, min_count):
-        prefix_trie = Trie({item: None for item in item_to_doc.keys() if len(item_to_doc[item]) >= min_count})
-        suffix_trie = Trie({item[::-1]: None for item in prefix_trie.keys()})
-        return prefix_trie, suffix_trie
-
-    def build_substring_structures(self, token_min_count=10, lemma_min_count=10):
-        if not self.token_to_docids:
-            print("Need to build main indexes first")
-            self.build_indexes()
-
-        print("Building prefix/suffix search structures")
-
-        # Tries are slow so we build indexes first and use frequency threshold to store only most frequent tokens
-        self.prefix_token_vocabulary, self.suffix_token_vocabulary = \
-            self.build_tries_from_dict(self.token_to_docids, token_min_count)
-        self.prefix_lemma_vocabulary, self.suffix_lemma_vocabulary = \
-            self.build_tries_from_dict(self.lemma_to_docids, lemma_min_count)
 
     def find_tokens_by_prefix(self, prefix):
         return self.prefix_token_vocabulary.keys(prefix=prefix)
@@ -615,8 +158,8 @@ class Corpus(object):
         try:
             assert (group)
         except:
-            self.build_substring_structures()
-            group = self._find_group_by_affix(affix, item)
+            print("Invalid corpus: required indexes are missing")
+            return None
 
         if not group:
             print("Group is empty, nothing found")
