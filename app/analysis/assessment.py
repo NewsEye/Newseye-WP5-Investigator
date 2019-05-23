@@ -71,9 +71,7 @@ def align_dicts(dict1, dict2, default_value=0.0):
     align_dicts_from_to(dict2, dict1, default_value)
 
 def frequency_ratio(dict1, dict2):
-    # do not try other smoothing factors here, this is just to avoid zero-division
-    # to take evidence into account there is the next function, weighted_frequency_ratio
-    align_dicts(dict1, dict2, EPSILON)
+    # align_dicts(dict1, dict2, EPSILON)  # seems that alignment is always done outside this function with some special precaution 
     return {k:float(dict1[k])/dict2[k] for k in dict1.keys()}
     
 def weighted_frequency_ratio(dict1, dict2, weights=None, weight_func=np.log10): 
@@ -85,7 +83,10 @@ def weighted_frequency_ratio(dict1, dict2, weights=None, weight_func=np.log10):
     if not weights:
         weights = dict2
     fr = frequency_ratio(dict1, dict2)
-    return {k:fr[k]*weight_func(weights[k]) for k in dict1.keys()}  
+    # wfr = (fr - 1) * weight + 1
+    # fr = 1 is a neutral value, thus (fr - 1) for that cases would be zero
+    # and not magnified by weighting
+    return {k:((fr[k]-1)*weight_func(weights[k])+1) for k in dict1.keys()}  
 
 def find_large_numbers(data, coefficient=2):
     # dummy function, most probably will be replaced with something more clever

@@ -3,6 +3,7 @@ from collections import defaultdict
 from pytrie import StringTrie as Trie
 from progress import ProgressBar
 
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 
@@ -14,6 +15,7 @@ class Corpus(object):
         # self.DEBUG_COUNT = debug_count  # limits number of documents
         self.verbose = verbose
 
+        # for loading from files
         self.input_dir = input_dir
         self.input_format = input_format
 
@@ -26,7 +28,8 @@ class Corpus(object):
 
         self.token_to_docids = defaultdict(list)
         self.lemma_to_docids = defaultdict(list)
-
+    
+        
         # bigrams
         self.token_bi_to_docids = defaultdict(list)
         self.lemma_bi_to_docids = defaultdict(list)
@@ -43,6 +46,7 @@ class Corpus(object):
     def set_target_query(self, query):
         self.target_query = {'f[language_ssi][]': self.lang_id}
         self.target_query.update(query)
+
 
     def find_word_to_doc_dict(self, item):
         item, *ngram = item.split('-')
@@ -130,11 +134,28 @@ class Corpus(object):
         self._timeseries[item][granularity][min_count] = timeseries
         self._timeseries[item][granularity]['total'] = total
 
-    # BIGRAMS
+    # TF_IDF
 
     @staticmethod
+    def make_doc_counts(w_to_docids, min_count=0):
+        return {k:len(set(v)) for k,v in w_to_docids.items() if len(v) >= min_count}
+
+    @staticmethod
+
     def make_counts(w_to_docids, min_count):
         return {k: len(v) for k, v in w_to_docids.items() if len(v) >= min_count}
+
+    def token_tf(self):
+        return self.make_counts(self.token_to_docids)
+
+    def lemma_tf(self):
+        return self.make_counts(self.lemma_to_docids)
+
+    def token_df(self):
+        return self.make_doc_counts(self.token_to_docids)
+
+    def lemma_df(self):
+        return self.make_doc_counts(self.lemma_to_docids)
 
     def find_tokens_by_prefix(self, prefix):
         return self.prefix_token_vocabulary.keys(prefix=prefix)
