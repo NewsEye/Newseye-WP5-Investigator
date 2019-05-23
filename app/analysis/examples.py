@@ -292,6 +292,45 @@ def plot_wavelets(keyword, corpus=None, df=None):
     f.show()
 
 
+def plot_step_locations(keyword, corpus=None, df=None):
+    prod, steps, step_sizes = step_analysis(keyword, corpus=corpus, df=df)
+    if corpus:
+        ts, ts_ipm = corpus.timeseries(word_list=[keyword])
+        df = pd.DataFrame(ts_ipm)
+        df.index = pd.to_numeric(df.index)
+        index_start = df.index.min()
+        index_end = df.index.max()
+        idx = np.arange(index_start, index_end + 1)
+        df = df.reindex(idx, fill_value=0)
+    if df is None:
+        return
+    idx = df.index
+    threshold = 4 * np.var(prod)
+    estimate = np.zeros(len(idx))
+    for i, s in enumerate(steps):
+        sizes = step_sizes[0][i]
+        estimate[s:] += sizes[1] - sizes[0]
+    f, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
+    ax1.plot(idx, df[keyword], c='gray')
+    for i in range(len(prod) - 1):
+        if prod[i] > threshold:
+            ax1.plot(idx[i: i + 2], df[keyword][i: i + 2], c='green', )
+    for i in range(len(prod) - 1):
+        if prod[i] < -threshold:
+            ax1.plot(idx[i: i + 2], df[keyword][i: i + 2], c='red')
+    ax1.set_title('Word frequencies and detected steps for {}'.format(keyword))
+    ax2.plot(idx, prod, c='gray')
+    for i in range(len(prod) - 1):
+        if prod[i + 1] > threshold or (prod[i] > threshold and prod[i + 1] > -threshold):
+            ax2.plot(idx[i: i+2], prod[i: i+2], c='green')
+    for i in range(len(prod) - 1):
+        if prod[i + 1] < -threshold or (prod[i] < -threshold and prod[i + 1] < threshold):
+            ax2.plot(idx[i: i+2], prod[i: i+2], c='red')
+    ax2.hlines(threshold, idx[0], idx[-1], color='green')
+    ax2.hlines(-threshold, idx[0], idx[-1], color='red')
+    f.show()
+
+
 def plot_estimate(keyword, corpus=None, df=None):
     prod, steps, step_sizes = step_analysis(keyword, corpus=corpus, df=df)
     if corpus:
@@ -320,21 +359,33 @@ def plot_estimate(keyword, corpus=None, df=None):
     return estimate
 
 
-def research_lemma_steps(corpus, verbose=True, num_lemmas=None):
-    pb = ProgressBar("Research lemmas", verbose=verbose)
-    lemmas = [(key, len(docids)) for key, docids in corpus.lemma_to_docids.items()]
-    lemmas.sort(key=lambda x: x[1], reverse=True)
-    if num_lemmas:
-        lemmas = lemmas[:num_lemmas]
-    pb.total = len(lemmas)
+def research_steps(corpus, verbose=True, num_items=None, item='lemma'):
+    ts, ts_ipm = corpus.timeseries(item=item)
+    df = pd.DataFrame(ts_ipm)
+    df.index = pd.to_numeric(df.index)
+    index_start = df.index.min()
+    index_end = df.index.max()
+    idx = np.arange(index_start, index_end + 1)
+    df = df.reindex(idx, fill_value=0)
+    pb = ProgressBar("Research {}s".format(item), verbose=verbose)
+    if item == 'lemma':
+        items = [(key, len(docids)) for key, docids in corpus.lemma_to_docids.items()]
+    elif item == 'token':
+        items = [(key, len(docids)) for key, docids in corpus.token_to_docids.items()]
+    else:
+        return None
+    items.sort(key=lambda x: x[1], reverse=True)
+    if num_items:
+        items = items[:num_items]
+    pb.total = len(items)
     steps_by_year = defaultdict(list)
-    for i, lemma in enumerate(lemmas):
+    for i, item in enumerate(items):
         pb.next()
         try:
-            _, steps, step_sizes = step_analysis(corpus, lemma[0])
+            _, steps, step_sizes = step_analysis(item[0], df=df)
         except ValueError:
             continue
-        steps_by_year[tuple(steps)].append(lemma[0])
+        steps_by_year[tuple(steps)].append(item[0])
     pb.end()
     return steps_by_year
 
