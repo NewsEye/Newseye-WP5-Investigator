@@ -1,8 +1,8 @@
 from app import db
 from app.main.db_utils import generate_tasks, store_results
 from app.models import Task
-from app.analysis.analysis_utils import UTILITY_MAP
 from app.search.search_utils import search_database
+from app.analysis import UTILITY_MAP
 from datetime import datetime
 from flask import current_app
 import asyncio

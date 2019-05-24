@@ -8,7 +8,6 @@ import numpy as np
 import pandas as pd
 import requests
 from app.analysis import assessment, timeseries
-from app.analysis.step_detection import FindStepsFromTimeSeries
 from operator import itemgetter
 import random
 from main.db_utils import load_corpus_from_pickle
@@ -391,15 +390,3 @@ class AnalyseLemmaFrequency(AnalysisUtility):
             print("%s: '%s': %d (%2.2f ipm), '%s': %d (%2.2f ipm)" %
                   (k, word, ts[word][k], ts_ipm[word][k], suffix, group_ts[k], group_ts_ipm[k]))
         return {'wfr': wfr, 'ts': ts, 'ts_ipm': ts_ipm, 'spikes': spikes}
-
-
-UTILITY_MAP = {
-    'extract_facets': ExtractFacets(),
-    'common_facet_values': CommonFacetValues(),
-    'generate_time_series': GenerateTimeSeries(),
-    'find_steps_from_time_series': FindStepsFromTimeSeries(),
-    'extract_document_ids': ExtractDocumentIds(),
-    'query_topic_model': QueryTopicModel(),
-    'lemma_frequency_timeseries': LemmaFrequencyTimeseries(),
-    'analyse_lemma_frequency': AnalyseLemmaFrequency(),
-}
