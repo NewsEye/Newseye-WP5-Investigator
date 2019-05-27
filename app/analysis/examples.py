@@ -276,7 +276,7 @@ def prepare_timeseries(ts, fill_na='interpolate'):
                     'zero': replace missing values with zeroes
                     'interpolate': use the pandas.Dataframe.interpolate(method='linear') for missing values inside
                     valid values and interpolate('pad') outside valid values
-    :return:
+    :return: two DataFrames. df contains the time series, filled_values shows which values were filled in
     """
     if fill_na not in ['none', 'interpolate', 'zero']:
         raise ValueError("Invalid value for parameter fill_na. Valid values are 'none', 'zero' and 'interpolate'")
@@ -296,13 +296,13 @@ def prepare_timeseries(ts, fill_na='interpolate'):
 
     idx = pd.date_range(start=df.index.min(), end=df.index.max(), freq=freq)
     df = df.reindex(idx)
-    filled_indices = df.isna
+    filled_values = df.isna
     if fill_na == 'zero':
         df = df.fillna(0)
     elif fill_na == 'interpolate':
         df = df.interpolate(limit_direction='both')
 
-    return df, filled_indices
+    return df, filled_values
 
 
 def plot_wavelets(keyword, corpus=None, df=None, item='lemma-1', fill_na='interpolate'):
