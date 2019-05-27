@@ -2,8 +2,11 @@ from datetime import datetime
 from sqlalchemy import UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 import uuid
+import jwt
+from jwt.exceptions import ExpiredSignatureError, InvalidSignatureError
 from flask_login import UserMixin
 from app import db, login
+from config import Config
 
 
 class User(UserMixin, db.Model):
@@ -143,9 +146,13 @@ def load_user(id):
 # User login using a Bearer Token, if it exists
 @login.request_loader
 def load_user_from_request(request):
-    username = request.headers.get('Authorization')
-    if username:
-        username = username.replace('Bearer ', '', 1)
-        user = User.query.filter_by(username=username).first()
+    token = request.headers.get('Authorization')
+    if token[:4] == 'JWT ':
+        token = token.replace('JWT ', '', 1)
+        try:
+            decoded = jwt.decode(token, Config.SECRET_KEY, algorithm='HS256')
+        except (ExpiredSignatureError, InvalidSignatureError):
+            return None
+        user = User.query.filter_by(username=decoded['username']).first()
         return user
     return None
