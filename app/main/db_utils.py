@@ -100,4 +100,12 @@ def load_corpus_from_pickle(filename):
         corpus.prefix_token_vocabulary = pickle.load(f)
     with open('{}_suffix_token_vocabulary.pickle'.format(picklepath + filename), 'rb') as f:
         corpus.suffix_token_vocabulary = pickle.load(f)
+    try:
+        with open('{}_token_bi_to_docids.pickle'.format(picklepath + filename), 'rb') as f:
+            corpus.token_bi_to_docids = pickle.load(f)
+        with open('{}_lemma_bi_to_docids.pickle'.format(picklepath + filename), 'rb') as f:
+            corpus.lemma_bi_to_docids = pickle.load(f)
+    except FileNotFoundError:
+        pass
+
     return corpus
