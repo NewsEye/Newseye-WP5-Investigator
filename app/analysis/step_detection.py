@@ -1,9 +1,9 @@
 import pandas as pd
 import numpy as np
 from math import sqrt, isnan
-from app import db
 
 from app.analysis.analysis_utils import AnalysisUtility
+
 
 class FindStepsFromTimeSeries(AnalysisUtility):
     def __init__(self):
@@ -29,30 +29,16 @@ class FindStepsFromTimeSeries(AnalysisUtility):
         self.input_type = 'time_series'
         self.output_type = 'step_list'
 
-    async def __call__(self, task, use_data=False):
-        if not use_data:
-            column_name = task.task_parameters.get('column_name')
-            step_threshold = task.task_parameters.get('step_threshold')
+    async def __call__(self, task):
+        column_name = task.task_parameters.get('column_name')
+        step_threshold = task.task_parameters.get('step_threshold')
 
-            # looks for tasks to be done before this one
-            # TODO: avoid it, will be done by Planner
-            input_task = self.get_input_task(task)
-            task.hist_parent_id = input_task.uuid
-            db.session.commit()
-            if input_task is None or input_task.task_status != 'finished':
-                raise TypeError("No task results available for analysis")
-            input_data = input_task.task_result.result
+        input_task = self.get_input_task(task)
+        if input_task is None or input_task.task_status != 'finished':
+            raise TypeError("No task results available for analysis")
+        input_data = input_task.task_result.result
 
-            input_data = pd.DataFrame(input_data['relative_counts'])
-            input_data.index = pd.to_numeric(input_data.index)
-            index_start = input_data.index.min()
-            index_end = input_data.index.max()
-            idx = np.arange(index_start, index_end + 1)
-            input_data = input_data.reindex(idx, fill_value=0)
-        else:
-            column_name = None
-            input_data = task
-            step_threshold = None
+        input_data, filled_in = self.prepare_timeseries(input_data['relative_counts'])
         steps = {}
         if column_name:
             columns = [column_name]
@@ -63,11 +49,49 @@ class FindStepsFromTimeSeries(AnalysisUtility):
             prod, _ = self.mz_fwt(data, 3)
             step_indices = self.find_steps(prod, step_threshold)
             step_sizes, errors = self.get_step_sizes(input_data[column], step_indices)
-            step_times = [int(input_data.index[idx]) for idx in step_indices]
+            step_times = [input_data.index[idx].year for idx in step_indices]
             steps[column] = list(zip(step_times, step_sizes, errors))
         # TODO: Fix output to match documentation
         # TODO: Implement interestingness values
         return steps
+
+    @staticmethod
+    def prepare_timeseries(ts, fill_na='interpolate'):
+        """
+        Prepares a time series in  a dictionary format into a pandas timeframe, adding missing values where necessary.
+        :param ts: a timeseries returned by Corpus.timeseries()
+        :param fill_na: method used for filling missing information. Different available options are:
+                        'none': do not fill missing values
+                        'zero': replace missing values with zeroes
+                        'interpolate': use the pandas.Dataframe.interpolate(method='linear') for missing values inside
+                        valid values and interpolate('pad') outside valid values
+        :return: two DataFrames. df contains the time series, filled_values shows which values were filled in
+        """
+        if fill_na not in ['none', 'interpolate', 'zero']:
+            raise ValueError("Invalid value for parameter fill_na. Valid values are 'none', 'zero' and 'interpolate'")
+        df = pd.DataFrame(ts)
+        first_date = df.index[0].split('-')
+        if len(first_date) == 1:
+            freq = 'AS'
+        elif len(first_date) == 2:
+            freq = 'MS'
+        elif len(first_date) == 3:
+            freq = 'D'
+        else:
+            raise ValueError('Invalid date format in the time series! Use YYYY or YYYY-MM or YYYY-MM-DD!')
+        df.index = pd.to_datetime(df.index)
+        if len(df.index) < 2:
+            return df
+
+        idx = pd.date_range(start=df.index.min(), end=df.index.max(), freq=freq)
+        df = df.reindex(idx)
+        filled_values = df.isna
+        if fill_na == 'zero':
+            df = df.fillna(0)
+        elif fill_na == 'interpolate':
+            df = df.interpolate(limit_direction='both')
+
+        return df, filled_values
 
     def mz_fwt(self, x, n=3):
         """
@@ -140,7 +164,7 @@ class FindStepsFromTimeSeries(AnalysisUtility):
         return out
 
     @staticmethod
-    def find_steps(array, threshold=None):
+    def find_steps(array, threshold=None, sd_threshold=2):
         """
         Based on the code at https://github.com/thomasbkahn/step-detect.
 
@@ -151,14 +175,17 @@ class FindStepsFromTimeSeries(AnalysisUtility):
         array : numpy array
             1 dimensional array that represents time series of data points
         threshold : int / float
-            Threshold value that defines a step. If no threshold value is specified, it is set to 2 standard deviations
+            Threshold value that defines a step. If no threshold value is specified, the sd_threshold parameter is used
+            instead.
+        sd_threshold : int
+            Threshold defined as standard deviations of the data.
         Returns
         -------
         steps : list
             List of indices of the detected steps
         """
         if threshold is None:
-            threshold = 4 * np.var(array)  # Use 2 standard deviations as the threshold
+            threshold = sd_threshold**2 * np.var(array)
         steps = []
         above_points = np.where(array > threshold, 1, 0)
         below_points = np.where(array < -threshold, 1, 0)
