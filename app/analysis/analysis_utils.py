@@ -10,7 +10,7 @@ import requests
 from app.analysis import assessment, timeseries
 from operator import itemgetter
 import random
-from main.db_utils import load_corpus_from_pickle
+from app.main.db_utils import load_corpus_from_pickle
 
 
 class AnalysisUtility(object):
