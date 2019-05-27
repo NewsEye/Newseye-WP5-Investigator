@@ -107,7 +107,7 @@ class CommonFacetValues(AnalysisUtility):
     async def __call__(self, task):
         default_parameters = {
             'n': 5,
-            'facet_name': 'TOPIC',
+            'facet_name': 'PUB_YEAR',
         }
         n = int(task.task_parameters.get('n', default_parameters['n']))
         facet_name = task.task_parameters.get('facet_name', default_parameters['facet_name'])
