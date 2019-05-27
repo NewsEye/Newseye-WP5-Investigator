@@ -110,6 +110,8 @@ class Corpus(object):
         pb = ProgressBar("Building timeseries", total=len(word_to_docids), verbose=self.verbose)
         for (w, docids) in word_to_docids.items():
             pb.next()
+            if isinstance(w, tuple):
+                w = ' '.join(w)
             for docid in docids:
                 date = "-".join(self.docid_to_date[docid][:field + 1])
                 total[date] += 1

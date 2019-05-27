@@ -303,17 +303,17 @@ class LemmaFrequencyTimeseries(AnalysisUtility):
                 'parameter_is_required': True
             },
             {
-                'parameter_name': 'word',
-                'parameter_description': 'Word to be analysed',
+                'parameter_name': 'item',
+                'parameter_description': 'The token or lemma to be analysed',
                 'parameter_type': 'string',
                 'parameter_default': None,
                 'parameter_is_required': True
             },
             {
-                'parameter_name': 'word_type',
-                'parameter_description': "'lemma' or 'token",
+                'parameter_name': 'item_type',
+                'parameter_description': "The type of the item to be analysed. Valid values are 'token-1' and 'lemma-1' for single words and 'token-2' and 'lemma-2' for bigrams.",
                 'parameter_type': 'string',
-                'parameter_default': None,
+                'parameter_default': 'token-1',
                 'parameter_is_required': True
             }
         ]
@@ -321,11 +321,11 @@ class LemmaFrequencyTimeseries(AnalysisUtility):
         self.output_type = 'timeseries'
 
     async def __call__(self, task):
-        filename, word, word_type = itemgetter('corpus_filename', 'word', 'word_type')(task.task_parameters)
+        filename, item, item_type = itemgetter('corpus_filename', 'item', 'item_type')(task.task_parameters)
         corpus = load_corpus_from_pickle(filename)
         if corpus is None:
             return None
-        ts, ts_ipm = corpus.timeseries(word_type, 'year', word_list=[word])
+        ts, ts_ipm = corpus.timeseries(item=item_type, granularity='year', word_list=[item])
 
         return {'absolute_counts': ts, 'relative_counts': ts_ipm}
 
