@@ -71,7 +71,8 @@ class FindStepsFromTimeSeries(AnalysisUtility):
 
     def mz_fwt(self, x, n=3):
         """
-        A modified version of the code at https://github.com/thomasbkahn/step-detect:
+        A modified version of the code at https://github.com/thomasbkahn/step-detect
+        (There were two off-by-one error in the original code that caused the wavelets to drift left)
 
         Computes the multiscale product of the Mallat-Zhong discrete forward
         wavelet transform up to and including scale n for the input data x.
@@ -141,14 +142,10 @@ class FindStepsFromTimeSeries(AnalysisUtility):
     @staticmethod
     def find_steps(array, threshold=None):
         """
-        A modified version of the code at https://github.com/thomasbkahn/step-detect.
+        Based on the code at https://github.com/thomasbkahn/step-detect.
 
         Finds local maxima by segmenting array based on positions at which
-        the threshold value is crossed. Note that this thresholding is
-        applied after the absolute value of the array is taken. Thus,
-        the distinction between upward and downward steps is lost. However,
-        get_step_sizes can be used to determine directionality after the
-        fact.
+        the threshold value is crossed.
         Parameters
         ----------
         array : numpy array
@@ -182,8 +179,6 @@ class FindStepsFromTimeSeries(AnalysisUtility):
             steps.append(np.argmin(array[dni: upi]) + dni + 1)
         return sorted(steps)
 
-    # TODO: instead of using just the original data, perhaps by odd-symmetric periodical extension??
-    #  This should improve the accuracy close to the beginning and end of the signal
     @staticmethod
     def get_step_sizes(array, indices, window=1000):
         """
@@ -213,6 +208,7 @@ class FindStepsFromTimeSeries(AnalysisUtility):
             List of tuples describing the mean of the data before and after the detected step
         step_error : list
         """
+        # TODO: Check the windows for estimating step size
         step_sizes = []
         step_error = []
         indices = sorted(indices)
