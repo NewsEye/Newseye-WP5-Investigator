@@ -220,15 +220,15 @@ class ExtractDocumentIds(AnalysisUtility):
         self.output_type = 'id_list'
 
     async def __call__(self, task):
-        demo_documents = int(task.task_parameters.get('demo_mode', None))
+        demo_documents = task.task_parameters.get('demo_mode', None)
         if demo_documents:
-            return [random.randint(0, 9458) for i in range(demo_documents)]
+            return [random.randint(0, 9458) for i in range(int(demo_documents))]
         else:
             input_task = self.get_input_task(task)
             task.hist_parent_id = input_task.uuid
             db.session.commit()
             input_data = input_task.task_result.result
-            document_ids = [item['id'] for item in input_data['data']]
+            document_ids = [item['id'] for item in input_data[Config.DOCUMENTS_KEY]]
             return document_ids
 
 
