@@ -6,11 +6,14 @@ from app.analysis import assessment, timeseries
 import numpy as np
 import pickle
 import pandas as pd
+from pandas.plotting import register_matplotlib_converters
 import matplotlib.pyplot as plt
 from math import isnan, sqrt
 from collections import defaultdict
 from progress import ProgressBar
 
+# Add DateTime converters for matplotlib plotting
+register_matplotlib_converters()
 
 ##### EXAMPLES #######
 
@@ -250,16 +253,11 @@ def get_step_sizes(array, indices, window=1000):
     return step_sizes, step_error
 
 
-def step_analysis(keyword, corpus=None, df=None):
+def step_analysis(keyword, corpus=None, df=None, item='token-1'):
     if corpus:
-        ts, ts_ipm = corpus.timeseries(word_list=[keyword])
-        df = pd.DataFrame(ts_ipm)
-        df.index = pd.to_numeric(df.index)
-        index_start = df.index.min()
-        index_end = df.index.max()
-        idx = np.arange(index_start, index_end + 1)
-        df = df.reindex(idx, fill_value=0)
-    if df is None:
+        _, ts_ipm = corpus.timeseries(word_list=[keyword], item=item)
+        df = prepare_timeseries(ts_ipm)
+    if df is None or len:
         return
     idx = df.index
     prod, prods = mz_fwt(df[keyword])
@@ -269,15 +267,48 @@ def step_analysis(keyword, corpus=None, df=None):
     return prod, steps, step_sizes
 
 
-def plot_wavelets(keyword, corpus=None, df=None):
+def prepare_timeseries(ts, fill_na='interpolate'):
+    """
+    Prepares a time series in  a dictionary format into a pandas timeframe, adding missing values where necessary.
+    :param ts: a timeseries returned by Corpus.timeseries()
+    :param fill_na: method used for filling missing information. Different available options are:
+                    'none': do not fill missing values
+                    'zero': replace missing values with zeroes
+                    'interpolate': use the pandas.Dataframe.interpolate(method='linear') for missing values inside
+                    valid values and interpolate('pad') outside valid values
+    :return:
+    """
+    if fill_na not in ['none', 'interpolate', 'zero']:
+        raise ValueError("Invalid value for parameter fill_na. Valid values are 'none', 'zero' and 'interpolate'")
+    df = pd.DataFrame(ts)
+    first_date = df.index[0].split('-')
+    if len(first_date) == 1:
+        freq = 'AS'
+    elif len(first_date) == 2:
+        freq = 'MS'
+    elif len(first_date) == 3:
+        freq = 'D'
+    else:
+        raise ValueError('Invalid date format in the time series! Use YYYY or YYYY-MM or YYYY-MM-DD!')
+    df.index = pd.to_datetime(df.index)
+    if len(df.index) < 2:
+        return df
+
+    idx = pd.date_range(start=df.index.min(), end=df.index.max(), freq=freq)
+    df = df.reindex(idx)
+    filled_indices = df.isna
+    if fill_na == 'zero':
+        df = df.fillna(0)
+    elif fill_na == 'interpolate':
+        df = df.interpolate(limit_direction='both')
+
+    return df, filled_indices
+
+
+def plot_wavelets(keyword, corpus=None, df=None, item='lemma-1', fill_na='interpolate'):
     if corpus:
-        ts, ts_ipm = corpus.timeseries(word_list=[keyword])
-        df = pd.DataFrame(ts_ipm)
-        df.index = pd.to_numeric(df.index)
-        index_start = df.index.min()
-        index_end = df.index.max()
-        idx = np.arange(index_start, index_end + 1)
-        df = df.reindex(idx, fill_value=0)
+        ts, ts_ipm = corpus.timeseries(word_list=[keyword], item=item)
+        df, filled_indices = prepare_timeseries(ts, fill_na)
     if df is None:
         return
     idx = df.index
@@ -292,16 +323,11 @@ def plot_wavelets(keyword, corpus=None, df=None):
     f.show()
 
 
-def plot_step_locations(keyword, corpus=None, df=None):
-    prod, steps, step_sizes = step_analysis(keyword, corpus=corpus, df=df)
+def plot_step_locations(keyword, corpus=None, df=None, item='lemma-1', fill_na='interpolate'):
+    prod, steps, step_sizes = step_analysis(keyword, corpus=corpus, df=df, item=item)
     if corpus:
-        ts, ts_ipm = corpus.timeseries(word_list=[keyword])
-        df = pd.DataFrame(ts_ipm)
-        df.index = pd.to_numeric(df.index)
-        index_start = df.index.min()
-        index_end = df.index.max()
-        idx = np.arange(index_start, index_end + 1)
-        df = df.reindex(idx, fill_value=0)
+        ts, ts_ipm = corpus.timeseries(word_list=[keyword], item=item)
+        df = prepare_timeseries(ts, fill_na)
     if df is None:
         return
     idx = df.index
@@ -310,37 +336,30 @@ def plot_step_locations(keyword, corpus=None, df=None):
     for i, s in enumerate(steps):
         sizes = step_sizes[0][i]
         estimate[s:] += sizes[1] - sizes[0]
-    f, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
+    max_freq = df[keyword].max()
+    f, (ax1, ax2) = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': [3, 1]})
+    # Plot the word frequency
     ax1.plot(idx, df[keyword], c='gray')
+    ax1.set_title(
+        "Word frequencies for '{}' and detected steps:\ntaller bar corresponds to a more certain step".format(keyword))
+    ax1.set_ylabel('Word frequency (ipm)')
+    # Plot the detected steps
     for i in range(len(prod) - 1):
         if prod[i] > threshold:
-            ax1.plot(idx[i: i + 2], df[keyword][i: i + 2], c='green', )
-    for i in range(len(prod) - 1):
+            ax2.vlines(idx[i] + 0.5, 0, max_freq * prod[i], color='blue', linewidth=3)
         if prod[i] < -threshold:
-            ax1.plot(idx[i: i + 2], df[keyword][i: i + 2], c='red')
-    ax1.set_title('Word frequencies and detected steps for {}'.format(keyword))
-    ax2.plot(idx, prod, c='gray')
-    for i in range(len(prod) - 1):
-        if prod[i + 1] > threshold or (prod[i] > threshold and prod[i + 1] > -threshold):
-            ax2.plot(idx[i: i+2], prod[i: i+2], c='green')
-    for i in range(len(prod) - 1):
-        if prod[i + 1] < -threshold or (prod[i] < -threshold and prod[i + 1] < threshold):
-            ax2.plot(idx[i: i+2], prod[i: i+2], c='red')
-    ax2.hlines(threshold, idx[0], idx[-1], color='green')
-    ax2.hlines(-threshold, idx[0], idx[-1], color='red')
+            ax2.vlines(idx[i] + 0.5, 0, max_freq * prod[i], color='orange', linewidth=3)
+    ax2.hlines(0, idx[0], idx[-1])
+    ax2.get_yaxis().set_visible(False)
+    f.tight_layout()
     f.show()
 
 
-def plot_estimate(keyword, corpus=None, df=None):
+def plot_estimate(keyword, corpus=None, df=None, item='lemma-1', fill_na='interpolate'):
     prod, steps, step_sizes = step_analysis(keyword, corpus=corpus, df=df)
     if corpus:
-        ts, ts_ipm = corpus.timeseries(word_list=[keyword])
-        df = pd.DataFrame(ts_ipm)
-        df.index = pd.to_numeric(df.index)
-        index_start = df.index.min()
-        index_end = df.index.max()
-        idx = np.arange(index_start, index_end + 1)
-        df = df.reindex(idx, fill_value=0)
+        ts, ts_ipm = corpus.timeseries(word_list=[keyword], item=item)
+        df = prepare_timeseries(ts, fill_na)
     if df is None:
         return
     idx = df.index
@@ -359,14 +378,12 @@ def plot_estimate(keyword, corpus=None, df=None):
     return estimate
 
 
-def research_steps(corpus, verbose=True, num_items=None, item='lemma'):
-    ts, ts_ipm = corpus.timeseries(item=item)
-    df = pd.DataFrame(ts_ipm)
-    df.index = pd.to_numeric(df.index)
-    index_start = df.index.min()
-    index_end = df.index.max()
-    idx = np.arange(index_start, index_end + 1)
-    df = df.reindex(idx, fill_value=0)
+def research_steps(corpus=None, df=None, verbose=True, num_items=None, item='lemma-1', fill_na='interpolate'):
+    if corpus:
+        ts, ts_ipm = corpus.timeseries(item=item)
+        df = prepare_timeseries(ts, fill_na)
+    if df is None:
+        return
     pb = ProgressBar("Research {}s".format(item), verbose=verbose)
     if item == 'lemma':
         items = [(key, len(docids)) for key, docids in corpus.lemma_to_docids.items()]
