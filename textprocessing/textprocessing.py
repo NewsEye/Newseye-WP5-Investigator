@@ -45,17 +45,26 @@ class Corpus(object):
         self.target_query.update(query)
 
     def find_word_to_doc_dict(self, item):
-        if item == "token":
+        item, *ngram = item.split('-')
+        if not ngram:
+            ngram = 1
+        else:
+            ngram = ngram[0]
+        if item == "token" and ngram == '1':
             return self.token_to_docids
+        elif item == "token" and ngram == '2':
+            return self.token_bi_to_docids
         elif item == "lemma":
             if not self.lemma_to_docids:
                 raise NotImplementedError("Lemmas are not available for %s." % self.lang_id.upper())
-            return self.lemma_to_docids
-        else:
-            raise ValueError("item must be token or lemma")
+            elif ngram == "1":
+                return self.lemma_to_docids
+            elif ngram == "2":
+                return self.lemma_bi_to_docids
+        raise ValueError("item must be token-X or lemma-X with X=1 or 2")
 
     # TIMESERIES
-    def timeseries(self, item="token", granularity="year", min_count=10, word_list=None):
+    def timeseries(self, item="token-1", granularity="year", min_count=10, word_list=None):
         if not (item in self._timeseries and granularity in self._timeseries[item]):
             self.build_timeseries(item=item, granularity=granularity, min_count=min_count)
         elif not min_count in self._timeseries[item][granularity]:
@@ -73,7 +82,6 @@ class Corpus(object):
 
         timeseries = self._timeseries[item][granularity][min_count]
         if word_list:
-            word_to_docids = self.find_word_to_doc_dict(item)
             timeseries = {w: ts for w, ts in timeseries.items() if w in word_list}
 
         total = self._timeseries[item][granularity]['total']
@@ -85,7 +93,7 @@ class Corpus(object):
 
         return timeseries, timeseries_ipm
 
-    def build_timeseries(self, item="token", granularity="year", min_count=10):
+    def build_timeseries(self, item="token-1", granularity="year", min_count=10):
         gran_to_field_map = {"year": 0, "month": 1, "day": 2}
         field = gran_to_field_map[granularity]
 
