@@ -23,9 +23,7 @@ def start_analysis_task():
     query = request.json
     if not isinstance(query, list):
         query = [query]
-    query = [('analysis', item) for item in query if item.get('target_uuid') or item.get('target_search')]
-    if not query:
-        return '''Target data is not specified. Include either a 'target_uuid' or 'target_search' parameter.''', 400
+    query = [('analysis', item) for item in query]
     for item in query:
         if item[1].get('utility') is None:
             return '''Required parameter 'utility' missing for request {}'''.format(item[1]), 400

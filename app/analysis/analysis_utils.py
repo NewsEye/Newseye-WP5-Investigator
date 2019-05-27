@@ -31,10 +31,10 @@ class AnalysisUtility(object):
         input_task_uuid = task.task_parameters.get('target_uuid')
         if input_task_uuid:
             input_task = Task.query.filter_by(uuid=input_task_uuid).first()
-            if input_task is None:
-                raise ValueError('Invalid target_uuid')
         else:
             input_task = None
+        if input_task is None:
+            raise ValueError('Invalid or missing target_uuid')
         return input_task
 
     def get_description(self):
