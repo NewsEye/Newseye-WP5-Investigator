@@ -10,7 +10,8 @@ UTILITY_MAP = {
     'generate_time_series': GenerateTimeSeries(),
     'find_steps_from_time_series': FindStepsFromTimeSeries(),
     'extract_document_ids': ExtractDocumentIds(),
-    'query_topic_model': QueryTopicModel(),
+    # This is disabled for now because it doesn't support the real data
+    # 'query_topic_model': QueryTopicModel(),
     'lemma_frequency_timeseries': LemmaFrequencyTimeseries(),
     'analyse_lemma_frequency': AnalyseLemmaFrequency(),
 }
