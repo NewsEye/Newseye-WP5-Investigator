@@ -135,13 +135,13 @@ class GenerateTimeSeries(AnalysisUtility):
         self.utility_parameters = [
             {
                 'parameter_name': 'facet_name',
-                'parameter_description': 'Not yet written',
+                'parameter_description': 'the facet to be analysed (e.g.TOPIC)',
                 'parameter_type': 'string',
                 'parameter_default': None,
                 'parameter_is_required': True
             }
         ]
-        self.input_type = 'search'
+        self.input_type = 'search_result'
         self.output_type = 'time_series'
 
     async def __call__(self, query):
@@ -190,24 +190,6 @@ class GenerateTimeSeries(AnalysisUtility):
             'relative_counts': rel_counts.to_dict(orient='index')
         }
         return analysis_results
-
-
-class CompareDocumentSets(AnalysisUtility):
-    async def __call__(self, task):
-        input_task = self.get_input_task(task)
-        input_data = input_task.task_result.result
-
-
-class WordCount(AnalysisUtility):
-    async def __call__(self, task):
-        input_task = self.get_input_task(task)
-        input_data = input_task.task_result.result
-        word_counts = self.do_magic(input_data)
-        return word_counts
-
-    @staticmethod
-    def do_magic(data):
-        return {'Stuff': 1}
 
 
 class ExtractDocumentIds(AnalysisUtility):
@@ -358,8 +340,8 @@ class AnalyseLemmaFrequency(AnalysisUtility):
                 'parameter_is_required': True
             }
         ]
-        self.input_type = None
-        self.output_type = 'something_cool'
+        self.input_type = 'corpus'
+        self.output_type = 'word_frequency_statistics'
 
     async def __call__(self, task):
         filename, word, suffix = itemgetter('corpus_filename', 'word', 'suffix')(task.task_parameters)

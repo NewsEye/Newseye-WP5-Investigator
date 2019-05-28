@@ -9,7 +9,7 @@ class FindStepsFromTimeSeries(AnalysisUtility):
     def __init__(self):
         super(FindStepsFromTimeSeries, self).__init__()
         self.utility_name = 'find_steps_from_time_series'
-        self.utility_description = ''
+        self.utility_description = 'Finds steps from a time series data using a wavelet transform multiscale product'
         self.utility_parameters = [
             {
                 'parameter_name': 'step_threshold',
@@ -39,7 +39,7 @@ class FindStepsFromTimeSeries(AnalysisUtility):
         input_data = input_task.task_result.result
 
         input_data, filled_in = self.prepare_timeseries(input_data['relative_counts'])
-        steps = {}
+        column_steps = []
         if column_name:
             columns = [column_name]
         else:
@@ -50,10 +50,13 @@ class FindStepsFromTimeSeries(AnalysisUtility):
             step_indices = self.find_steps(prod, step_threshold)
             step_sizes, errors = self.get_step_sizes(input_data[column], step_indices)
             step_times = [input_data.index[idx].year for idx in step_indices]
-            steps[column] = list(zip(step_times, step_sizes, errors))
-        # TODO: Fix output to match documentation
+            step_keys = ['step_time', 'step_start', 'step_end', 'step_error']
+            column_steps.append({
+                'column': column,
+                'steps': [dict(zip(step_keys, [item[0], *item[1], item[2]])) for item in (zip(step_times, step_sizes, errors))]
+            })
         # TODO: Implement interestingness values
-        return steps
+        return {'step_analysis': column_steps}
 
     @staticmethod
     def prepare_timeseries(ts, fill_na='interpolate'):

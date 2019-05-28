@@ -12,8 +12,9 @@ UTILITY_MAP = {
     'extract_document_ids': ExtractDocumentIds(),
     # This is disabled for now because it doesn't support the real data
     # 'query_topic_model': QueryTopicModel(),
-    'lemma_frequency_timeseries': LemmaFrequencyTimeseries(),
-    'analyse_lemma_frequency': AnalyseLemmaFrequency(),
+    # These don't work yet without the pickled indexes
+    # 'lemma_frequency_timeseries': LemmaFrequencyTimeseries(),
+    # 'analyse_lemma_frequency': AnalyseLemmaFrequency(),
 }
 
 from app.analysis import routes
