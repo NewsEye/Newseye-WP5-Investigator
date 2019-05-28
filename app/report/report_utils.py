@@ -41,6 +41,14 @@ def generate_report(task, report_language, report_format):
     return task_report
 
 
+def get_languages():
+    return requests.get(Config.REPORTER_URI + "/languages")
+
+
+def get_formats():
+    return requests.get(Config.REPORTER_URI + "/formats")
+
+
 def get_history(make_tree=True):
     tasks = Task.query.filter_by(user_id=current_user.id)
     user_history = dict(zip([task.uuid for task in tasks], [task.dict(style='full') for task in tasks]))

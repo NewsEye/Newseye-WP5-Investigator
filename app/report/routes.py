@@ -3,7 +3,7 @@ from flask_login import login_required, current_user
 from flask_restplus import Resource
 from app.report import api
 from app.models import Task, Report
-from app.report.report_utils import generate_report, get_history
+from app.report.report_utils import generate_report, get_formats, get_languages
 from werkzeug.exceptions import NotFound
 
 
@@ -27,4 +27,22 @@ class Report(Resource):
         return task_report.report_content
 
 
+@api.route('/languages')
+class LanguageList(Resource):
+    @login_required
+    def get(self):
+        """
+        Lists the languages supported by the Reporter component.
+        """
+        return get_languages()
+
+
+@api.route('/formats')
+class LanguageList(Resource):
+    @login_required
+    def get(self):
+        """
+        Lists the text formatting options supported by the Reporter component.
+        """
+        return get_formats()
 
