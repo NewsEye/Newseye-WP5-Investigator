@@ -45,7 +45,7 @@ class TaskPlanner(object):
     async def async_analysis(self, tasks):
         """ Generate asyncio tasks and run them, returning when all tasks are done"""
 
-        # generates coroutines out of task obects
+        # generates coroutines out of task objects
         async_tasks = [UTILITY_MAP[task.task_parameters.get('utility')](task) for task in tasks]
 
         # here tasks are actually executed asynchronously

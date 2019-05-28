@@ -3,8 +3,6 @@ from config import Config
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager
-# from flask_mail import Mail
-# from flask_moment import Moment
 
 import os
 import logging
@@ -13,8 +11,6 @@ from logging.handlers import SMTPHandler, RotatingFileHandler
 db = SQLAlchemy()
 migrate = Migrate()
 login = LoginManager()
-# mail = Mail()
-# moment = Moment()
 
 
 def create_app(config_class=Config):
@@ -24,14 +20,12 @@ def create_app(config_class=Config):
     db.init_app(app)
     migrate.init_app(app, db)
     login.init_app(app)
-    # mail.init_app(app)
-    # moment.init_app(app)
 
     from app.report import bp as report_bp
     app.register_blueprint(report_bp, url_prefix='/api/report')
 
-    from app.auth import bp as auth_bp
-    app.register_blueprint(auth_bp, url_prefix='/api/auth')
+    # from app.auth import bp as auth_bp
+    # app.register_blueprint(auth_bp, url_prefix='/api/auth')
 
     from app.search import bp as search_bp
     app.register_blueprint(search_bp, url_prefix='/api/search')

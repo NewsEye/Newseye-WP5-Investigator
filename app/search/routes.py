@@ -1,46 +1,57 @@
-from flask import request, jsonify, current_app
+from flask import request, current_app
 from flask_login import login_required, current_user
+from flask_restplus import Resource
 from app.main import controller
 from app.models import Task
-from app.search import bp
+from app.search import api
+from werkzeug.exceptions import InternalServerError
 
 
-@bp.route('/', methods=['POST'])
-@login_required
-def start_search_task():
-    query = request.json
-    if isinstance(query, list):
-        query = [('search', item) for item in query]
-    else:
-        query = [('search', query)]
-    try:
-        results = [task.dict() for task in controller.execute_tasks(query)]
-        status = 200
-        for task in results:
-            if task['task_status'] != 'finished':
-                status = 202
-                break
-        if len(results) == 1:
-            results = results[0]
-        return jsonify(results), status
-    except Exception as e:
-        current_app.logger.exception(e)
-        return 'Something went wrong...', 500
+@api.route('/')
+class SearchTaskList(Resource):
+    @login_required
+    def get(self):
+        """
+        Returns all search tasks started by the user
+        """
+        tasks = [task.dict(style='result') for task in Task.query.filter_by(user_id=current_user.id, task_type='search').all()]
+        if len(tasks) == 1:
+            tasks = tasks[0]
+        return tasks
+
+    @login_required
+    def post(self):
+        """
+        Starts a new search task
+        """
+        query = request.json
+        if isinstance(query, list):
+            query = [('search', item) for item in query]
+        else:
+            query = [('search', query)]
+        try:
+            results = [task.dict() for task in controller.execute_tasks(query)]
+            status = 200
+            for task in results:
+                if task['task_status'] != 'finished':
+                    status = 202
+                    break
+            if len(results) == 1:
+                results = results[0]
+            return results, status
+        except Exception as e:
+            current_app.logger.exception(e)
+            raise InternalServerError
 
 
-@bp.route('/', methods=['GET'])
-@login_required
-def get_search_tasks():
-    tasks = [task.dict(style='result') for task in Task.query.filter_by(user_id=current_user.id, task_type='search').all()]
-    if len(tasks) == 1:
-        tasks = tasks[0]
-    return jsonify(tasks)
-
-
-@bp.route('/<string:task_uuid>', methods=['GET'])
-@login_required
-def get_search_task(task_uuid):
-    task = Task.query.filter_by(uuid=task_uuid, user_id=current_user.id, task_type='search').first()
-    if task is None:
-        return 'Task {} not found for user {}'.format(task_uuid, current_user.username), 404
-    return jsonify(task.dict(style='result'))
+@api.route('/<string:task_uuid>')
+class SearchTask(Resource):
+    @login_required
+    def get(self, task_uuid):
+        """
+        Displays a search task's results
+        """
+        task = Task.query.filter_by(uuid=task_uuid, user_id=current_user.id, task_type='search').first()
+        if task is None:
+            return 'Task {} not found for user {}'.format(task_uuid, current_user.username), 404
+        return task.dict(style='result')
