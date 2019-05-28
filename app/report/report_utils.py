@@ -42,11 +42,11 @@ def generate_report(task, report_language, report_format):
 
 
 def get_languages():
-    return requests.get(Config.REPORTER_URI + "/languages")
+    return requests.get(Config.REPORTER_URI + "/languages").json()
 
 
 def get_formats():
-    return requests.get(Config.REPORTER_URI + "/formats")
+    return requests.get(Config.REPORTER_URI + "/formats").json()
 
 
 def get_history(make_tree=True):
