@@ -3,34 +3,15 @@ from app import db
 from app.models import Report, Task
 from config import Config
 from flask_login import current_user
-import json
 
 
-# # A placeholder for the real report generation functionality, see below for the real one
-# def generate_report(task, report_language, report_format):
-#     report_content = {
-#         'language': report_language,
-#         'body': "<{}>...</{}>".format(report_format, report_format),
-#         'head': "<h1>Report for {}</h1>".format(task)
-#     }
-#     task_report = Report(report_language=report_language,
-#                          report_format=report_format,
-#                          task_uuid=task.uuid,
-#                          report_content=report_content)
-#     db.session.add(task_report)
-#     task.task_report = task_report
-#     db.session.commit()
-#     return task_report
-
-
-# This is the real version to use after the Reporter comes online
 def generate_report(task, report_language, report_format):
     payload = {
         'language': report_language,
         'format': report_format,
-        'data': json.dumps({'root': [task.dict('reporter')]})
+        'data': {'root': [task.dict('reporter')]}
     }
-    response = requests.post(Config.REPORTER_URI + "/report", data=payload)
+    response = requests.post(Config.REPORTER_URI + "/report", json=payload)
     report_content = response.json()
     task_report = Report(report_language=report_language,
                          report_format=report_format,

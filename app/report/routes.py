@@ -8,7 +8,7 @@ from werkzeug.exceptions import NotFound
 
 
 @api.route('/<string:task_uuid>')
-class Report(Resource):
+class ReportTask(Resource):
     @login_required
     def get(self, task_uuid):
         """
@@ -38,7 +38,7 @@ class LanguageList(Resource):
 
 
 @api.route('/formats')
-class LanguageList(Resource):
+class FormatList(Resource):
     @login_required
     def get(self):
         """
