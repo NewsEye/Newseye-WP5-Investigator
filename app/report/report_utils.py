@@ -3,15 +3,16 @@ from app import db
 from app.models import Report, Task
 from config import Config
 from flask_login import current_user
+import json
 
 
 def generate_report(task, report_language, report_format):
     payload = {
         'language': report_language,
         'format': report_format,
-        'data': {'root': [task.dict('reporter')]}
+        'data': json.dumps({'root': [task.dict('reporter')]})
     }
-    response = requests.post(Config.REPORTER_URI + "/report", json=payload)
+    response = requests.post(Config.REPORTER_URI + "/report", data=payload)
     report_content = response.json()
     task_report = Report(report_language=report_language,
                          report_format=report_format,
