@@ -21,7 +21,7 @@ def create_app(config_class=Config):
     migrate.init_app(app, db)
     login.init_app(app)
 
-    from apis import api
+    from app.apis import api
     api.init_app(app)
 
     if not app.debug and not app.testing:
