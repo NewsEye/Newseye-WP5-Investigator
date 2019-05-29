@@ -1,7 +1,5 @@
-from flask import Blueprint
-from flask_restplus import Api
+from flask_restplus import Namespace
 
-bp = Blueprint('search', __name__)
-api = Api(bp, doc='/docs')
+ns = Namespace('search', description='Search operations')
 
 from app.search import routes

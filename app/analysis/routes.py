@@ -2,13 +2,13 @@ from flask import request, current_app
 from flask_login import login_required, current_user
 from flask_restplus import Resource
 from app.main import controller
-from app.analysis import api
+from app.analysis import ns
 from app.models import Task
 from app.analysis import UTILITY_MAP
 from werkzeug.exceptions import BadRequest, InternalServerError
 
 
-@api.route('/')
+@ns.route('/')
 class AnalysisTaskList(Resource):
     @login_required
     def get(self):
@@ -50,7 +50,7 @@ class AnalysisTaskList(Resource):
             raise InternalServerError
 
 
-@api.route('/<string:task_uuid>')
+@ns.route('/<string:task_uuid>')
 class AnalysisTask(Resource):
     @login_required
     def get(self, task_uuid):
@@ -60,7 +60,7 @@ class AnalysisTask(Resource):
         return task.dict(style='result')
 
 
-@api.route('/utilities/')
+@ns.route('/utilities/')
 class UtilityList(Resource):
     @login_required
     def get(self):

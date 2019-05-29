@@ -1,13 +1,13 @@
 from flask import request
 from flask_login import login_required, current_user
 from flask_restplus import Resource
-from app.report import api
+from app.report import ns
 from app.models import Task, Report
 from app.report.report_utils import generate_report, get_formats, get_languages
 from werkzeug.exceptions import NotFound
 
 
-@api.route('/<string:task_uuid>')
+@ns.route('/<string:task_uuid>')
 class ReportTask(Resource):
     @login_required
     def get(self, task_uuid):
@@ -27,7 +27,7 @@ class ReportTask(Resource):
         return task_report.report_content
 
 
-@api.route('/languages')
+@ns.route('/languages')
 class LanguageList(Resource):
     @login_required
     def get(self):
@@ -37,7 +37,7 @@ class LanguageList(Resource):
         return get_languages()
 
 
-@api.route('/formats')
+@ns.route('/formats')
 class FormatList(Resource):
     @login_required
     def get(self):

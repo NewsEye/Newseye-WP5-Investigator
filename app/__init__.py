@@ -21,17 +21,8 @@ def create_app(config_class=Config):
     migrate.init_app(app, db)
     login.init_app(app)
 
-    from app.report import bp as report_bp
-    app.register_blueprint(report_bp, url_prefix='/api/report')
-
-    # from app.auth import bp as auth_bp
-    # app.register_blueprint(auth_bp, url_prefix='/api/auth')
-
-    from app.search import bp as search_bp
-    app.register_blueprint(search_bp, url_prefix='/api/search')
-
-    from app.analysis import bp as analysis_bp
-    app.register_blueprint(analysis_bp, url_prefix='/api/analysis')
+    from apis import api
+    api.init_app(app)
 
     if not app.debug and not app.testing:
         if app.config['MAIL_SERVER']:

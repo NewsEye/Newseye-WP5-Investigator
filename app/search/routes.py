@@ -3,11 +3,11 @@ from flask_login import login_required, current_user
 from flask_restplus import Resource
 from app.main import controller
 from app.models import Task
-from app.search import api
+from app.search import ns
 from werkzeug.exceptions import InternalServerError
 
 
-@api.route('/')
+@ns.route('/')
 class SearchTaskList(Resource):
     @login_required
     def get(self):
@@ -44,7 +44,7 @@ class SearchTaskList(Resource):
             raise InternalServerError
 
 
-@api.route('/<string:task_uuid>')
+@ns.route('/<string:task_uuid>')
 class SearchTask(Resource):
     @login_required
     def get(self, task_uuid):

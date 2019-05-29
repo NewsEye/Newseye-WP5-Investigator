@@ -1,11 +1,9 @@
-from flask import Blueprint
-from flask_restplus import Api
+from flask_restplus import Namespace
 
 from app.analysis.analysis_utils import ExtractFacets, CommonFacetValues, GenerateTimeSeries, ExtractDocumentIds, QueryTopicModel, LemmaFrequencyTimeseries, AnalyseLemmaFrequency
 from app.analysis.step_detection import FindStepsFromTimeSeries
 
-bp = Blueprint('analysis', __name__)
-api = Api(bp, doc='/docs')
+ns = Namespace('analysis', description='Analysis operations')
 
 UTILITY_MAP = {
     'extract_facets': ExtractFacets(),

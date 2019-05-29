@@ -1,7 +1,5 @@
-from flask import Blueprint
-from flask_restplus import Api
+from flask_restplus import Namespace
 
-bp = Blueprint('report', __name__)
-api = Api(bp, doc='/docs')
+ns = Namespace('report', description='Report operations')
 
 from app.report import routes
