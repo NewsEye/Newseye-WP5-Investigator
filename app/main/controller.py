@@ -8,12 +8,10 @@ import time
 import asyncio
 
 
-def execute_tasks(queries, return_tasks=True):
+def execute_tasks(queries):
     """
     Generate tasks from queries and execute them.
     :param queries: a single query or a list of queries
-    :param return_tasks: If true, the task object (or a list of task objects) is returned to the user in json format.
-    If false, only the task_id (or a list of task_ids) is returned
     :return: A list of task_objects or task_ids corresponding to the queries.
     """
     task_uuids = generate_tasks(queries)
@@ -27,10 +25,7 @@ def execute_tasks(queries, return_tasks=True):
     while Task.query.filter(Task.uuid.in_(task_uuids), Task.task_status == 'created').count() > 0:
         time.sleep(1)
 
-    if return_tasks:
-        return Task.query.filter(Task.uuid.in_(task_uuids)).all()
-    else:
-        return task_uuids
+    return Task.query.filter(Task.uuid.in_(task_uuids)).all()
 
 
 def task_thread(app, user_id, task_uuid):
