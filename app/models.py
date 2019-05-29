@@ -148,6 +148,8 @@ def load_user(id):
 @login.request_loader
 def load_user_from_request(request):
     token = request.headers.get('Authorization')
+    if token is None:
+        return None
     if token[:4] == 'JWT ':
         token = token.replace('JWT ', '', 1)
         try:
