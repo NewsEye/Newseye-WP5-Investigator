@@ -7,7 +7,7 @@ from app.report import ns as report_ns
 api = Api(
     title='NewsEye Personal Research Assistant API',
     version='1.0',
-    description='The API for the NewsEye PRA',
+    description='The API for the NewsEye PRA. Currently only accessible via NewsEye Demonstrator.',
     # All API metadatas
 )
 

@@ -1,6 +1,6 @@
-from flask import request
 from flask_login import login_required, current_user
 from flask_restplus import Resource
+from app.auth import AuthParser
 from app.report import ns
 from app.models import Task, Report
 from app.report.report_utils import generate_report, get_formats, get_languages
@@ -8,14 +8,21 @@ from werkzeug.exceptions import NotFound
 
 
 @ns.route('/<string:task_uuid>')
+@ns.param('task_uuid', "The UUID of the analysis task for which a report should be retrieved")
 class ReportTask(Resource):
+    parser = AuthParser()
+    parser.add_argument('language', default='en', help="The language the report should be written in.")
+    parser.add_argument('format', default='p', help="The format of the body of the report.")
+
     @login_required
+    @ns.expect(parser)
     def get(self, task_uuid):
         """
-        Retrieve the report generated from the task results.
+        Retrieve a report generated from the task results.
         """
-        report_language = request.args.get('language', 'en')
-        report_format = request.args.get('format', 'p')
+        args = self.parser.parse_args()
+        report_language = args['language']
+        report_format = args['format']
         task = Task.query.filter_by(uuid=task_uuid, user_id=current_user.id).first()
         if task is None:
             raise NotFound('Task {} not found for user {}'.format(task_uuid, current_user.username))
@@ -30,9 +37,10 @@ class ReportTask(Resource):
 @ns.route('/languages')
 class LanguageList(Resource):
     @login_required
+    @ns.expect(AuthParser())
     def get(self):
         """
-        Lists the languages supported by the Reporter component.
+        List the languages supported by the Reporter component.
         """
         return get_languages()
 
@@ -40,9 +48,10 @@ class LanguageList(Resource):
 @ns.route('/formats')
 class FormatList(Resource):
     @login_required
+    @ns.expect(AuthParser())
     def get(self):
         """
-        Lists the text formatting options supported by the Reporter component.
+        List the text formatting options supported by the Reporter component.
         """
         return get_formats()
 
