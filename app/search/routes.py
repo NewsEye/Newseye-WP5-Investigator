@@ -5,6 +5,7 @@ from app.auth import AuthParser
 from app.main import controller
 from app.models import Task
 from app.search import ns
+from uuid import UUID
 from werkzeug.exceptions import InternalServerError, NotFound
 
 
@@ -64,6 +65,10 @@ class SearchTask(Resource):
         """
         Retrieve results for a search task
         """
+        try:
+            task_uuid = UUID(task_uuid)
+        except ValueError:
+            raise NotFound
         task = Task.query.filter_by(uuid=task_uuid, user_id=current_user.id, task_type='search').first()
         if task is None:
             raise NotFound('Task {} not found for user {}'.format(task_uuid, current_user.username))

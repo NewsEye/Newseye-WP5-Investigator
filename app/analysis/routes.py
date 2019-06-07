@@ -6,6 +6,7 @@ from app.main import controller
 from app.analysis import ns
 from app.models import Task
 from app.analysis import UTILITY_MAP
+from uuid import UUID
 from werkzeug.exceptions import BadRequest, InternalServerError, NotFound
 
 
@@ -67,6 +68,10 @@ class AnalysisTask(Resource):
         """
         Retrieve results for an analysis task
         """
+        try:
+            task_uuid = UUID(task_uuid)
+        except ValueError:
+            raise NotFound
         task = Task.query.filter_by(uuid=task_uuid, user_id=current_user.id, task_type='analysis').first()
         if task is None:
             raise NotFound('Task {} not found for user {}'.format(task_uuid, current_user.username))

@@ -4,6 +4,7 @@ from app.auth import AuthParser
 from app.report import ns
 from app.models import Task, Report
 from app.report.report_utils import generate_report, get_formats, get_languages
+from uuid import UUID
 from werkzeug.exceptions import NotFound
 
 
@@ -20,6 +21,10 @@ class ReportTask(Resource):
         """
         Retrieve a report generated from the task results.
         """
+        try:
+            task_uuid = UUID(task_uuid)
+        except ValueError:
+            raise NotFound
         args = self.parser.parse_args()
         report_language = args['language']
         report_format = args['format']
