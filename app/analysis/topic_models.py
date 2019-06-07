@@ -8,7 +8,6 @@ from app.analysis.analysis_utils import AnalysisUtility
 
 class QueryTopicModel(AnalysisUtility):
     def __init__(self):
-        super(QueryTopicModel, self).__init__()
         self.utility_name = 'query_topic_model'
         self.utility_description = 'Queries the selected topic model.'
         self.utility_parameters = [
@@ -29,6 +28,7 @@ class QueryTopicModel(AnalysisUtility):
         ]
         self.input_type = 'id_list'
         self.output_type = 'topic_analysis'
+        super(QueryTopicModel, self).__init__()
 
     async def __call__(self, task):
         parameters = task.task_parameters['utility_parameters']

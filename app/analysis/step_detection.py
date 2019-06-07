@@ -7,7 +7,6 @@ from app.analysis.analysis_utils import AnalysisUtility
 
 class FindStepsFromTimeSeries(AnalysisUtility):
     def __init__(self):
-        super(FindStepsFromTimeSeries, self).__init__()
         self.utility_name = 'find_steps_from_time_series'
         self.utility_description = 'Finds steps from a time series data using a wavelet transform multiscale product'
         self.utility_parameters = [
@@ -28,6 +27,7 @@ class FindStepsFromTimeSeries(AnalysisUtility):
         ]
         self.input_type = 'time_series'
         self.output_type = 'step_list'
+        super(FindStepsFromTimeSeries, self).__init__()
 
     async def __call__(self, task):
         column_name = task.task_parameters.get('column_name')

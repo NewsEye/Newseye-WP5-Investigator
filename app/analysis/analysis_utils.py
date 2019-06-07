@@ -13,11 +13,8 @@ from app.main.db_utils import load_corpus_from_pickle
 
 class AnalysisUtility(object):
     def __init__(self):
-        self.utility_name = None
-        self.utility_description = None
-        self.utility_parameters = None
-        self.input_type = None
-        self.output_type = None
+        self.parameter_defaults = {}
+        self.set_defaults()
 
     async def __call__(self, task):
         return {
@@ -35,6 +32,10 @@ class AnalysisUtility(object):
             raise ValueError('Invalid or missing target_uuid')
         return input_task
 
+    def set_defaults(self):
+        if self.utility_parameters:
+            self.parameter_defaults = {param['parameter_name']: param['parameter_default'] for param in self.utility_parameters}
+
     def get_description(self):
         return {
             'utility_name': self.utility_name,
@@ -47,12 +48,12 @@ class AnalysisUtility(object):
 
 class ExtractFacets(AnalysisUtility):
     def __init__(self):
-        super(ExtractFacets, self).__init__()
         self.utility_name = 'extract_facets'
         self.utility_description = 'Examines the document set given as input, and finds all the different facets for which values have been set in at least some of the documents.'
         self.utility_parameters = []
         self.input_type = 'search_result'
         self.output_type = 'facet_list'
+        super(ExtractFacets, self).__init__()
 
     async def __call__(self, task):
         """ Extract all facet values found in the input data and the number of occurrences for each."""
@@ -81,7 +82,6 @@ class ExtractFacets(AnalysisUtility):
 
 class CommonFacetValues(AnalysisUtility):
     def __init__(self):
-        super(CommonFacetValues, self).__init__()
         self.utility_name = 'common_facet_values'
         self.utility_description = 'Sorts the facet values for facet_name by decreasing number of matching documents and returns the n most common facet values and their document counts'
         self.utility_parameters = [
@@ -96,21 +96,18 @@ class CommonFacetValues(AnalysisUtility):
                 'parameter_name': 'facet_name',
                 'parameter_description': 'The name of the facet to be analysed, e.g. PUB_YEAR',
                 'parameter_type': 'string',
-                'parameter_default': None,
+                'parameter_default': 'PUB_YEAR',
                 'parameter_is_required': True
             }
         ]
         self.input_type = 'facet_list'
         self.output_type = 'topic_list'
+        super(CommonFacetValues, self).__init__()
 
     async def __call__(self, task):
-        default_parameters = {
-            'n': 5,
-            'facet_name': 'PUB_YEAR',
-        }
         parameters = task.task_parameters['utility_parameters']
-        n = int(parameters.get('n', default_parameters['n']))
-        facet_name = parameters.get('facet_name', default_parameters['facet_name'])
+        n = int(parameters.get('n', self.parameter_defaults['n']))
+        facet_name = parameters.get('facet_name', self.parameter_defaults['facet_name'])
         facet_name = Config.AVAILABLE_FACETS.get(facet_name, facet_name)
 
         input_task = self.get_input_task(task)
@@ -130,7 +127,6 @@ class CommonFacetValues(AnalysisUtility):
 
 class GenerateTimeSeries(AnalysisUtility):
     def __init__(self):
-        super(GenerateTimeSeries, self).__init__()
         self.utility_name = 'generate_time_series'
         self.utility_description = ''
         self.utility_parameters = [
@@ -144,6 +140,7 @@ class GenerateTimeSeries(AnalysisUtility):
         ]
         self.input_type = 'search_result'
         self.output_type = 'time_series'
+        super(GenerateTimeSeries, self).__init__()
 
     async def __call__(self, task):
         # TODO Add support for total document count
@@ -196,12 +193,12 @@ class GenerateTimeSeries(AnalysisUtility):
 
 class ExtractDocumentIds(AnalysisUtility):
     def __init__(self):
-        super(ExtractDocumentIds, self).__init__()
         self.utility_name = 'extract_document_ids'
         self.utility_description = 'Examines the document set given as input, and extracts the document_ids for each of the documents.'
         self.utility_parameters = []
         self.input_type = 'search_result'
         self.output_type = 'id_list'
+        super(ExtractDocumentIds, self).__init__()
 
     async def __call__(self, task):
         parameters = task.task_parameters['utility_parameters']
@@ -220,7 +217,6 @@ class ExtractDocumentIds(AnalysisUtility):
 
 class LemmaFrequencyTimeseries(AnalysisUtility):
     def __init__(self):
-        super(LemmaFrequencyTimeseries, self).__init__()
         self.utility_name = 'lemma_frequency_timeseries'
         self.utility_description = ''
         self.utility_parameters = [
@@ -248,6 +244,7 @@ class LemmaFrequencyTimeseries(AnalysisUtility):
         ]
         self.input_type = 'corpus'
         self.output_type = 'timeseries'
+        super(LemmaFrequencyTimeseries, self).__init__()
 
     async def __call__(self, task):
         parameters = task.task_parameters['utility_parameters']
@@ -263,7 +260,6 @@ class LemmaFrequencyTimeseries(AnalysisUtility):
 
 class AnalyseLemmaFrequency(AnalysisUtility):
     def __init__(self):
-        super(AnalyseLemmaFrequency, self).__init__()
         self.utility_name = 'analyse_lemma_frequency'
         self.utility_description = ''
         self.utility_parameters = [
@@ -291,6 +287,7 @@ class AnalyseLemmaFrequency(AnalysisUtility):
         ]
         self.input_type = 'corpus'
         self.output_type = 'word_frequency_statistics'
+        super(AnalyseLemmaFrequency, self).__init__()
 
     async def __call__(self, task):
         parameters = task.task_parameters['utility_parameters']
