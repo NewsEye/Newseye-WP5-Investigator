@@ -1,6 +1,8 @@
 from flask_restplus import Namespace
 
-from app.analysis.analysis_utils import ExtractFacets, CommonFacetValues, GenerateTimeSeries, ExtractDocumentIds, QueryTopicModel, LemmaFrequencyTimeseries, AnalyseLemmaFrequency
+from app.analysis.analysis_utils import ExtractFacets, CommonFacetValues, GenerateTimeSeries, ExtractDocumentIds, \
+    LemmaFrequencyTimeseries, AnalyseLemmaFrequency
+from app.analysis.topic_models import QueryTopicModel
 from app.analysis.step_detection import FindStepsFromTimeSeries
 
 ns = Namespace('analysis', description='Analysis operations')
