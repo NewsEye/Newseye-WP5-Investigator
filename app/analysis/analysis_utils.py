@@ -109,8 +109,9 @@ class CommonFacetValues(AnalysisUtility):
             'n': 5,
             'facet_name': 'PUB_YEAR',
         }
-        n = int(task.task_parameters.get('n', default_parameters['n']))
-        facet_name = task.task_parameters.get('facet_name', default_parameters['facet_name'])
+        parameters = task.task_parameters['utility_parameters']
+        n = int(parameters.get('n', default_parameters['n']))
+        facet_name = parameters.get('facet_name', default_parameters['facet_name'])
         facet_name = Config.AVAILABLE_FACETS.get(facet_name, facet_name)
 
         input_task = self.get_input_task(task)
@@ -135,22 +136,22 @@ class GenerateTimeSeries(AnalysisUtility):
         self.utility_parameters = [
             {
                 'parameter_name': 'facet_name',
-                'parameter_description': 'the facet to be analysed (e.g.TOPIC)',
+                'parameter_description': 'the facet to be analysed',
                 'parameter_type': 'string',
-                'parameter_default': None,
+                'parameter_default': 'NEWSPAPER_NAME',
                 'parameter_is_required': True
             }
         ]
         self.input_type = 'search_result'
         self.output_type = 'time_series'
 
-    async def __call__(self, query):
+    async def __call__(self, task):
         # TODO Add support for total document count
 
-        input_task = self.get_input_task(query)
+        input_task = self.get_input_task(task)
         input_data = input_task.task_result.result
-
-        facet_name = query.task_parameters.get('facet_name')
+        parameters = task.task_parameters['utility_parameters']
+        facet_name = parameters.get('facet_name')
         facet_string = Config.AVAILABLE_FACETS.get(facet_name)
         if facet_string is None:
             raise TypeError("Facet not specified or specified facet not available in current database")
@@ -202,7 +203,8 @@ class ExtractDocumentIds(AnalysisUtility):
         self.output_type = 'id_list'
 
     async def __call__(self, task):
-        demo_documents = task.task_parameters.get('demo_mode', None)
+        parameters = task.task_parameters['utility_parameters']
+        demo_documents = parameters.get('demo_mode', None)
         if demo_documents:
             return [random.randint(0, 9458) for i in range(int(demo_documents))]
         else:
@@ -239,10 +241,11 @@ class QueryTopicModel(AnalysisUtility):
         self.output_type = 'topic_analysis'
 
     async def __call__(self, task):
-        model_type = task.task_parameters.get('model_type')
+        parameters = task.task_parameters['utility_parameters']
+        model_type = parameters.get('model_type')
         if model_type is None:
             raise KeyError
-        model_name = task.task_parameters.get('model_name')
+        model_name = parameters.get('model_name')
         if model_name is None:
             available_models = self.request_topic_models(model_type)
             model_name = available_models[0]['name']
@@ -303,7 +306,8 @@ class LemmaFrequencyTimeseries(AnalysisUtility):
         self.output_type = 'timeseries'
 
     async def __call__(self, task):
-        filename, item, item_type = itemgetter('corpus_filename', 'item', 'item_type')(task.task_parameters)
+        parameters = task.task_parameters['utility_parameters']
+        filename, item, item_type = itemgetter('corpus_filename', 'item', 'item_type')(parameters)
         corpus = load_corpus_from_pickle(filename)
         if corpus is None:
             return None
@@ -344,7 +348,8 @@ class AnalyseLemmaFrequency(AnalysisUtility):
         self.output_type = 'word_frequency_statistics'
 
     async def __call__(self, task):
-        filename, word, suffix = itemgetter('corpus_filename', 'word', 'suffix')(task.task_parameters)
+        parameters = task.task_parameters['utility_parameters']
+        filename, word, suffix = itemgetter('corpus_filename', 'word', 'suffix')(parameters)
         corpus = load_corpus_from_pickle(filename)
         if corpus is None:
             return None

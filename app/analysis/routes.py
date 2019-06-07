@@ -27,9 +27,9 @@ class AnalysisTaskList(Resource):
     # Define parser for the POST endpoint
     post_parser = AuthParser()
     post_parser.add_argument('utility', location='json', required=True, help='The name of the analysis utility to execute')
-    post_parser.add_argument('target_search', location='json', help='A search query defining the input data for the analysis task')
+    post_parser.add_argument('target_search', type=dict, location='json', help='A search query defining the input data for the analysis task')
     post_parser.add_argument('target_uuid', location='json', help='A task_uuid defining the input data for the analysis task')
-    post_parser.add_argument('utility_parameters', location='json', help='A JSON object containing utility-specific parameters')
+    post_parser.add_argument('utility_parameters', type=dict, location='json', help='A JSON object containing utility-specific parameters')
 
     @login_required
     @ns.expect(post_parser)
@@ -40,6 +40,7 @@ class AnalysisTaskList(Resource):
         Start a new analysis task, and return its basic information to the user
         """
         args = self.post_parser.parse_args()
+        args.pop('Authorization')
         query = ('analysis', args)
         if args['utility'] is None:
             raise BadRequest("Required parameter 'utility' missing for request {}".format(args))
@@ -47,7 +48,6 @@ class AnalysisTaskList(Resource):
             raise BadRequest("Utility '{}' is currently not supported.".format(args['utility']))
         try:
             task = controller.execute_tasks(query)[0].dict()
-            # If any of the tasks is not finished, the status code is set to 202, otherwise it is 200
             if task['task_status'] == 'finished':
                 return task
             elif task['task_status'] == 'running':
