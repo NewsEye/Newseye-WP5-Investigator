@@ -29,7 +29,7 @@ class AnalysisTaskList(Resource):
     post_parser.add_argument('utility', location='json', required=True, help='The name of the analysis utility to execute')
     post_parser.add_argument('target_search', type=dict, location='json', help='A search query defining the input data for the analysis task')
     post_parser.add_argument('target_uuid', location='json', help='A task_uuid defining the input data for the analysis task')
-    post_parser.add_argument('utility_parameters', type=dict, location='json', help='A JSON object containing utility-specific parameters')
+    post_parser.add_argument('utility_parameters', type=dict, default={}, location='json', help='A JSON object containing utility-specific parameters')
 
     @login_required
     @ns.expect(post_parser)
