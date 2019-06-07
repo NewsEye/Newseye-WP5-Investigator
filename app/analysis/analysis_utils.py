@@ -77,7 +77,8 @@ class ExtractFacets(AnalysisUtility):
                 for item in feature[Config.FACET_ITEMS_KEY]:
                     values[item[Config.FACET_VALUE_LABEL_KEY]] = item[Config.FACET_VALUE_HITS_KEY]
                 facets[feature[Config.FACET_ID_KEY]] = values
-        return facets
+        return {'result': facets,
+                'interestingness': facets}
 
 
 class CommonFacetValues(AnalysisUtility):
@@ -118,14 +119,15 @@ class CommonFacetValues(AnalysisUtility):
         task.hist_parent_id = input_task.uuid
         db.session.commit()
 
-        input_data = input_task.task_result.result
+        input_data = input_task.task_result.result['result']
         facets = input_data[facet_name]
         facet_list = [(facets[key], key) for key in facets.keys()]
         facet_list.sort(reverse=True)
         facet_list = facet_list[:n]
         facet_list = [{"facet_value": key, "document_count": value} for value, key in facet_list]
         interestingness = [1] * len(facet_list)
-        return {'facet_counts': facet_list, 'interestingness': interestingness}
+        return {'result': facet_list,
+                'interestingness': interestingness}
 
 
 class GenerateTimeSeries(AnalysisUtility):
@@ -190,7 +192,8 @@ class GenerateTimeSeries(AnalysisUtility):
             'absolute_counts': abs_counts.to_dict(orient='index'),
             'relative_counts': rel_counts.to_dict(orient='index')
         }
-        return analysis_results
+        return {'result': analysis_results,
+                'interestingness': 0}
 
 
 class ExtractDocumentIds(AnalysisUtility):
@@ -213,7 +216,8 @@ class ExtractDocumentIds(AnalysisUtility):
             db.session.commit()
             input_data = input_task.task_result.result
             document_ids = [item['id'] for item in input_data[Config.DOCUMENTS_KEY]]
-            return document_ids
+            return {'result': document_ids,
+                    'interestingness': 0}
 
 
 class QueryTopicModel(AnalysisUtility):
@@ -253,7 +257,7 @@ class QueryTopicModel(AnalysisUtility):
         db.session.commit()
         payload = {
             'model': model_name,
-            'documents': input_task.task_result.result
+            'documents': input_task.task_result.result['result']
         }
         response = requests.post('{}/{}/query'.format(Config.TOPIC_MODEL_URI, model_type), json=payload)
         uuid = response.json().get('task_uuid')
@@ -266,7 +270,8 @@ class QueryTopicModel(AnalysisUtility):
             response = requests.post('{}/query-results'.format(Config.TOPIC_MODEL_URI), json={'task_uuid': uuid})
             if response.status_code == 200:
                 break
-        return response.json()
+        return {'result': response.json(),
+                'interestingness': 0}
 
     @staticmethod
     def request_topic_models(model_type):
@@ -313,7 +318,8 @@ class LemmaFrequencyTimeseries(AnalysisUtility):
             return None
         ts, ts_ipm = corpus.timeseries(item=item_type, granularity='year', word_list=[item])
 
-        return {'absolute_counts': ts, 'relative_counts': ts_ipm}
+        return {'result': {'absolute_counts': ts, 'relative_counts': ts_ipm},
+                'interestingness': 0}
 
 
 class AnalyseLemmaFrequency(AnalysisUtility):
@@ -376,4 +382,5 @@ class AnalyseLemmaFrequency(AnalysisUtility):
         for k in sorted(spikes, key=spikes.get, reverse=True):
             print("%s: '%s': %d (%2.2f ipm), '%s': %d (%2.2f ipm)" %
                   (k, word, ts[word][k], ts_ipm[word][k], suffix, group_ts[k], group_ts_ipm[k]))
-        return {'wfr': wfr, 'ts': ts, 'ts_ipm': ts_ipm, 'spikes': spikes}
+        return {'result': {'wfr': wfr, 'ts': ts, 'ts_ipm': ts_ipm, 'spikes': spikes},
+                'interestingness': 0}

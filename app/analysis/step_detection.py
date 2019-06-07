@@ -36,10 +36,11 @@ class FindStepsFromTimeSeries(AnalysisUtility):
         input_task = self.get_input_task(task)
         if input_task is None or input_task.task_status != 'finished':
             raise TypeError("No task results available for analysis")
-        input_data = input_task.task_result.result
+        input_data = input_task.task_result.result['result']
 
         input_data, filled_in = self.prepare_timeseries(input_data['relative_counts'])
         column_steps = []
+        interestingness = []
         if column_name:
             columns = [column_name]
         else:
@@ -55,8 +56,13 @@ class FindStepsFromTimeSeries(AnalysisUtility):
                 'column': column,
                 'steps': [dict(zip(step_keys, [item[0], *item[1], item[2]])) for item in (zip(step_times, step_sizes, errors))]
             })
+            interestingness.append({
+                'column': column,
+                'steps': [abs(prod[step_idx]) for step_idx in step_indices]
+            })
         # TODO: Implement interestingness values
-        return {'step_analysis': column_steps}
+        return {'result': column_steps,
+                'interestingness': interestingness}
 
     @staticmethod
     def prepare_timeseries(ts, fill_na='interpolate'):
