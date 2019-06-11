@@ -10,37 +10,43 @@ async def fetch(session, params={}):
         if response.status == 401:
             raise HTTPUnauthorized
         result_body = await response.json()
-        if Config.DATABASE_IN_USE == 'newseye':
-            return result_body['response']
-        elif Config.DATABASE_IN_USE == 'demo':
-            return result_body
+        return result_body['response']
 
 
 # Runs the query/queries using aiohttp. The return value is a list containing the results in the corresponding order.
-async def search_database(queries):
+async def search_database(queries, database='newseye', **kwargs):
     if not isinstance(queries, list):
         queries = [queries]
     tasks = []
-    try:
-        async with aiohttp.ClientSession(cookies=Config.COOKIES, headers=Config.HEADERS) as session:
+    if database == 'solr':
+        async with aiohttp.ClientSession() as session:
             for query in queries:
-                params = Config.BLACKLIGHT_DEFAULT_PARAMETERS.copy()
-                params.update(query)
-                current_app.logger.info("Log, appending search: {}".format(params))
-                tasks.append(fetch(session, params))
+                current_app.logger.info("Log, appending search: {}".format(query))
+                tasks.append(query_solr(session, query, **kwargs))
             results = await asyncio.gather(*tasks)
-    except HTTPUnauthorized:
-        tasks = []
-        Config.HEADERS['Authorization'] = await get_token()
-        async with aiohttp.ClientSession(cookies=Config.COOKIES, headers=Config.HEADERS) as session:
-            for query in queries:
-                params = Config.BLACKLIGHT_DEFAULT_PARAMETERS.copy()
-                params.update(query)
-                current_app.logger.info("Log, appending search: {}".format(params))
-                tasks.append(fetch(session, params))
-            results = await asyncio.gather(*tasks)
-    current_app.logger.info("Tasks finished, returning results")
-    return results
+        current_app.logger.info("Tasks finished, returning results")
+        return results
+    elif database == 'demonstrator':
+        try:
+            async with aiohttp.ClientSession(cookies=Config.COOKIES, headers=Config.HEADERS) as session:
+                for query in queries:
+                    params = Config.BLACKLIGHT_DEFAULT_PARAMETERS.copy()
+                    params.update(query)
+                    current_app.logger.info("Log, appending search: {}".format(params))
+                    tasks.append(fetch(session, params))
+                results = await asyncio.gather(*tasks)
+        except HTTPUnauthorized:
+            tasks = []
+            Config.HEADERS['Authorization'] = await get_token()
+            async with aiohttp.ClientSession(cookies=Config.COOKIES, headers=Config.HEADERS) as session:
+                for query in queries:
+                    params = Config.BLACKLIGHT_DEFAULT_PARAMETERS.copy()
+                    params.update(query)
+                    current_app.logger.info("Log, appending search: {}".format(params))
+                    tasks.append(fetch(session, params))
+                results = await asyncio.gather(*tasks)
+        current_app.logger.info("Tasks finished, returning results")
+        return results
 
 
 # Unlike the requests package, aiohttp doesn't support key: [value_list] pairs for defining multiple values for
@@ -64,3 +70,58 @@ async def get_token():
         async with session.post("https://platform.newseye.eu/authenticate", json=payload) as response:
             body = await response.json()
     return body['auth_token']
+
+
+async def query_solr(session, query, retrieve='all'):
+    # First read the default parameters for the query
+    parameters = {key: value for key, value in Config.SOLR_PARAMETERS['default'].items()}
+    # If parameters specific to the chosen retrieve value are found, they override the defaults
+    if retrieve in Config.SOLR_PARAMETERS.keys():
+        for key, value in Config.SOLR_PARAMETERS[retrieve].items():
+            parameters[key] = value
+    # Parameters specifically defined in the query override everything else
+    for key, value in query.items():
+            parameters[key] = value
+    async with session.get(Config.SOLR_URI, params=fix_query_for_aiohttp(parameters)) as response:
+        if response.status == 401:
+            raise HTTPUnauthorized
+        response = await response.json()
+    # For retrieving docids, retrieve all of them, unless the number of rows is specified in the query
+    if retrieve in ['docids'] and 'rows' not in query.keys():
+        num_results = response['response']['numFound']
+        # Set a limit for the maximum number of documents to fetch at one go to 10000
+        parameters['rows'] = min(num_results, 10000)
+        async with session.get(Config.SOLR_URI, params=fix_query_for_aiohttp(parameters)) as response:
+            if response.status == 401:
+                raise HTTPUnauthorized
+            response = await response.json()
+    result = {'docs': response['response']['docs'], 'facets': format_facets(response['facet_counts']['facet_fields'])}
+    return result
+
+
+def format_facets(facet_dict):
+    """
+    Change the facet format returned by solR {"language_ssi": ["de", 1977, "fi", 29], ...} into the format used by
+    the NewsEye demonstrator:
+    [{"name": "language_ssi",
+      "items": [{"value": "de", "hits": 1977},
+                {"value": "fi", "hits": 29}]
+     },
+     ...
+    ]
+    """
+    labels = {
+        'language_ssi': 'Language Ssi',
+        'member_of_collection_ids_ssim': 'Newspaper',
+        'year_isi': 'Year',
+        'has_model_ssim': 'Type',
+        'date_created_dtsi': 'Date',
+    }
+    facet_list = [{'name': name,
+                   'items': [{'value': value,
+                              'hits': hits,
+                              'label': value}
+                             for value, hits in zip(itemlist[::2], itemlist[1::2])],
+                   'label': labels[name]}
+                  for name, itemlist in facet_dict]
+    return facet_list
