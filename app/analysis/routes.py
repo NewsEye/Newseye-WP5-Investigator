@@ -41,11 +41,8 @@ class AnalysisTaskList(Resource):
         """
         args = self.post_parser.parse_args()
         args.pop('Authorization')
+        args = self.check_query_parameters(args)
         query = ('analysis', args)
-        if args['utility'] is None:
-            raise BadRequest("Required parameter 'utility' missing for request {}".format(args))
-        if args['utility'] not in UTILITY_MAP.keys():
-            raise BadRequest("Utility '{}' is currently not supported.".format(args['utility']))
         try:
             task = controller.execute_tasks(query)[0].dict()
             if task['task_status'] == 'finished':
@@ -57,6 +54,29 @@ class AnalysisTaskList(Resource):
         except Exception as e:
             current_app.logger.exception(e)
             raise InternalServerError
+
+    @staticmethod
+    def check_query_parameters(args):
+        if args['utility'] is None:
+            raise BadRequest("Required parameter 'utility' missing for request {}".format(args))
+        if args['utility'] not in UTILITY_MAP.keys():
+            raise BadRequest("Utility '{}' is currently not supported.".format(args['utility']))
+        utility_info = UTILITY_MAP[args['utility']].get_description()
+        query_parameters = args['utility_parameters']
+        new_parameters = {}
+        for parameter in utility_info['utility_parameters']:
+            parameter_name = parameter['parameter_name']
+            if parameter_name in query_parameters.keys():
+                new_parameters[parameter_name] = query_parameters[parameter_name]
+            else:
+                if parameter['parameter_is_required']:
+                    raise BadRequest(
+                        "Required utility parameter '{}' is not defined in the query!".format(parameter['parameter_name']))
+                else:
+                    new_parameters[parameter_name] = parameter['parameter_default']
+        new_args = {key: value for key, value in args.items() if key != 'utility_parameters'}
+        new_args['utility_parameters'] = new_parameters
+        return new_args
 
 
 @ns.route('/<string:task_uuid>')

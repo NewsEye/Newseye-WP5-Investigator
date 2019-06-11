@@ -97,7 +97,7 @@ class CommonFacetValues(AnalysisUtility):
                 'parameter_description': 'The name of the facet to be analysed, e.g. PUB_YEAR',
                 'parameter_type': 'string',
                 'parameter_default': 'PUB_YEAR',
-                'parameter_is_required': True
+                'parameter_is_required': False
             }
         ]
         self.input_type = 'facet_list'
@@ -135,7 +135,7 @@ class GenerateTimeSeries(AnalysisUtility):
                 'parameter_description': 'the facet to be analysed',
                 'parameter_type': 'string',
                 'parameter_default': 'NEWSPAPER_NAME',
-                'parameter_is_required': True
+                'parameter_is_required': False
             }
         ]
         self.input_type = 'search_result'
