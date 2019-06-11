@@ -116,6 +116,8 @@ class TaskPlanner(object):
             if search_parameters is None:
                 return None
             utility = UTILITY_MAP[task.task_parameters.get('utility')]
+            if utility.input_type == 'search_query':
+                return None
             source_utilities = [key for key, value in UTILITY_MAP.items() if key != utility.utility_name
                                 and value.output_type == utility.input_type]
             if not source_utilities:

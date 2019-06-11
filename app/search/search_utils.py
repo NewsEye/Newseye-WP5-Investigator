@@ -15,6 +15,7 @@ async def fetch(session, params={}):
 
 # Runs the query/queries using aiohttp. The return value is a list containing the results in the corresponding order.
 async def search_database(queries, database='newseye', **kwargs):
+    return_list = isinstance(queries, list)
     if not isinstance(queries, list):
         queries = [queries]
     tasks = []
@@ -25,7 +26,10 @@ async def search_database(queries, database='newseye', **kwargs):
                 tasks.append(query_solr(session, query, **kwargs))
             results = await asyncio.gather(*tasks)
         current_app.logger.info("Tasks finished, returning results")
-        return results
+        if return_list:
+            return results
+        else:
+            return results[0]
     elif database == 'demonstrator':
         try:
             async with aiohttp.ClientSession(cookies=Config.COOKIES, headers=Config.HEADERS) as session:
@@ -46,7 +50,10 @@ async def search_database(queries, database='newseye', **kwargs):
                     tasks.append(fetch(session, params))
                 results = await asyncio.gather(*tasks)
         current_app.logger.info("Tasks finished, returning results")
-        return results
+        if return_list:
+            return results
+        else:
+            return results[0]
 
 
 # Unlike the requests package, aiohttp doesn't support key: [value_list] pairs for defining multiple values for
@@ -123,5 +130,5 @@ def format_facets(facet_dict):
                               'label': value}
                              for value, hits in zip(itemlist[::2], itemlist[1::2])],
                    'label': labels[name]}
-                  for name, itemlist in facet_dict]
+                  for name, itemlist in facet_dict.items()]
     return facet_list

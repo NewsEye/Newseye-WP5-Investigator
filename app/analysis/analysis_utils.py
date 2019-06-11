@@ -9,6 +9,7 @@ from app.analysis import assessment, timeseries
 from operator import itemgetter
 import random
 from app.main.db_utils import load_corpus_from_pickle
+from werkzeug.exceptions import BadRequest
 
 
 class AnalysisUtility(object):
@@ -23,13 +24,11 @@ class AnalysisUtility(object):
 
     @staticmethod
     def get_input_task(task):
-        input_task_uuid = task.task_parameters.get('target_uuid')
+        input_task_uuid = task.task_parameters.get('target_uuid', None)
         if input_task_uuid:
             input_task = Task.query.filter_by(uuid=input_task_uuid).first()
         else:
             input_task = None
-        if input_task is None:
-            raise ValueError('Invalid or missing target_uuid')
         return input_task
 
     def set_defaults(self):
@@ -51,31 +50,27 @@ class ExtractFacets(AnalysisUtility):
         self.utility_name = 'extract_facets'
         self.utility_description = 'Examines the document set given as input, and finds all the different facets for which values have been set in at least some of the documents.'
         self.utility_parameters = []
-        self.input_type = 'search_result'
+        self.input_type = 'search_query'
         self.output_type = 'facet_list'
         super(ExtractFacets, self).__init__()
 
     async def __call__(self, task):
         """ Extract all facet values found in the input data and the number of occurrences for each."""
         input_task = self.get_input_task(task)
-        task.hist_parent_id = input_task.uuid
-        db.session.commit()
-        input_data = input_task.task_result.result
+        if input_task:
+            task.hist_parent_id = input_task.uuid
+            db.session.commit()
+            input_data = input_task.task_result.result
+        elif task.task_parameters.get('target_search'):
+            input_data = await search_database(task.task_parameters['target_search'], database='solr', retrieve='facets')
+        else:
+            raise BadRequest('Request missing valid target_uuid or target_search!')
         facets = {}
         for feature in input_data[Config.FACETS_KEY]:
-            if Config.DATABASE_IN_USE == 'demo':
-                if feature['type'] != 'facet':
-                    continue
-                values = {}
-                for item in feature[Config.FACET_ATTRIBUTES_KEY][Config.FACET_ITEMS_KEY]:
-                    values[item[Config.FACET_ATTRIBUTES_KEY][Config.FACET_VALUE_LABEL_KEY]] = \
-                        item[Config.FACET_ATTRIBUTES_KEY][Config.FACET_VALUE_HITS_KEY]
-                facets[feature[Config.FACET_ID_KEY]] = values
-            elif Config.DATABASE_IN_USE == 'newseye':
-                values = {}
-                for item in feature[Config.FACET_ITEMS_KEY]:
-                    values[item[Config.FACET_VALUE_LABEL_KEY]] = item[Config.FACET_VALUE_HITS_KEY]
-                facets[feature[Config.FACET_ID_KEY]] = values
+            values = {}
+            for item in feature[Config.FACET_ITEMS_KEY]:
+                values[item[Config.FACET_VALUE_LABEL_KEY]] = item[Config.FACET_VALUE_HITS_KEY]
+            facets[feature[Config.FACET_ID_KEY]] = values
         return {'result': facets,
                 'interestingness': facets}
 
@@ -136,14 +131,15 @@ class GenerateTimeSeries(AnalysisUtility):
                 'parameter_type': 'string',
                 'parameter_default': 'NEWSPAPER_NAME',
                 'parameter_is_required': False
-            }
+            },
+            ## TODO: Add a parameter for choosing what to do with missing data
         ]
         self.input_type = 'search_result'
         self.output_type = 'time_series'
         super(GenerateTimeSeries, self).__init__()
 
     async def __call__(self, task):
-        # TODO Add support for total document count
+        # TODO Add support for total document count and rewrite using SolR queries
 
         input_task = self.get_input_task(task)
         input_data = input_task.task_result.result
@@ -196,7 +192,7 @@ class ExtractDocumentIds(AnalysisUtility):
         self.utility_name = 'extract_document_ids'
         self.utility_description = 'Examines the document set given as input, and extracts the document_ids for each of the documents.'
         self.utility_parameters = []
-        self.input_type = 'search_result'
+        self.input_type = 'search_query'
         self.output_type = 'id_list'
         super(ExtractDocumentIds, self).__init__()
 
@@ -207,9 +203,12 @@ class ExtractDocumentIds(AnalysisUtility):
             return [random.randint(0, 9458) for i in range(int(demo_documents))]
         else:
             input_task = self.get_input_task(task)
-            task.hist_parent_id = input_task.uuid
-            db.session.commit()
-            input_data = input_task.task_result.result
+            if input_task:
+                task.hist_parent_id = input_task.uuid
+                db.session.commit()
+                input_data = input_task.task_result.result
+            else:
+                input_data = await search_database(task.task_parameters['target_search'], database='solr', retrieve='docids')
             document_ids = [item['id'] for item in input_data[Config.DOCUMENTS_KEY]]
             return {'result': document_ids,
                     'interestingness': 0}
