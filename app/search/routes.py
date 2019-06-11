@@ -1,4 +1,4 @@
-from flask import request, current_app
+from flask import current_app
 from flask_login import login_required, current_user
 from flask_restplus import Resource
 from app.auth import AuthParser
@@ -32,23 +32,18 @@ class SearchTaskList(Resource):
     def post(self):
         """
         Start a new search task defined in the body
-        Instead of a single task, the body parameter can also consist of a list of multiple JSON objects, each defining a valid task.
         """
-        query = request.json
-        if isinstance(query, list):
-            query = [('search', item) for item in query]
-        else:
-            query = [('search', query)]
+        args = self.post_parser.parse_args()
+        args.pop('Authorization')
+        query = ('search', args)
         try:
-            results = [task.dict() for task in controller.execute_tasks(query)]
-            status = 200
-            for task in results:
-                if task['task_status'] != 'finished':
-                    status = 202
-                    break
-            if len(results) == 1:
-                results = results[0]
-            return results, status
+            task = controller.execute_tasks(query)[0].dict()
+            if task['task_status'] == 'finished':
+                return task
+            elif task['task_status'] == 'running':
+                return task, 202
+            else:
+                raise InternalServerError
         except Exception as e:
             current_app.logger.exception(e)
             raise InternalServerError
