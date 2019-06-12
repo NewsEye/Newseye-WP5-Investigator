@@ -80,6 +80,16 @@ async def get_token():
 
 
 async def query_solr(session, query, retrieve='all'):
+    """
+    :param session: an aiohttp ClientSession
+    :param query: query to be run on the solR server
+    :param retrieve: what kind of data should be retrieved. Current options are 'facets', 'docids' and 'all'
+              facets: retrieves just the facet information on the results
+              docids: retrieves all docids that match the query. If query doesn't specify the number of rows to be fetched, all matching rows are retrieved
+              all: retrieves (almost) all metadata for the documents matching the search. Only useless fields, such as the various access control fields are ignored.
+                   By default this retrieves only the first 10 matches, but this can be changed by specifying a desired value using the 'rows' parameter
+    :return:
+    """
     # First read the default parameters for the query
     parameters = {key: value for key, value in Config.SOLR_PARAMETERS['default'].items()}
     # If parameters specific to the chosen retrieve value are found, they override the defaults
@@ -102,7 +112,7 @@ async def query_solr(session, query, retrieve='all'):
             if response.status == 401:
                 raise HTTPUnauthorized
             response = await response.json()
-    result = {'docs': response['response']['docs'], 'facets': format_facets(response['facet_counts']['facet_fields'])}
+    result = {'numFound': response['response']['numFound'], 'docs': response['response']['docs'], 'facets': format_facets(response['facet_counts']['facet_fields'])}
     return result
 
 
