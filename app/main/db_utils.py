@@ -55,10 +55,10 @@ def store_results(tasks, task_results):
         task.task_finished = datetime.utcnow()
         if isinstance(result, ValueError):
             current_app.logger.error("ValueError: {}".format(result))
-            task.task_status = 'failed: {}'.format(result)
+            task.task_status = 'failed: {}'.format(result)[:255]
         elif isinstance(result, Exception):
             current_app.logger.error("Unexpected exception: {}".format(result))
-            task.task_status = 'failed: Unexpected exception: {}'.format(result)
+            task.task_status = 'failed: Unexpected exception: {}'.format(result)[:255]
         else:
             task.task_status = 'finished'
             res = Result.query.filter_by(task_type=task.task_type, task_parameters=task.task_parameters).one_or_none()
