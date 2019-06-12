@@ -27,8 +27,8 @@ class AnalysisTaskList(Resource):
     # Define parser for the POST endpoint
     post_parser = AuthParser()
     post_parser.add_argument('utility', location='json', required=True, help='The name of the analysis utility to execute')
-    post_parser.add_argument('target_search', type=dict, location='json', help='A search query defining the input data for the analysis task')
-    post_parser.add_argument('target_uuid', location='json', help='A task_uuid defining the input data for the analysis task')
+    post_parser.add_argument('target_search', type=dict, location='json', help='A JSON object containing a search query that defines the input data for the analysis task')
+    post_parser.add_argument('target_uuid', location='json', help='A task_uuid that defines the input data for the analysis task')
     post_parser.add_argument('utility_parameters', type=dict, default={}, location='json', help='A JSON object containing utility-specific parameters')
 
     @login_required
@@ -37,7 +37,7 @@ class AnalysisTaskList(Resource):
     @ns.response(202, 'The task has been accepted, and is still running.')
     def post(self):
         """
-        Start a new analysis task, and return its basic information to the user
+        Start a new analysis task, and return its basic information to the user. Source data should be defined using either the target_search OR the target_uuid parameter.
         """
         args = self.post_parser.parse_args()
         args.pop('Authorization')
