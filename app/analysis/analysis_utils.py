@@ -139,37 +139,42 @@ class GenerateTimeSeries(AnalysisUtility):
         super(GenerateTimeSeries, self).__init__()
 
     async def __call__(self, task):
-        # TODO Add support for total document count and rewrite using SolR queries
+        # TODO Add support for total document count
 
-        input_task = self.get_input_task(task)
-        input_data = input_task.task_result.result
         parameters = task.task_parameters['utility_parameters']
         facet_name = parameters.get('facet_name')
         facet_string = Config.AVAILABLE_FACETS.get(facet_name)
         if facet_string is None:
             raise TypeError("Facet not specified or specified facet not available in current database")
 
+        input_task = self.get_input_task(task)
+        if input_task:
+            input_data = input_task.task_result.result
+        elif task.task_parameters.get('target_search'):
+            input_data = await search_database(task.task_parameters['target_search'], database='solr', retrieve='facets')
+        else:
+            raise BadRequest('Request missing valid target_uuid or target_search!')
+
         year_facet = Config.AVAILABLE_FACETS['PUB_YEAR']
         for facet in input_data[Config.FACETS_KEY]:
             if facet[Config.FACET_ID_KEY] == year_facet:
-                facet_values = [item['value'] for item in facet['items']]
+                years_in_data = [item['value'] for item in facet['items']]
                 break
         else:
             raise TypeError(
                 "Search results don't contain required facet {}".format(year_facet))
-        year_parameter_names = ['f[{}][]'.format(year_facet), 'range[{}][begin]'.format(year_facet), 'range[{}][end]'.format(year_facet)]
-        original_search = {key: value for key, value in input_task.task_parameters.items() if key not in year_parameter_names}
-        queries = [{'f[{}][]'.format(year_facet): item} for item in facet_values]
+        original_search = {key: value for key, value in input_task.task_parameters.items() if key != 'fq'}
+        queries = [{'fq': '{}:{}'.format(year_facet, item)} for item in years_in_data]
         for query in queries:
             query.update(original_search)
-        query_results = await search_database(queries)
+        query_results = await search_database(queries, database='solr', retrieve='facets')
         f_counts = []
         for query, result in zip(queries, query_results):
             if result is None:
                 current_app.logger.error('Empty query result in generate_time_series')
                 continue
-            year = query['f[{}][]'.format(year_facet)]
-            total_hits = result['pages']['total_count']
+            _, year = query['fq'].split(':')
+            total_hits = result['numFound']
             for facet in result[Config.FACETS_KEY]:
                 if facet[Config.FACET_ID_KEY] == facet_string:
                     f_counts.extend([[year, item['value'], item['hits'], item['hits'] / total_hits]
