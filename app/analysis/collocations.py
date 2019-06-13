@@ -12,6 +12,8 @@ class Bigrams(object):
 
         # measures of collocation strength
         self.dice = {}
+        # TODO: linguistic mutual information, claimed to be the most suitable in the literature
+        self.LMI = {}
         self.MI   = {}
         self.Tscore = {}
         self.LL = {}

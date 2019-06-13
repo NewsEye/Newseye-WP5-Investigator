@@ -142,7 +142,7 @@ class Corpus(object):
 
     @staticmethod
 
-    def make_counts(w_to_docids, min_count):
+    def make_counts(w_to_docids, min_count=0):
         return {k: len(v) for k, v in w_to_docids.items() if len(v) >= min_count}
 
     def token_tf(self):
