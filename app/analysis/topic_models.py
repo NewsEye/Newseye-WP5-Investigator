@@ -5,6 +5,9 @@ from config import Config
 
 from app.analysis.analysis_utils import AnalysisUtility
 
+from app.analysis import assessment
+
+import json
 
 class QueryTopicModel(AnalysisUtility):
     def __init__(self):
@@ -56,9 +59,29 @@ class QueryTopicModel(AnalysisUtility):
             if response.status_code == 200:
                 break
         return {'result': response.json(),
-                'interestingness': 0}
+                'interestingness': estimate_interestness(response.json()),
+                'model_name' : model_name}
 
     @staticmethod
     def request_topic_models(model_type):
         response = requests.get('{}/{}/list-models'.format(Config.TOPIC_MODEL_URI, model_type))
         return response.json()
+
+    @staticmethod
+    def estimate_interestness(response_json):
+        """
+        Example:
+               {
+               "topic_coherence": 0.0,
+               "topic_weights": "[0.06,0.1,0.09,0.02,0.1,0.11,0.01,0.11,0.11,0.29]",
+               "doc_weights": "[[0.06,0.13,0.08,0.02,0.11,0.05,0.02,0.12,0.14,0.26],[0.07,0.09,0.08,0.01,0.07,0.19,0.01,0.08,0.09,0.31],[0.05,0.09,0.1,0.02,0.11,0.1,0.01,0.14,0.09,0.3]]"
+               }
+        """
+        # coefficients might change when we have more examples
+        return {"topic_coherence": 0.0,
+                "topic_weights" :
+                assessment.find_large_numbers_from_lists(response_json["topic_weights"], coefficient=1.8),
+                "doc_weights" :
+                assessment.find_large_numbers_from_lists(response_json["doc_weights"], coefficient=2.5)}
+                                                                                                  
+        
