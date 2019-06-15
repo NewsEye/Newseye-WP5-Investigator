@@ -26,7 +26,7 @@ class Config(object):
     REPORTER_URI = "http://newseye-wp5.cs.helsinki.fi:4218/api"
 
     # This should contain the URI for the topic modelling tools
-    TOPIC_MODEL_URI = "http://newseye-wp4.cs.helsinki.fi:7100"
+    TOPIC_MODEL_URI = "https://newseye-wp4.cs.helsinki.fi"
 
     HEADERS = {}
     COOKIES = {}

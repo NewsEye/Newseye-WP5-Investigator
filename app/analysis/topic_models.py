@@ -1,13 +1,10 @@
 import asyncio
-
 import requests
+import json
 from config import Config
-
 from app.analysis.analysis_utils import AnalysisUtility
-
 from app.analysis import assessment
 
-import json
 
 class QueryTopicModel(AnalysisUtility):
     def __init__(self):
@@ -51,7 +48,7 @@ class QueryTopicModel(AnalysisUtility):
         uuid = response.json().get('task_uuid')
         if not uuid:
             raise ValueError('Invalid response from the Topic Model API')
-        delay = 60
+        delay = 4
         while delay < 300:
             await asyncio.sleep(delay)
             delay *= 1.5
@@ -59,8 +56,8 @@ class QueryTopicModel(AnalysisUtility):
             if response.status_code == 200:
                 break
         return {'result': response.json(),
-                'interestingness': estimate_interestness(response.json()),
-                'model_name' : model_name}
+                'interestingness': self.estimate_interestingness(response.json()),
+                'model_name': model_name}
 
     @staticmethod
     def request_topic_models(model_type):
@@ -68,7 +65,7 @@ class QueryTopicModel(AnalysisUtility):
         return response.json()
 
     @staticmethod
-    def estimate_interestness(response_json):
+    def estimate_interestingness(response_json):
         """
         Example:
                {
@@ -78,10 +75,11 @@ class QueryTopicModel(AnalysisUtility):
                }
         """
         # coefficients might change when we have more examples
+        # If the lists are stored as strings, fix them into proper lists
+        if isinstance(response_json['topic_weights'], str):
+            response_json = {key: (json.loads(value) if isinstance(value, str) else value) for key, value in response_json.items()}
         return {"topic_coherence": 0.0,
-                "topic_weights" :
-                assessment.find_large_numbers_from_lists(response_json["topic_weights"], coefficient=1.8),
-                "doc_weights" :
-                assessment.find_large_numbers_from_lists(response_json["doc_weights"], coefficient=2.5)}
-                                                                                                  
-        
+                "topic_weights":
+                    assessment.find_large_numbers_from_lists(response_json["topic_weights"], coefficient=1.8),
+                "doc_weights":
+                    assessment.find_large_numbers_from_lists(response_json["doc_weights"], coefficient=2.5)}
