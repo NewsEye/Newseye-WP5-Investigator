@@ -55,8 +55,12 @@ class QueryTopicModel(AnalysisUtility):
             response = requests.post('{}/query-results'.format(Config.TOPIC_MODEL_URI), json={'task_uuid': uuid})
             if response.status_code == 200:
                 break
-        return {'result': response.json(),
-                'interestingness': self.estimate_interestingness(response.json()),
+        response_data = response.json()
+        # If the lists are stored as strings, fix them into proper lists
+        if isinstance(response_data['topic_weights'], str):
+            response_data = {key: (json.loads(value) if isinstance(value, str) else value) for key, value in response_data.items()}
+        return {'result': response_data,
+                'interestingness': self.estimate_interestingness(response_data),
                 'model_name': model_name}
 
     @staticmethod
@@ -75,9 +79,6 @@ class QueryTopicModel(AnalysisUtility):
                }
         """
         # coefficients might change when we have more examples
-        # If the lists are stored as strings, fix them into proper lists
-        if isinstance(response_json['topic_weights'], str):
-            response_json = {key: (json.loads(value) if isinstance(value, str) else value) for key, value in response_json.items()}
         return {"topic_coherence": 0.0,
                 "topic_weights":
                     assessment.find_large_numbers_from_lists(response_json["topic_weights"], coefficient=1.8),
