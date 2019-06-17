@@ -126,6 +126,7 @@ class TaskPlanner(object):
                                             return_tasks=True)
             else:
                 task_parameters = {'utility': source_utilities[0],
+                                   'utility_parameters': {},
                                    'target_search': search_parameters}
 
                 input_task = generate_tasks(user=task.user, queries=('analysis', task_parameters), parent_id=task.uuid,
