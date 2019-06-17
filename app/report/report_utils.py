@@ -10,7 +10,7 @@ def generate_report(task, report_language, report_format):
     payload = {
         'language': report_language,
         'format': report_format,
-        'data': json.dumps({'root': [task.dict('reporter')]})
+        'data': json.dumps({'root': [t.dict('reporter') for t in get_parents(task)]})
     }
     response = requests.post(Config.REPORTER_URI + "/report", data=payload)
     report_content = response.json()
@@ -48,3 +48,12 @@ def get_history(make_tree=True):
         else:
             tree['root'].append(task)
     return tree
+
+
+def get_parents(task):
+    current_task = task
+    task_list = [task]
+    while current_task.task_parameters.get('target_uuid'):
+        current_task = Task.query.filter_by(uuid=current_task.task_parameters['target_uuid']).first()
+        task_list.append(current_task)
+    return task_list
