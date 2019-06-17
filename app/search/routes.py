@@ -1,4 +1,4 @@
-from flask import current_app
+from flask import current_app, request
 from flask_login import login_required, current_user
 from flask_restplus import Resource
 from app.auth import AuthParser
@@ -23,7 +23,7 @@ class SearchTaskList(Resource):
         return tasks
 
     post_parser = AuthParser()
-    post_parser.add_argument('q', location='json', help='Keywords to use in the search')
+    post_parser.add_argument('q', location='json', help='A search query. Search the document text fields by default.')
 
     @login_required
     @ns.expect(post_parser)
@@ -31,10 +31,10 @@ class SearchTaskList(Resource):
     @ns.response(202, 'The task has been accepted, and is still running.')
     def post(self):
         """
-        Start a new search task defined in the body
+        Start a new search task defined in the body. Accepts the same arguments as the underlying SolR index.
+        By default searches the full text fields, and returns documents matching one or more of the keywords.
         """
-        args = self.post_parser.parse_args()
-        args.pop('Authorization')
+        args = request.json
         query = ('search', args)
         try:
             task = controller.execute_tasks(query)[0].dict()
