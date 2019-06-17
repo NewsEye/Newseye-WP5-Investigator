@@ -100,7 +100,7 @@ class CommonFacetValues(AnalysisUtility):
         super(CommonFacetValues, self).__init__()
 
     async def __call__(self, task):
-        parameters = task.task_parameters['utility_parameters']
+        parameters = task.task_parameters.get('utility_parameters', {})
         n = int(parameters.get('n', self.parameter_defaults['n']))
         facet_name = parameters.get('facet_name', self.parameter_defaults['facet_name'])
         facet_name = Config.AVAILABLE_FACETS.get(facet_name, facet_name)
@@ -141,7 +141,7 @@ class GenerateTimeSeries(AnalysisUtility):
     async def __call__(self, task):
         # TODO Add support for total document count
 
-        parameters = task.task_parameters['utility_parameters']
+        parameters = task.task_parameters.get('utility_parameters', {})
         facet_name = parameters.get('facet_name')
         facet_string = Config.AVAILABLE_FACETS.get(facet_name)
         if facet_string is None:
@@ -202,7 +202,7 @@ class ExtractDocumentIds(AnalysisUtility):
         super(ExtractDocumentIds, self).__init__()
 
     async def __call__(self, task):
-        parameters = task.task_parameters['utility_parameters']
+        parameters = task.task_parameters.get('utility_parameters', {})
         demo_documents = parameters.get('demo_mode', None)
         if demo_documents:
             return [random.randint(0, 9458) for i in range(int(demo_documents))]
@@ -251,7 +251,7 @@ class LemmaFrequencyTimeseries(AnalysisUtility):
         super(LemmaFrequencyTimeseries, self).__init__()
 
     async def __call__(self, task):
-        parameters = task.task_parameters['utility_parameters']
+        parameters = task.task_parameters.get('utility_parameters', {})
         filename, item, item_type = itemgetter('corpus_filename', 'item', 'item_type')(parameters)
         corpus = load_corpus_from_pickle(filename)
         if corpus is None:
@@ -294,7 +294,7 @@ class AnalyseLemmaFrequency(AnalysisUtility):
         super(AnalyseLemmaFrequency, self).__init__()
 
     async def __call__(self, task):
-        parameters = task.task_parameters['utility_parameters']
+        parameters = task.task_parameters.get('utility_parameters', {})
         filename, word, suffix = itemgetter('corpus_filename', 'word', 'suffix')(parameters)
         corpus = load_corpus_from_pickle(filename)
         if corpus is None:

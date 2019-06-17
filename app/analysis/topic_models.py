@@ -31,7 +31,7 @@ class QueryTopicModel(AnalysisUtility):
         super(QueryTopicModel, self).__init__()
 
     async def __call__(self, task):
-        parameters = task.task_parameters['utility_parameters']
+        parameters = task.task_parameters.get('utility_parameters', {})
         model_type = parameters.get('model_type')
         if model_type is None:
             raise KeyError
