@@ -4,6 +4,7 @@ import json
 from config import Config
 from app.analysis.analysis_utils import AnalysisUtility
 from app.analysis import assessment
+from werkzeug.exceptions import NotFound
 
 
 class QueryTopicModel(AnalysisUtility):
@@ -20,7 +21,7 @@ class QueryTopicModel(AnalysisUtility):
             },
             {
                 'parameter_name': 'model_name',
-                'parameter_description': 'The name of the topic model to use',
+                'parameter_description': 'The name of the topic model to use. If this is not specified, the system will use the first model offered by the topic modelling API.',
                 'parameter_type': 'string',
                 'parameter_default': None,
                 'parameter_is_required': False,
@@ -38,7 +39,10 @@ class QueryTopicModel(AnalysisUtility):
         model_name = parameters.get('model_name')
         if model_name is None:
             available_models = self.request_topic_models(model_type)
-            model_name = available_models[0]['name']
+            if available_models:
+                model_name = available_models[0]['name']
+            else:
+                raise NotFound('No trained topic models exist for the selected model type.')
         input_task = self.get_input_task(task)
         payload = {
             'model': model_name,
