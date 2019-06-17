@@ -50,10 +50,13 @@ def get_history(make_tree=True):
     return tree
 
 
-def get_parents(task):
-    current_task = task
-    task_list = [task]
-    while current_task.task_parameters.get('target_uuid'):
-        current_task = Task.query.filter_by(uuid=current_task.task_parameters['target_uuid']).first()
-        task_list.append(current_task)
-    return task_list
+def get_parents(tasks):
+    if not isinstance(tasks, list):
+        tasks = [tasks]
+    required_tasks = set(tasks)
+    for task in tasks:
+        current_task = task
+        while current_task.task_parameters.get('target_uuid'):
+            current_task = Task.query.filter_by(uuid=current_task.task_parameters['target_uuid']).first()
+            required_tasks.add(current_task)
+    return required_tasks
