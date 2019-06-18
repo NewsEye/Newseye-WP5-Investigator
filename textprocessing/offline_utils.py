@@ -1,7 +1,6 @@
 import os, sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from shelltools import search
 from collections import defaultdict
 
 from uralicNLP import uralicApi
@@ -16,11 +15,13 @@ from pytrie import StringTrie as Trie
 import string
 from progress import ProgressBar
 import warnings
+from app.search.search_utils import search_database
 
 warnings.filterwarnings("ignore")
 
 import textract
 import re
+import asyncio
 
 
 class TextProcessor(object):
@@ -269,7 +270,7 @@ class Document_DB(Document):
         text_field = 'all_text_t' + self.lang_id + '_siv'  # e.g. 'all_text_tfr_siv',
         # don't know what it mean,
         # let's hope it won't change
-        self.text = doc[text_field]
+        self.text = doc.get(text_field)
 
         if not self.text:
             # empty document, useless
@@ -295,8 +296,10 @@ class Corpus(object):
         self.input_dir = input_dir
         self.input_format = input_format
 
-        # This can be used to define only a subset of all documents for analysis
-        self.target_query = {'f[language_ssi][]': self.lang_id}
+        self.default_query = {'fq': 'language_ssi:{}'.format(self.lang_id),
+                              'fl': 'id, language_ssi, date_created_ssim, all_text_t{}_siv'.format(self.lang_id)}
+
+        self.target_query = self.default_query
 
         # stuff we want to compute only once, potentially useful for many tasks
 
@@ -319,28 +322,29 @@ class Corpus(object):
         self._timeseries = {}
 
     def set_target_query(self, query):
-        self.target_query = {'f[language_ssi][]': self.lang_id}
+        # This can be used to define only a subset of all documents for analysis
+        # Parameters defined in 'query' can override the default parameters
+        self.target_query = {key: value for key, value in self.default_query.items()}
         self.target_query.update(query)
 
-    def loop_db(self, per_page=100, force_refresh=False):
-        # 100 is a maximum number of documents per page allowed through web interface
-        # currently relies on shelltools
+    def loop_db(self, rows_per_page=100, force_refresh=False):
         # TODO: integrate into main processing
         # TODO: run in parallel (in future, for really big corpora)
-        page = 1
+        loop = asyncio.get_event_loop()
+        start_row = 0
 
         pb = ProgressBar("Loop DB", verbose=self.verbose)
-        query = {'per_page': per_page}
+        query = {'rows': rows_per_page}
         query.update(self.target_query)
         if force_refresh:
             query.update({'force_refresh': 'T'})
         while True:
-            query.update({'page': page})
-            task = search(query)
-            docs = task.task_result.result['docs']
+            query.update({'start': start_row})
+            result = loop.run_until_complete(search_database(query, database='solr'))
+            docs = result['docs']
 
             try:
-                pb.total = min(task.task_result.result['pages']['total_count'], self.DEBUG_COUNT)
+                pb.total = min(result['numFound'], self.DEBUG_COUNT)
             except KeyError:
                 pass
 
@@ -348,16 +352,10 @@ class Corpus(object):
                 pb.next()
                 yield doc
 
-            if task.task_result.result['pages']['last_page?']:
+            if start_row + rows_per_page >= result['numFound']:
                 break
-            page += 1
+            start_row += rows_per_page
         pb.end()
-
-    def download_db(self):
-        # dummy function for initial download
-        # after running that all data will be in the local db
-        for d in self.loop_db(force_refresh=True):
-            pass
 
     def readin_docs(self, process=True):
         if self.input_dir:

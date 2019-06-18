@@ -1,6 +1,6 @@
 import os
 
-from textprocessing.textprocessing import Corpus
+from textprocessing.offline_utils import Corpus
 from app.analysis import assessment, timeseries
 
 import numpy as np

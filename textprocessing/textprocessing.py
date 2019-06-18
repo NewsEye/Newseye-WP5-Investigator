@@ -3,7 +3,6 @@ from collections import defaultdict
 from pytrie import StringTrie as Trie
 from progress import ProgressBar
 
-
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 
@@ -19,8 +18,10 @@ class Corpus(object):
         self.input_dir = input_dir
         self.input_format = input_format
 
-        # This can be used to define only a subset of all documents for analysis
-        self.target_query = {'f[language_ssi][]': self.lang_id}
+        self.default_query = {'fq': 'language_ssi:{}'.format(self.lang_id),
+                              'fl': 'id, language_ssi, date_created_ssim, all_text_t{}_siv'.format(self.lang_id)}
+
+        self.target_query = self.default_query
 
         # stuff we want to compute only once, potentially useful for many tasks
 
@@ -28,8 +29,7 @@ class Corpus(object):
 
         self.token_to_docids = defaultdict(list)
         self.lemma_to_docids = defaultdict(list)
-    
-        
+
         # bigrams
         self.token_bi_to_docids = defaultdict(list)
         self.lemma_bi_to_docids = defaultdict(list)
@@ -44,9 +44,10 @@ class Corpus(object):
         self._timeseries = {}
 
     def set_target_query(self, query):
-        self.target_query = {'f[language_ssi][]': self.lang_id}
+        # This can be used to define only a subset of all documents for analysis
+        # Parameters defined in 'query' can override the default parameters
+        self.target_query = {key: value for key, value in self.default_query.items()}
         self.target_query.update(query)
-
 
     def find_word_to_doc_dict(self, item):
         item, *ngram = item.split('-')
@@ -138,10 +139,9 @@ class Corpus(object):
 
     @staticmethod
     def make_doc_counts(w_to_docids, min_count=0):
-        return {k:len(set(v)) for k,v in w_to_docids.items() if len(v) >= min_count}
+        return {k: len(set(v)) for k, v in w_to_docids.items() if len(v) >= min_count}
 
     @staticmethod
-
     def make_counts(w_to_docids, min_count=0):
         return {k: len(v) for k, v in w_to_docids.items() if len(v) >= min_count}
 
