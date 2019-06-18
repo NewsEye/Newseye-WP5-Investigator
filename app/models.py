@@ -161,7 +161,9 @@ def load_user_from_request(request):
         if not user:
             user = User(username=decoded['username'])
             db.session.add(user)
-            db.session.commit()
             current_app.logger.info("Added new user '{}' to the database".format(user.username))
+        else:
+            user.last_seen = datetime.utcnow()
+        db.session.commit()
         return user
     return None
