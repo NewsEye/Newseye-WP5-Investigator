@@ -5,6 +5,7 @@ from sqlalchemy.dialects.postgresql import UUID, JSONB
 import uuid
 import jwt
 from jwt.exceptions import ExpiredSignatureError, InvalidSignatureError
+from flask import current_app
 from flask_login import UserMixin
 from app import db, login
 from config import Config
@@ -157,5 +158,10 @@ def load_user_from_request(request):
         except (ExpiredSignatureError, InvalidSignatureError):
             return None
         user = User.query.filter_by(username=decoded['username']).first()
+        if not user:
+            user = User(username=decoded['username'])
+            db.session.add(user)
+            db.session.commit()
+            current_app.logger.info("Added new user '{}' to the database".format(user.username))
         return user
     return None
