@@ -30,6 +30,7 @@ class AnalysisTaskList(Resource):
     post_parser.add_argument('target_search', type=dict, location='json', help='A JSON object containing a search query that defines the input data for the analysis task')
     post_parser.add_argument('target_uuid', location='json', help='A task_uuid that defines the input data for the analysis task')
     post_parser.add_argument('utility_parameters', type=dict, default={}, location='json', help='A JSON object containing utility-specific parameters')
+    post_parser.add_argument('force_refresh', type=bool, default=False, location='json', help='Set to true to redo the analysis even if an older result exists')
 
     @login_required
     @ns.expect(post_parser)
