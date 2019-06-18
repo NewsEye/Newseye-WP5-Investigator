@@ -38,7 +38,7 @@ class FindStepsFromTimeSeries(AnalysisUtility):
             raise TypeError("No task results available for analysis")
         input_data = input_task.task_result.result['result']
 
-        input_data, filled_in = self.prepare_timeseries(input_data['relative_counts'])
+        input_data, filled_in = self.prepare_timeseries(input_data['absolute_counts'])
         column_steps = []
         interestingness = []
         if column_name:
