@@ -1,11 +1,40 @@
+import uuid
+import pickle
 from flask import current_app
 from sqlalchemy.exc import IntegrityError
 from flask_login import current_user
 from app import db
 from app.models import Task, Result
-import uuid, pickle
 from datetime import datetime
 from textprocessing.textprocessing import Corpus
+from werkzeug.exceptions import BadRequest
+from app.analysis import UTILITY_MAP
+
+
+def verify_analysis_parameters(query):
+    if query[0] == 'search':
+        return query
+    args = query[1]
+    if args['utility'] is None:
+        raise BadRequest("Required parameter 'utility' missing for query:\n{}".format(query))
+    if args['utility'] not in UTILITY_MAP.keys():
+        raise BadRequest("Utility '{}' is currently not supported.".format(args['utility']))
+    utility_info = UTILITY_MAP[args['utility']].get_description()
+    query_parameters = args['utility_parameters']
+    new_parameters = {}
+    for parameter in utility_info['utility_parameters']:
+        parameter_name = parameter['parameter_name']
+        if parameter_name in query_parameters.keys():
+            new_parameters[parameter_name] = query_parameters[parameter_name]
+        else:
+            if parameter['parameter_is_required']:
+                raise BadRequest(
+                    "Required utility parameter '{}' is not defined in the query:\n{}".format(parameter['parameter_name', query]))
+            else:
+                new_parameters[parameter_name] = parameter['parameter_default']
+    new_args = {key: value for key, value in args.items() if key != 'utility_parameters'}
+    new_args['utility_parameters'] = new_parameters
+    return 'analysis', new_args
 
 
 def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=False):
@@ -24,6 +53,8 @@ def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=Fals
     for query in queries:
         if not isinstance(query, tuple):
             raise ValueError('query should be of the type tuple')
+        if query[0] == 'analysis':
+            query = verify_analysis_parameters(query)
         task = Task(task_type=query[0], task_parameters=query[1], hist_parent_id=parent_id, user_id=user.id, task_status='created')
         tasks.append(task)
 

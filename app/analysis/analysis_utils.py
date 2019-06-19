@@ -7,7 +7,6 @@ import numpy as np
 import pandas as pd
 from app.analysis import assessment, timeseries
 from operator import itemgetter
-from app.main.db_utils import load_corpus_from_pickle
 from werkzeug.exceptions import BadRequest
 
 
@@ -100,8 +99,8 @@ class CommonFacetValues(AnalysisUtility):
 
     async def __call__(self, task):
         parameters = task.task_parameters.get('utility_parameters', {})
-        n = int(parameters.get('n', self.parameter_defaults['n']))
-        facet_name = parameters.get('facet_name', self.parameter_defaults['facet_name'])
+        n = int(parameters.get['n'])
+        facet_name = parameters['facet_name']
         facet_name = Config.AVAILABLE_FACETS.get(facet_name, facet_name)
 
         input_task = self.get_input_task(task)
@@ -141,7 +140,7 @@ class GenerateTimeSeries(AnalysisUtility):
         # TODO Add support for total document count
 
         parameters = task.task_parameters.get('utility_parameters', {})
-        facet_name = parameters.get('facet_name', self.parameter_defaults['facet_name'])
+        facet_name = parameters['facet_name']
         facet_string = Config.AVAILABLE_FACETS.get(facet_name)
         if facet_string is None:
             raise TypeError("Facet not specified or specified facet not available in current database")
