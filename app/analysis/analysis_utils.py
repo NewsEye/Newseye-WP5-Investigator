@@ -141,7 +141,7 @@ class GenerateTimeSeries(AnalysisUtility):
         # TODO Add support for total document count
 
         parameters = task.task_parameters.get('utility_parameters', {})
-        facet_name = parameters.get('facet_name')
+        facet_name = parameters.get('facet_name', self.parameter_defaults['facet_name'])
         facet_string = Config.AVAILABLE_FACETS.get(facet_name)
         if facet_string is None:
             raise TypeError("Facet not specified or specified facet not available in current database")
