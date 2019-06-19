@@ -7,7 +7,6 @@ import numpy as np
 import pandas as pd
 from app.analysis import assessment, timeseries
 from operator import itemgetter
-import random
 from app.main.db_utils import load_corpus_from_pickle
 from werkzeug.exceptions import BadRequest
 
@@ -202,21 +201,16 @@ class ExtractDocumentIds(AnalysisUtility):
         super(ExtractDocumentIds, self).__init__()
 
     async def __call__(self, task):
-        parameters = task.task_parameters.get('utility_parameters', {})
-        demo_documents = parameters.get('demo_mode', None)
-        if demo_documents:
-            return [random.randint(0, 9458) for i in range(int(demo_documents))]
+        input_task = self.get_input_task(task)
+        if input_task:
+            task.hist_parent_id = input_task.uuid
+            db.session.commit()
+            input_data = input_task.task_result.result
         else:
-            input_task = self.get_input_task(task)
-            if input_task:
-                task.hist_parent_id = input_task.uuid
-                db.session.commit()
-                input_data = input_task.task_result.result
-            else:
-                input_data = await search_database(task.task_parameters['target_search'], database='solr', retrieve='docids')
-            document_ids = [item['id'] for item in input_data[Config.DOCUMENTS_KEY]]
-            return {'result': document_ids,
-                    'interestingness': 0}
+            input_data = await search_database(task.task_parameters['target_search'], database='solr', retrieve='docids')
+        document_ids = [item['id'] for item in input_data[Config.DOCUMENTS_KEY]]
+        return {'result': document_ids,
+                'interestingness': 0}
 
 
 class LemmaFrequencyTimeseries(AnalysisUtility):
