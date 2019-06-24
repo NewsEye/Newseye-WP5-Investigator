@@ -30,8 +30,9 @@ class FindStepsFromTimeSeries(AnalysisUtility):
         super(FindStepsFromTimeSeries, self).__init__()
 
     async def __call__(self, task):
-        column_name = task.task_parameters.get('column_name')
-        step_threshold = task.task_parameters.get('step_threshold')
+        parameters = task.task_parameters.get('utility_parameters', {})
+        column_name = parameters.get('column_name')
+        step_threshold = parameters.get('step_threshold')
 
         input_task = self.get_input_task(task)
         if input_task is None or input_task.task_status != 'finished':

@@ -99,7 +99,7 @@ class CommonFacetValues(AnalysisUtility):
 
     async def __call__(self, task):
         parameters = task.task_parameters.get('utility_parameters', {})
-        n = int(parameters.get['n'])
+        n = int(parameters.get('n'))
         facet_name = parameters['facet_name']
         facet_name = Config.AVAILABLE_FACETS.get(facet_name, facet_name)
 
