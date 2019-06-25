@@ -80,7 +80,8 @@ class TaskPlanner(object):
 
         tasks_to_perform = [task for task in tasks if task.task_status != 'finished']
 
-        # A quick and dirty fix. In the future we should be able to perform the tasks in parallel.
+        # A quick and dirty fix.
+        # TODO: we should be able to perform the tasks in parallel.
         for task in tasks_to_perform:
             required_task = await self.get_prerequisite_tasks(task)
             if required_task:

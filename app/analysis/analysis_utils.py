@@ -8,6 +8,7 @@ import pandas as pd
 from app.analysis import assessment, timeseries
 from operator import itemgetter
 from werkzeug.exceptions import BadRequest
+import asyncio
 
 
 class AnalysisUtility(object):
@@ -28,6 +29,26 @@ class AnalysisUtility(object):
         else:
             input_task = None
         return input_task
+
+    async def get_input_data(self, task, return_input_task=False):
+        input_task = self.get_input_task(task)
+        if input_task:
+            wait_time=0
+            while input_task.task_status != 'finished' and wait_time < 100:
+                asyncio.sleep(wait_time)
+                wait_time += 1            
+            task.hist_parent_id = input_task.uuid
+            db.session.commit()
+            input_data = input_task.task_result.result
+            
+        elif task.task_parameters.get('target_search'):
+            input_data = await search_database(task.task_parameters['target_search'], database='solr', retrieve='facets')            
+        else:
+            raise BadRequest('Request missing valid target_uuid or target_search!')
+
+        if return_input_task:
+            return input_data, input_task
+        return input_data
 
     def set_defaults(self):
         if self.utility_parameters:
@@ -54,15 +75,7 @@ class ExtractFacets(AnalysisUtility):
 
     async def __call__(self, task):
         """ Extract all facet values found in the input data and the number of occurrences for each."""
-        input_task = self.get_input_task(task)
-        if input_task:
-            task.hist_parent_id = input_task.uuid
-            db.session.commit()
-            input_data = input_task.task_result.result
-        elif task.task_parameters.get('target_search'):
-            input_data = await search_database(task.task_parameters['target_search'], database='solr', retrieve='facets')
-        else:
-            raise BadRequest('Request missing valid target_uuid or target_search!')
+        input_data = await self.get_input_data(task)
         facets = {}
         for feature in input_data[Config.FACETS_KEY]:
             values = {}
@@ -103,11 +116,9 @@ class CommonFacetValues(AnalysisUtility):
         facet_name = parameters['facet_name']
         facet_name = Config.AVAILABLE_FACETS.get(facet_name, facet_name)
 
-        input_task = self.get_input_task(task)
-        task.hist_parent_id = input_task.uuid
-        db.session.commit()
+        input_data = await self.get_input_data(task)
+        input_data = input_data['result']
 
-        input_data = input_task.task_result.result['result']
         facets = input_data[facet_name]
         facet_list = [(facets[key], key) for key in facets.keys()]
         facet_list.sort(reverse=True)
@@ -145,14 +156,8 @@ class GenerateTimeSeries(AnalysisUtility):
         if facet_string is None:
             raise TypeError("Facet not specified or specified facet not available in current database")
 
-        input_task = self.get_input_task(task)
-        if input_task:
-            input_data = input_task.task_result.result
-        elif task.task_parameters.get('target_search'):
-            input_data = await search_database(task.task_parameters['target_search'], database='solr', retrieve='facets')
-        else:
-            raise BadRequest('Request missing valid target_uuid or target_search!')
-
+        input_data, input_task = await self.get_input_data(task, True)
+        
         year_facet = Config.AVAILABLE_FACETS['PUB_YEAR']
         for facet in input_data[Config.FACETS_KEY]:
             if facet[Config.FACET_ID_KEY] == year_facet:
@@ -161,11 +166,14 @@ class GenerateTimeSeries(AnalysisUtility):
         else:
             raise TypeError(
                 "Search results don't contain required facet {}".format(year_facet))
+        
         original_search = {key: value for key, value in input_task.task_parameters.items() if key != 'fq'}
         queries = [{'fq': '{}:{}'.format(year_facet, item)} for item in years_in_data]
         for query in queries:
             query.update(original_search)
         query_results = await search_database(queries, database='solr', retrieve='facets')
+
+
         f_counts = []
         for query, result in zip(queries, query_results):
             if result is None:
@@ -200,19 +208,16 @@ class ExtractDocumentIds(AnalysisUtility):
         super(ExtractDocumentIds, self).__init__()
 
     async def __call__(self, task):
-        input_task = self.get_input_task(task)
-        if input_task:
-            task.hist_parent_id = input_task.uuid
-            db.session.commit()
-            input_data = input_task.task_result.result
-        else:
-            input_data = await search_database(task.task_parameters['target_search'], database='solr', retrieve='docids')
+        input_data = await self.get_input_data(task)
+        
         document_ids = [item['id'] for item in input_data[Config.DOCUMENTS_KEY]]
         return {'result': document_ids,
                 'interestingness': 0}
 
 
 class LemmaFrequencyTimeseries(AnalysisUtility):
+    # doesn't work without the pickled indexes
+    # TODO: make it work
     def __init__(self):
         self.utility_name = 'lemma_frequency_timeseries'
         self.utility_description = ''
@@ -256,6 +261,8 @@ class LemmaFrequencyTimeseries(AnalysisUtility):
 
 
 class AnalyseLemmaFrequency(AnalysisUtility):
+    # doesn't work without the pickled indexes
+    # TODO: make it work
     def __init__(self):
         self.utility_name = 'analyse_lemma_frequency'
         self.utility_description = ''

@@ -34,11 +34,9 @@ class FindStepsFromTimeSeries(AnalysisUtility):
         column_name = parameters.get('column_name')
         step_threshold = parameters.get('step_threshold')
 
-        input_task = self.get_input_task(task)
-        if input_task is None or input_task.task_status != 'finished':
-            raise TypeError("No task results available for analysis")
-        input_data = input_task.task_result.result['result']
-
+        input_data = await self.get_input_data(task)
+        input_data = input_data['result']
+        
         input_data, filled_in = self.prepare_timeseries(input_data['absolute_counts'])
         column_steps = []
         interestingness = []

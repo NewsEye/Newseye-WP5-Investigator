@@ -43,10 +43,13 @@ class QueryTopicModel(AnalysisUtility):
                 model_name = available_models[0]['name']
             else:
                 raise NotFound('No trained topic models exist for the selected model type.')
-        input_task = self.get_input_task(task)
+
+        input_data = await self.get_input_data(task)
+        input_data = input_data['result']
+
         payload = {
             'model': model_name,
-            'documents': input_task.task_result.result['result']
+            'documents': input_data
         }
         response = requests.post('{}/{}/query'.format(Config.TOPIC_MODEL_URI, model_type), json=payload)
         uuid = response.json().get('task_uuid')
