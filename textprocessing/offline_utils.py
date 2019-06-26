@@ -340,7 +340,7 @@ class Corpus(object):
             query.update({'force_refresh': 'T'})
         while True:
             query.update({'start': start_row})
-            result = loop.run_until_complete(search_database(query, database='solr'))
+            result = loop.run_until_complete(search_database(query))
             docs = result['docs']
 
             try:

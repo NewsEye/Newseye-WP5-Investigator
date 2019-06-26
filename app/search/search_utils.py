@@ -6,7 +6,7 @@ from werkzeug.exceptions import Unauthorized
 
 
 # Runs the query/queries using aiohttp. The return value is a list containing the results in the corresponding order.
-async def search_database(queries, database='solr', **kwargs):
+async def search_database(queries, **kwargs):
     return_list = isinstance(queries, list)
     if not isinstance(queries, list):
         queries = [queries]

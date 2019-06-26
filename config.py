@@ -31,10 +31,10 @@ class Config(object):
     HEADERS = {}
     COOKIES = {}
 
-    SOLR_URI = "http://newseye.cs.helsinki.fi:9983/solr/hydra-development/select"
+    SOLR_URI = "http://localhost:9983/solr/hydra-development/select"
     SOLR_PARAMETERS = {
         'default': {
-            'mm': 1,
+            'mm': 1,  # minimal matching
             'wt': 'json',
             'qf': 'all_text_tfr_siv all_text_tfi_siv all_text_tde_siv all_text_tse_siv',
         },
@@ -49,7 +49,13 @@ class Config(object):
         'docids': {
             'fl': 'id',
             'rows': 0,
-        }
+        },
+        'words': {
+            'qf' : 'id',
+            'fl' : 'level_reading_order text_tfr_siv text_tse_siv text_tde_siv text_tfi_siv',
+            'fq' : 'level:4.pages.blocks.lines.words'
+            }
+        
     }
 
     SUPPORTED_LANGUAGES = ['fi', 'de', 'fr']

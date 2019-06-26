@@ -93,7 +93,7 @@ class TaskPlanner(object):
 
             if task.task_type == 'search':
                 # runs searches on the external database
-                search_results = await search_database([task.task_parameters], database='solr')
+                search_results = await search_database([task.task_parameters])
                 # stores results in the internal database
                 store_results([task], search_results)
 

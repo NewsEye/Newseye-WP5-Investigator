@@ -42,7 +42,7 @@ class AnalysisUtility(object):
             input_data = input_task.task_result.result
             
         elif task.task_parameters.get('target_search'):
-            input_data = await search_database(task.task_parameters['target_search'], database='solr', retrieve='facets')            
+            input_data = await search_database(task.task_parameters['target_search'], retrieve='facets')            
         else:
             raise BadRequest('Request missing valid target_uuid or target_search!')
 
@@ -171,7 +171,7 @@ class GenerateTimeSeries(AnalysisUtility):
         queries = [{'fq': '{}:{}'.format(year_facet, item)} for item in years_in_data]
         for query in queries:
             query.update(original_search)
-        query_results = await search_database(queries, database='solr', retrieve='facets')
+        query_results = await search_database(queries, retrieve='facets')
 
 
         f_counts = []
