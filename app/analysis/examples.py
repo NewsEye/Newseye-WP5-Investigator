@@ -255,7 +255,7 @@ def get_step_sizes(array, indices, window=1000):
     return step_sizes, step_error
 
 
-def step_analysis(keyword, corpus=None, df=None, item='token-1', fill_na='zero', use_relative_values=True):
+def step_analysis(keyword, corpus=None, df=None, item='token-1', fill_na='interpolate', use_relative_values=True):
     if corpus:
         ts, ts_ipm = corpus.timeseries(word_list=[keyword], item=item)
         if use_relative_values:
@@ -310,7 +310,7 @@ def prepare_timeseries(ts, fill_na='interpolate'):
     return df, filled_values
 
 
-def plot_wavelets(keyword, corpus=None, df=None, item='lemma-1', fill_na='interpolate', use_relative_values=True):
+def plot_wavelets(keyword, corpus=None, df=None, item='token-1', fill_na='interpolate', use_relative_values=True):
     if corpus:
         df, filled_indices = dataframe_from_corpus(corpus=corpus, wordlist=[keyword], item=item, fill_na=fill_na,
                                                    use_relative_values=use_relative_values)
@@ -328,7 +328,7 @@ def plot_wavelets(keyword, corpus=None, df=None, item='lemma-1', fill_na='interp
     f.show()
 
 
-def plot_step_locations(keyword, corpus=None, df=None, item='lemma-1', fill_na='interpolate', use_relative_values=True):
+def plot_step_locations(keyword, corpus=None, df=None, item='token-1', fill_na='interpolate', use_relative_values=True):
     prod, steps, step_sizes = step_analysis(keyword, corpus=corpus, df=df, item=item, fill_na=fill_na)
     if corpus:
         df, filled_indices = dataframe_from_corpus(corpus=corpus, wordlist=[keyword], item=item, fill_na=fill_na,
@@ -337,10 +337,6 @@ def plot_step_locations(keyword, corpus=None, df=None, item='lemma-1', fill_na='
         return
     idx = df.index
     threshold = 4 * np.var(prod)
-    estimate = np.zeros(len(idx))
-    for i, s in enumerate(steps):
-        sizes = step_sizes[0][i]
-        estimate[s:] += sizes[1] - sizes[0]
     max_freq = df[keyword].max()
     f, (ax1, ax2) = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': [3, 1]})
     # Plot the word frequency
@@ -365,8 +361,8 @@ def plot_step_locations(keyword, corpus=None, df=None, item='lemma-1', fill_na='
     f.show()
 
 
-def plot_estimate(keyword, corpus=None, df=None, item='lemma-1', fill_na='interpolate', use_relative_values=True):
-    prod, steps, step_sizes = step_analysis(keyword, corpus=corpus, df=df, item='lemma-1', fill_na='interpolate')
+def plot_estimate(keyword, corpus=None, df=None, item='token-1', fill_na='interpolate', use_relative_values=True):
+    prod, steps, step_sizes = step_analysis(keyword, corpus=corpus, df=df, item=item, fill_na=fill_na)
     if corpus:
         df, filled_indices = dataframe_from_corpus(corpus=corpus, wordlist=[keyword], item=item, fill_na=fill_na, use_relative_values=use_relative_values)
     if df is None:
@@ -387,7 +383,7 @@ def plot_estimate(keyword, corpus=None, df=None, item='lemma-1', fill_na='interp
     return estimate
 
 
-def research_steps(corpus=None, df=None, verbose=True, num_items=None, item='lemma-1', fill_na='interpolate', use_relative_values=True):
+def research_steps(corpus=None, df=None, verbose=True, num_items=None, item='token-1', fill_na='interpolate', use_relative_values=True):
     if corpus:
         df, filled_indices = dataframe_from_corpus(corpus=corpus, item=item, fill_na=fill_na, use_relative_values=use_relative_values)
     if df is None:
