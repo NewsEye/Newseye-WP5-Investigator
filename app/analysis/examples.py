@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 from math import isnan, sqrt
 from collections import defaultdict
 from progress import ProgressBar
+import datetime
 
 # Add DateTime converters for matplotlib plotting
 register_matplotlib_converters()
@@ -254,12 +255,15 @@ def get_step_sizes(array, indices, window=1000):
     return step_sizes, step_error
 
 
-def step_analysis(keyword, corpus=None, df=None, item='token-1'):
+def step_analysis(keyword, corpus=None, df=None, item='token-1', fill_na='zero', use_relative_values=True):
     if corpus:
-        _, ts_ipm = corpus.timeseries(word_list=[keyword], item=item)
-        df = prepare_timeseries(ts_ipm)
-    if df is None or len:
-        return
+        ts, ts_ipm = corpus.timeseries(word_list=[keyword], item=item)
+        if use_relative_values:
+            df, filled_indices = prepare_timeseries(ts_ipm, fill_na)
+        else:
+            df, filled_indices = prepare_timeseries(ts, fill_na)
+    if df is None or len(df) == 0:
+        return None, None, None
     idx = df.index
     prod, prods = mz_fwt(df[keyword])
     steps = find_steps(prod)
@@ -306,10 +310,10 @@ def prepare_timeseries(ts, fill_na='interpolate'):
     return df, filled_values
 
 
-def plot_wavelets(keyword, corpus=None, df=None, item='lemma-1', fill_na='interpolate'):
+def plot_wavelets(keyword, corpus=None, df=None, item='lemma-1', fill_na='interpolate', use_relative_values=True):
     if corpus:
-        ts, ts_ipm = corpus.timeseries(word_list=[keyword], item=item)
-        df, filled_indices = prepare_timeseries(ts, fill_na)
+        df, filled_indices = dataframe_from_corpus(corpus=corpus, wordlist=[keyword], item=item, fill_na=fill_na,
+                                                   use_relative_values=use_relative_values)
     if df is None:
         return
     idx = df.index
@@ -324,11 +328,11 @@ def plot_wavelets(keyword, corpus=None, df=None, item='lemma-1', fill_na='interp
     f.show()
 
 
-def plot_step_locations(keyword, corpus=None, df=None, item='lemma-1', fill_na='interpolate'):
-    prod, steps, step_sizes = step_analysis(keyword, corpus=corpus, df=df, item=item)
+def plot_step_locations(keyword, corpus=None, df=None, item='lemma-1', fill_na='interpolate', use_relative_values=True):
+    prod, steps, step_sizes = step_analysis(keyword, corpus=corpus, df=df, item=item, fill_na=fill_na)
     if corpus:
-        ts, ts_ipm = corpus.timeseries(word_list=[keyword], item=item)
-        df = prepare_timeseries(ts, fill_na)
+        df, filled_indices = dataframe_from_corpus(corpus=corpus, wordlist=[keyword], item=item, fill_na=fill_na,
+                                                   use_relative_values=use_relative_values)
     if df is None:
         return
     idx = df.index
@@ -342,25 +346,29 @@ def plot_step_locations(keyword, corpus=None, df=None, item='lemma-1', fill_na='
     # Plot the word frequency
     ax1.plot(idx, df[keyword], c='gray')
     ax1.set_title(
-        "Word frequencies for '{}' and detected steps:\ntaller bar corresponds to a more certain step".format(keyword))
-    ax1.set_ylabel('Word frequency (ipm)')
+        """Word frequencies for '{}' and detected steps.
+        Taller bar corresponds to a more certain step.
+        Years with no data have been {}.""".format(keyword, "zero-filled" if fill_na == 'zero' else "interpolated"))
+    if use_relative_values:
+        ax1.set_ylabel('Word frequency (ipm)')
+    else:
+        ax1.set_ylabel('Word frequency (total)')
     # Plot the detected steps
-    for i in range(len(prod) - 1):
+    for i in steps:
         if prod[i] > threshold:
-            ax2.vlines(idx[i] + 0.5, 0, max_freq * prod[i], color='blue', linewidth=3)
+            ax2.vlines(idx[i] + datetime.timedelta(days=183), 0, max_freq * prod[i], color='blue', linewidth=3)
         if prod[i] < -threshold:
-            ax2.vlines(idx[i] + 0.5, 0, max_freq * prod[i], color='orange', linewidth=3)
+            ax2.vlines(idx[i] + datetime.timedelta(days=183), 0, max_freq * prod[i], color='orange', linewidth=3)
     ax2.hlines(0, idx[0], idx[-1])
     ax2.get_yaxis().set_visible(False)
     f.tight_layout()
     f.show()
 
 
-def plot_estimate(keyword, corpus=None, df=None, item='lemma-1', fill_na='interpolate'):
-    prod, steps, step_sizes = step_analysis(keyword, corpus=corpus, df=df)
+def plot_estimate(keyword, corpus=None, df=None, item='lemma-1', fill_na='interpolate', use_relative_values=True):
+    prod, steps, step_sizes = step_analysis(keyword, corpus=corpus, df=df, item='lemma-1', fill_na='interpolate')
     if corpus:
-        ts, ts_ipm = corpus.timeseries(word_list=[keyword], item=item)
-        df = prepare_timeseries(ts, fill_na)
+        df, filled_indices = dataframe_from_corpus(corpus=corpus, wordlist=[keyword], item=item, fill_na=fill_na, use_relative_values=use_relative_values)
     if df is None:
         return
     idx = df.index
@@ -379,10 +387,9 @@ def plot_estimate(keyword, corpus=None, df=None, item='lemma-1', fill_na='interp
     return estimate
 
 
-def research_steps(corpus=None, df=None, verbose=True, num_items=None, item='lemma-1', fill_na='interpolate'):
+def research_steps(corpus=None, df=None, verbose=True, num_items=None, item='lemma-1', fill_na='interpolate', use_relative_values=True):
     if corpus:
-        ts, ts_ipm = corpus.timeseries(item=item)
-        df = prepare_timeseries(ts, fill_na)
+        df, filled_indices = dataframe_from_corpus(corpus=corpus, item=item, fill_na=fill_na, use_relative_values=use_relative_values)
     if df is None:
         return
     pb = ProgressBar("Research {}s".format(item), verbose=verbose)
@@ -406,6 +413,15 @@ def research_steps(corpus=None, df=None, verbose=True, num_items=None, item='lem
         steps_by_year[tuple(steps)].append(item[0])
     pb.end()
     return steps_by_year
+
+
+def dataframe_from_corpus(corpus, wordlist=None, item='token-1', fill_na='interpolate', use_relative_values=True):
+    ts, ts_ipm = corpus.timeseries(item=item, word_list=wordlist)
+    if use_relative_values:
+        df, filled_indices = prepare_timeseries(ts_ipm, fill_na)
+    else:
+        df, filled_indices = prepare_timeseries(ts, fill_na)
+    return df, filled_indices
 
 
 def stay_tuned():
