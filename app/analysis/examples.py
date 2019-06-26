@@ -1,6 +1,7 @@
 import os
 
-from textprocessing.offline_utils import Corpus
+from textprocessing.textprocessing import Corpus
+from textprocessing.offline_utils import Corpus as CorpusGenerator
 from app.analysis import assessment, timeseries
 
 import numpy as np
@@ -21,7 +22,7 @@ register_matplotlib_converters()
 def build_corpus(language, query=None):
     # SLOOOOW
     # run this function in advance, before showing actual fun with other functions
-    corpus = Corpus(language)
+    corpus = CorpusGenerator(language)
     if query:
         corpus.set_target_query(query)
     corpus.build_substring_structures()
