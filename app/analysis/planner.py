@@ -65,16 +65,14 @@ class TaskPlanner(object):
 
         for task in tasks:
             task.task_started = datetime.utcnow()
+            current_app.logger.debug("%s, %s, force_refresh %s" %(task.uuid, task.task_parameters["utility"], task.force_refresh))
             # to update data obtained in previous searches
-            if task.task_result and not task.task_parameters.get('force_refresh'):
+            if task.task_result and not task.force_refresh:
+                current_app.logger.debug("Not running, result exists")
                 task.task_status = 'finished'
                 task.task_finished = datetime.utcnow()
             else:
                 task.task_status = 'running'
-            # Remove the 'force_refresh parameter, if it is set. (We don't really want to store that, especially to the
-            # result object. Note that we need to use a dict comprehension to generate a new dict instead of modifing
-            # an existing one for the changes to be committed properly to database.
-            task.task_parameters = {key: value for key, value in task.task_parameters.items() if key != 'force_refresh'}
 
         db.session.commit()
 
@@ -123,12 +121,15 @@ class TaskPlanner(object):
             source_utilities = [key for key, value in UTILITY_MAP.items() if key != utility.utility_name
                                 and value.output_type == utility.input_type]
             if not source_utilities:
+                current_app.logger.debug("%s takes 'search_result' as an input" %utility.utility_name)
+                search_parameters['force_refresh'] = task.force_refresh
                 input_task = generate_tasks(queries=('search', search_parameters), user=self.user, parent_id=task.uuid,
                                             return_tasks=True)
             else:
                 task_parameters = {'utility': source_utilities[0],
                                    'utility_parameters': {},
-                                   'target_search': search_parameters}
+                                   'target_search': search_parameters,
+                                   'force_refresh' : task.force_refresh}
 
                 input_task = generate_tasks(user=task.user, queries=('analysis', task_parameters), parent_id=task.uuid,
                                             return_tasks=True)

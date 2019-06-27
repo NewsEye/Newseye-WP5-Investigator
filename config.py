@@ -51,9 +51,10 @@ class Config(object):
             'rows': 0,
         },
         'words': {
-            'qf' : 'id',
-            'fl' : 'level_reading_order text_tfr_siv text_tse_siv text_tde_siv text_tfi_siv',
-            'fq' : 'level:4.pages.blocks.lines.words'
+            'qf'  : 'id',
+            'fl'  : 'level_reading_order text_tfr_siv text_tse_siv text_tde_siv text_tfi_siv id',
+            'fq'  : 'level:4.pages.blocks.lines.words',
+            'rows': 0,
             }
         
     }

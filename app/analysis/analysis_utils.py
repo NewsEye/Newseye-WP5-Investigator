@@ -30,7 +30,7 @@ class AnalysisUtility(object):
             input_task = None
         return input_task
 
-    async def get_input_data(self, task, return_input_task=False):
+    async def get_input_data(self, task, return_input_task=False, retrieve='facets'):
         input_task = self.get_input_task(task)
         if input_task:
             wait_time=0
@@ -42,7 +42,7 @@ class AnalysisUtility(object):
             input_data = input_task.task_result.result
             
         elif task.task_parameters.get('target_search'):
-            input_data = await search_database(task.task_parameters['target_search'], retrieve='facets')            
+            input_data = await search_database(task.task_parameters['target_search'], retrieve=retrieve)            
         else:
             raise BadRequest('Request missing valid target_uuid or target_search!')
 
@@ -156,7 +156,7 @@ class GenerateTimeSeries(AnalysisUtility):
         if facet_string is None:
             raise TypeError("Facet not specified or specified facet not available in current database")
 
-        input_data, input_task = await self.get_input_data(task, True)
+        input_data, input_task = await self.get_input_data(task, return_input_task=True)
         
         year_facet = Config.AVAILABLE_FACETS['PUB_YEAR']
         for facet in input_data[Config.FACETS_KEY]:
@@ -208,8 +208,7 @@ class ExtractDocumentIds(AnalysisUtility):
         super(ExtractDocumentIds, self).__init__()
 
     async def __call__(self, task):
-        input_data = await self.get_input_data(task)
-        
+        input_data = await self.get_input_data(task, retrieve="docids")       
         document_ids = [item['id'] for item in input_data[Config.DOCUMENTS_KEY]]
         return {'result': document_ids,
                 'interestingness': 0}

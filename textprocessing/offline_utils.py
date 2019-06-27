@@ -164,6 +164,7 @@ class FinProcessor_CG3(TextProcessor):
                     # TODO: make proper lemma selection---we might prefer
                     # compounds if the end users have special iterest in compounds
                     lemma = readings[0].lemma
+                
 
         return lemmas
 

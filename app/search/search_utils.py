@@ -23,7 +23,7 @@ async def search_database(queries, **kwargs):
         return results[0]
 
 
-async def query_solr(session, query, retrieve='all'):
+async def query_solr(session, query, retrieve='all', max_return_value=1000000):
     """
     :param session: an aiohttp ClientSession
     :param query: query to be run on the solR server
@@ -48,10 +48,12 @@ async def query_solr(session, query, retrieve='all'):
             raise Unauthorized
         response = await response.json()
     # For retrieving docids, retrieve all of them, unless the number of rows is specified in the query
-    if retrieve in ['docids'] and 'rows' not in query.keys():
+    if retrieve in ['docids', 'words'] and 'rows' not in query.keys():
         num_results = response['response']['numFound']
         # Set a limit for the maximum number of documents to fetch at one go to 10000
-        parameters['rows'] = min(num_results, 10000)
+        parameters['rows'] = min(num_results, max_return_value)
+        if num_results > max_return_value:
+            current_app.logger.debug("too many raws to return, returnung %d" %max_return_value)
         async with session.get(Config.SOLR_URI, json={'params': parameters}) as response:
             if response.status == 401:
                 raise Unauthorized

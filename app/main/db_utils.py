@@ -53,7 +53,13 @@ def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=Fals
             raise ValueError('query should be of the type tuple')
         if query[0] == 'analysis':
             query = verify_analysis_parameters(query)
-        task = Task(task_type=query[0], task_parameters=query[1], hist_parent_id=parent_id, user_id=user.id, task_status='created')
+            
+        parameters=query[1]
+        force_refresh = parameters.get('force_refresh', False)
+        task = Task(task_type=query[0],
+                    task_parameters = {key: value for key, value in parameters.items() if key != 'force_refresh'},
+                    force_refresh   = force_refresh,
+                    hist_parent_id=parent_id, user_id=user.id, task_status='created')
         tasks.append(task)
 
     while True:

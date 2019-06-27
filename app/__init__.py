@@ -24,6 +24,7 @@ def create_app(config_class=Config):
     from app.apis import api
     api.init_app(app)
 
+    # FLASK_DEBUG in .flaskenv
     if not app.debug and not app.testing:
         if not os.path.exists('logs'):
             os.mkdir('logs')
@@ -31,7 +32,11 @@ def create_app(config_class=Config):
                                           backupCount=10)
         file_handler.setFormatter(logging.Formatter(
             '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'))
+
+        # for log files
         file_handler.setLevel(logging.INFO)
+
+        # for console
         app.logger.addHandler(file_handler)
 
         app.logger.setLevel(logging.INFO)

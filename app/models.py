@@ -65,6 +65,9 @@ class Task(db.Model):
     task_type = db.Column(db.String(255), nullable=False)
     task_parameters = db.Column(JSONB, nullable=False)
 
+    # force refresh: if True executes analysis utility once again, if False tries to find result from DB
+    force_refresh = db.Column(db.Boolean)
+    
     # created/running/finished/failed
     task_status = db.Column(db.String(255))
 
