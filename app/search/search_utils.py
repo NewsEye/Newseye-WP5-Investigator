@@ -99,7 +99,7 @@ async def query_solr(session, query, retrieve='all'):
     # Parameters specifically defined in the query override everything else
     for key, value in query.items():
             parameters[key] = value
-    async with session.get(Config.SOLR_URI, params=fix_query_for_aiohttp(parameters)) as response:
+    async with session.get(Config.SOLR_URI, json={'params': parameters}) as response:
         if response.status == 401:
             raise HTTPUnauthorized
         response = await response.json()
@@ -108,7 +108,7 @@ async def query_solr(session, query, retrieve='all'):
         num_results = response['response']['numFound']
         # Set a limit for the maximum number of documents to fetch at one go to 10000
         parameters['rows'] = min(num_results, 10000)
-        async with session.get(Config.SOLR_URI, params=fix_query_for_aiohttp(parameters)) as response:
+        async with session.get(Config.SOLR_URI, json={'params': parameters}) as response:
             if response.status == 401:
                 raise HTTPUnauthorized
             response = await response.json()
