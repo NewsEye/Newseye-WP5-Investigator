@@ -2,81 +2,25 @@ import asyncio
 import aiohttp
 from config import Config
 from flask import current_app
-from aiohttp.web import HTTPUnauthorized
-
-
-async def fetch(session, params={}):
-    async with session.get(url=Config.BLACKLIGHT_URI, params=fix_query_for_aiohttp(params)) as response:
-        if response.status == 401:
-            raise HTTPUnauthorized
-        result_body = await response.json()
-        return result_body['response']
+from werkzeug.exceptions import Unauthorized
 
 
 # Runs the query/queries using aiohttp. The return value is a list containing the results in the corresponding order.
-async def search_database(queries, database='demonstrator', **kwargs):
+async def search_database(queries, database='solr', **kwargs):
     return_list = isinstance(queries, list)
     if not isinstance(queries, list):
         queries = [queries]
     tasks = []
-    if database == 'solr':
-        async with aiohttp.ClientSession() as session:
-            for query in queries:
-                current_app.logger.info("Log, appending search: {}".format(query))
-                tasks.append(query_solr(session, query, **kwargs))
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-        current_app.logger.info("Tasks finished, returning results")
-        if return_list:
-            return results
-        else:
-            return results[0]
-    elif database == 'demonstrator':
-        try:
-            async with aiohttp.ClientSession(cookies=Config.COOKIES, headers=Config.HEADERS) as session:
-                for query in queries:
-                    params = Config.BLACKLIGHT_DEFAULT_PARAMETERS.copy()
-                    params.update(query)
-                    current_app.logger.info("Log, appending search: {}".format(params))
-                    tasks.append(fetch(session, params))
-                results = await asyncio.gather(*tasks)
-        except HTTPUnauthorized:
-            tasks = []
-            Config.HEADERS['Authorization'] = await get_token()
-            async with aiohttp.ClientSession(cookies=Config.COOKIES, headers=Config.HEADERS) as session:
-                for query in queries:
-                    params = Config.BLACKLIGHT_DEFAULT_PARAMETERS.copy()
-                    params.update(query)
-                    current_app.logger.info("Log, appending search: {}".format(params))
-                    tasks.append(fetch(session, params))
-                results = await asyncio.gather(*tasks)
-        current_app.logger.info("Tasks finished, returning results")
-        if return_list:
-            return results
-        else:
-            return results[0]
-
-
-# Unlike the requests package, aiohttp doesn't support key: [value_list] pairs for defining multiple values for
-# a single parameter. Instead, a list of (key, value) tuples is used.
-def fix_query_for_aiohttp(query):
-    new_query = []
-    for key in query.keys():
-        if isinstance(query[key], list):
-            new_query.extend([(key, value) for value in query[key]])
-        else:
-            new_query.append((key, query[key]))
-    return new_query
-
-
-async def get_token():
     async with aiohttp.ClientSession() as session:
-        payload = {
-            'email': Config.NEWSEYE_USERNAME,
-            'password': Config.NEWSEYE_PASSWORD
-        }
-        async with session.post("https://platform.newseye.eu/authenticate", json=payload) as response:
-            body = await response.json()
-    return body['auth_token']
+        for query in queries:
+            current_app.logger.info("Log, appending search: {}".format(query))
+            tasks.append(query_solr(session, query, **kwargs))
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+    current_app.logger.info("Tasks finished, returning results")
+    if return_list:
+        return results
+    else:
+        return results[0]
 
 
 async def query_solr(session, query, retrieve='all'):
@@ -101,7 +45,7 @@ async def query_solr(session, query, retrieve='all'):
             parameters[key] = value
     async with session.get(Config.SOLR_URI, json={'params': parameters}) as response:
         if response.status == 401:
-            raise HTTPUnauthorized
+            raise Unauthorized
         response = await response.json()
     # For retrieving docids, retrieve all of them, unless the number of rows is specified in the query
     if retrieve in ['docids'] and 'rows' not in query.keys():
@@ -110,7 +54,7 @@ async def query_solr(session, query, retrieve='all'):
         parameters['rows'] = min(num_results, 10000)
         async with session.get(Config.SOLR_URI, json={'params': parameters}) as response:
             if response.status == 401:
-                raise HTTPUnauthorized
+                raise Unauthorized
             response = await response.json()
     result = {'numFound': response['response']['numFound'], 'docs': response['response']['docs'], 'facets': format_facets(response['facet_counts']['facet_fields'])}
     return result
