@@ -44,11 +44,11 @@ class ExtractWords(AnalysisUtility):
         for (s,e) in make_batches(len(input_data)):
             docids = input_data[s:e]
             
-            current_app.logger.debug("Search docs one by one")
+            # current_app.logger.debug("Search docs one by one")
             qs = [{"q" : docid + '*'} for docid in docids]
             responses = await search_database(qs, retrieve='words')
 
-            current_app.logger.debug("search done, counting words")
+            # current_app.logger.debug("search done, counting words")
             for docid, response in zip(docids, responses):
                 for word_info in response['docs']:
                     word = [word_info[f] for f in ["text_tfr_siv", "text_tse_siv", "text_tde_siv", "text_tfi_siv"] if f in word_info][0]

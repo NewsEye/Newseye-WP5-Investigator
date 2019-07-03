@@ -83,3 +83,9 @@ class Config(object):
         'TYPE_OF_DOCUMENT': 'has_model_ssim',
         'PUB_YEAR': 'year_isi',
     }
+
+
+    # for testing
+    
+    PA_API_URI="http://localhost:5000/api/"
+    REPORTER_API_URI="https://newseye-wp5.cs.helsinki.fi/api/"

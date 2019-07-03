@@ -65,7 +65,7 @@ class TaskPlanner(object):
 
         for task in tasks:
             task.task_started = datetime.utcnow()
-            current_app.logger.debug("%s, %s, force_refresh %s" %(task.uuid, task.task_parameters["utility"], task.force_refresh))
+#            current_app.logger.debug("%s, %s, force_refresh %s" %(task.uuid, task.task_parameters["utility"], task.force_refresh))
             # to update data obtained in previous searches
             if task.task_result and not task.force_refresh:
                 current_app.logger.debug("Not running, result exists")
