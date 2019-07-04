@@ -39,7 +39,7 @@ def make_test_response(utility_name, max_try = 10):
     
     if utility_name == 'search':
         headers, url = read_config(utility_name)
-        payload = '{"q": "Republik AND Flüchtlinge AND Australien","fq": "member_of_collection_ids_ssim:arbeiter_zeitung","mm": 3}'.encode('utf-8')
+        payload = '{"q": "Republik AND Flüchtlinge AND Australien","fq": "member_of_collection_ids_ssim:arbeiter_zeitung","mm": 3,"force_refresh":"T"}'.encode('utf-8')
         task_result = make_response(url, payload, headers, max_try=max_try)
         
     elif utility_name == 'topics':

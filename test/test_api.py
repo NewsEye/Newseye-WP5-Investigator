@@ -12,7 +12,7 @@ def make_suite(TestClass):
 
 if __name__ == '__main__':
     runner = unittest.TextTestRunner()
-
+    errors, failures, skipped, total = 0,0,0,0
     for TestClass in [TestSearch,
                       TestTopic,
                       TestUtilityList,
@@ -25,6 +25,10 @@ if __name__ == '__main__':
                       TestReport]:
         print("")
         print(TestClass.__name__)
-        runner.run(make_suite(TestClass))
-
+        result = runner.run(make_suite(TestClass))
+        errors   += len(result.errors  )
+        failures += len(result.failures)
+        skipped  += len(result.skipped )
+        total    += result.testsRun
+    print("Total: %d, errors: %d, failures: %d, skipped: %d" %(total, errors, failures, skipped))
 
