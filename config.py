@@ -61,15 +61,6 @@ class Config(object):
 
     SUPPORTED_LANGUAGES = ['fi', 'de', 'fr']
 
-    BLACKLIGHT_URI = "https://platform.newseye.eu/en/catalog.json"
-    BLACKLIGHT_DEFAULT_PARAMETERS = {
-        # 'utf8': "%E2%9C%93",
-        # 'locale': 'en',
-        # 'search_field': 'all_fields,'
-    }
-    # Replace 'username' and 'password' with your own for dev purposes
-    NEWSEYE_USERNAME = os.environ.get('NEWSEYE_USERNAME') or 'username'
-    NEWSEYE_PASSWORD = os.environ.get('NEWSEYE_PASSWORD') or 'password'
     DOCUMENTS_KEY = 'docs'
     FACETS_KEY = 'facets'
     FACET_ID_KEY = 'name'
@@ -85,7 +76,5 @@ class Config(object):
     }
 
 
-    # for testing
-    
     PA_API_URI="http://localhost:5000/api/"
     REPORTER_API_URI="https://newseye-wp5.cs.helsinki.fi/api/"
