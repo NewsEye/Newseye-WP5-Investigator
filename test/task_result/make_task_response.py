@@ -52,7 +52,15 @@ def make_test_response(utility_name, max_try = 10):
         task_result = requests.request("GET", url, data="", headers=headers).json()
 
     elif utility_name == 'extract_docid':
-        payload = '{"target_search": {"q": "femme","qf" : "all_text_tfr_siv"},"utility": "extract_document_ids","force_refresh": "T"}'
+        payload = '{"target_search": {"q": "sortiraient","qf" : "all_text_tfr_siv"},"utility": "extract_document_ids","force_refresh": "T"}'
+        task_result = make_analysis_response(payload, max_try=max_try)
+
+    elif utility_name == 'extract_words':
+        payload = '{"target_search": {"q": "sortiraient","qf" : "all_text_tfr_siv"},"utility" : "extract_words"}'
+        task_result = make_analysis_response(payload, max_try=max_try)    
+        
+    elif utility_name == 'tfidf':
+        payload = '{"target_search": {"q": "sortiraient","qf" : "all_text_tfr_siv"},"utility" : "compute_tf_idf"}'
         task_result = make_analysis_response(payload, max_try=max_try)
 
     elif utility_name == 'extract_facets':
@@ -70,15 +78,7 @@ def make_test_response(utility_name, max_try = 10):
     elif utility_name == 'find_steps':
         payload = '{"target_search": {"q": "Republik"},"utility": "find_steps_from_time_series","force_refresh": "True"}'
         task_result = make_analysis_response(payload, max_try=max_try)
-        
-    elif utility_name == 'tfidf':
-        payload = '{"target_search": {"q": "plaisanterie","qf" : "all_text_tfr_siv"},"utility" : "compute_tf_idf"}'
-        task_result = make_analysis_response(payload, max_try=max_try)
 
-    elif utility_name == 'extract_words':
-        payload = '{"target_search": {"q": "plaisanterie","qf" : "all_text_tfr_siv"},"utility" : "extract_words"}'
-        task_result = make_analysis_response(payload, max_try=max_try)
-        
     elif utility_name == 'report':
         payload = '{"target_search": {"q": "Flüchtlinge"},"utility": "common_facet_values","utility_parameters": {"n": 5}}'.encode('utf-8')
         task_result = make_report_response(payload, max_try=max_try)

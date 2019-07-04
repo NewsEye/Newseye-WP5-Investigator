@@ -54,11 +54,11 @@ class TestUtilityList(TestUtility):
 
 class TestExtractDocID(TestUtility):
     task_result = "extract_docid_task_result.json"
-    payload = '{"target_search": {"q": "femme","qf" : "all_text_tfr_siv"},"utility": "extract_document_ids","force_refresh": "T"}'
+    payload = '{"target_search": {"q": "sortiraient","qf" : "all_text_tfr_siv"},"utility": "extract_document_ids","force_refresh": "T"}'
 
 class TestExtractWords(TestUtility):
     task_result = "extract_words_task_result.json"
-    payload = '{"target_search": {"q": "plaisanterie","qf" : "all_text_tfr_siv"},"utility" : "extract_words"}'
+    payload = '{"target_search": {"q": "sortiraient","qf" : "all_text_tfr_siv"},"utility" : "extract_words"}'
    
 
 class TestFindSteps(TestUtility):
@@ -87,7 +87,7 @@ class TestTfIdf(TestUtility):
     task_result = "tfidf_task_result.json"
 
     def setUp(self):
-        payload = '{"target_search": {"q": "plaisanterie","qf" : "all_text_tfr_siv"},"utility" : "compute_tf_idf"}'
+        payload = '{"target_search": {"q": "sortiraient","qf" : "all_text_tfr_siv"},"utility" : "compute_tf_idf"}'
         self.setup(payload)
 
     
