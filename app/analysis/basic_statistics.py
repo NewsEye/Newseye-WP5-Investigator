@@ -6,7 +6,7 @@ from collections import defaultdict
 def make_batches(number_of_items, batch_size = 100):
     number_of_batches = ((number_of_items-1)//batch_size)+1             
     start = 0
-    for i in range(1,number_of_items+1):
+    for i in range(1,number_of_batches+1):
         end = min(number_of_items, i*batch_size)
         yield(start, end)
         start = end
@@ -44,11 +44,11 @@ class ExtractWords(AnalysisUtility):
         for (s,e) in make_batches(len(input_data)):
             docids = input_data[s:e]
             
-            # current_app.logger.debug("Search docs one by one")
+            current_app.logger.debug("ExtractWords: search docs one by one, %d-%d/%d" %(s,e,len(input_data)))
             qs = [{"q" : docid + '*'} for docid in docids]
             responses = await search_database(qs, retrieve='words')
 
-            # current_app.logger.debug("search done, counting words")
+            current_app.logger.debug("ExtractWords: counting words")
             for docid, response in zip(docids, responses):
                 for word_info in response['docs']:
                     word = [word_info[f] for f in ["text_tfr_siv", "text_tse_siv", "text_tde_siv", "text_tfi_siv"] if f in word_info][0]
@@ -57,7 +57,7 @@ class ExtractWords(AnalysisUtility):
         current_app.logger.debug("docs %d, words %d" %(len(input_data), len(word2docid)))
         counts = {w:len(d) for w,d in word2docid.items() if len(d) >= min_count}
 
-        current_app.logger.debug("frequent words %d" %len(counts))
+        current_app.logger.debug("ExtractWords: frequent words %d" %len(counts))
         
         total = sum(counts.values())
         relatives = {w:c*1e6/total for w,c in counts.items()}
@@ -73,7 +73,7 @@ class ComputeTfIdf(AnalysisUtility):
         # relies on min_count in extract_words utility
         self.utility_parameters  = []
         self.input_type = 'word_counts'
-        self.output_type = 'compute_tf_idf'
+        self.output_type = 'tf_idf'
         super(ComputeTfIdf, self).__init__()
         
     async def __call__(self, task):
@@ -86,15 +86,13 @@ class ComputeTfIdf(AnalysisUtility):
         for (s,e) in make_batches(len(word_list), batch_size=1000):
             words = word_list[s:e]
 
+            current_app.logger.debug("ComputeTfIdf: search df for each word, %d-%d/%d" %(s,e,len(word_list)))
             qs = [{"q":w, "rows":0} for w in words]
             responses = await search_database(qs)
 
             current_app.logger.debug(responses[0])
             break
-        
-        
-
-     
+    
 
 
 
