@@ -55,10 +55,11 @@ def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=Fals
             query = verify_analysis_parameters(query)
             
         parameters=query[1]
-        force_refresh = parameters.get('force_refresh', False)
+        force_refresh = bool(parameters.get('force_refresh', False))
         task = Task(task_type=query[0],
-                    task_parameters = {key: value for key, value in parameters.items() if key != 'force_refresh'},
+                    task_parameters = {key: value for key, value in parameters.items() if key not in ['force_refresh', 'target_uuid']},
                     force_refresh   = force_refresh,
+                    target_uuid     = parameters.get('target_uuid', None),
                     hist_parent_id=parent_id, user_id=user.id, task_status='created')
         tasks.append(task)
 

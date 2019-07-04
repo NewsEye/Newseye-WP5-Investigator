@@ -52,6 +52,9 @@ class Report(db.Model):
 
 
 class Task(db.Model):
+    # TODO: columns for target_uuid and utility name
+    
+    
     __tablename__ = 'tasks'
     id = db.Column(db.Integer, primary_key=True)
     # external id
@@ -59,6 +62,8 @@ class Task(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
 
     # search history of a user
+    # currently not used
+    # to make top-level relations between tasks
     hist_parent_id = db.Column(UUID(as_uuid=True), db.ForeignKey('tasks.uuid'))
 
     # search/analysis
@@ -71,6 +76,9 @@ class Task(db.Model):
     # created/running/finished/failed
     task_status = db.Column(db.String(255))
 
+    # parent task
+    target_uuid = db.Column(UUID(as_uuid=True), db.ForeignKey('tasks.uuid'))
+    
     # timestamps
     task_started = db.Column(db.DateTime, default=datetime.utcnow)
     task_finished = db.Column(db.DateTime)

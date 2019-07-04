@@ -7,3 +7,5 @@ logs/*
 *~
 *bkp
 *.pickle
+dump/*
+investigator.env

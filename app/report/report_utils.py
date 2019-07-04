@@ -56,8 +56,8 @@ def get_parents(tasks):
     required_tasks = set(tasks)
     for task in tasks:
         current_task = task
-        while current_task.task_parameters.get('target_uuid'):
-            current_task = Task.query.filter_by(uuid=current_task.task_parameters['target_uuid']).first()
+        while current_task.target_uuid:
+            current_task = Task.query.filter_by(uuid=current_task.target_uuid).first()
             if current_task.task_type == 'analysis':
                 required_tasks.add(current_task)
     return required_tasks

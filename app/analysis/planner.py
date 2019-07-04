@@ -1,5 +1,5 @@
 from app import db
-from app.main.db_utils import generate_tasks, store_results
+from app.main.db_utils import generate_tasks, store_results, verify_analysis_parameters
 from app.models import Task
 from app.search.search_utils import search_database
 from app.analysis import UTILITY_MAP
@@ -51,11 +51,10 @@ class TaskPlanner(object):
         # here tasks are actually executed asynchronously
         # returns list of results *or* exceptions if a task fail
         results = await asyncio.gather(*async_tasks, return_exceptions=True)
-        current_app.logger.info("Tasks finished, returning results")
+        current_app.logger.info("%s finished, returning results" %[t.task_parameters.get('utility') for t in tasks])
         return results
 
     async def execute_and_store(self, tasks):
-
         if not isinstance(tasks, list):
             tasks = [tasks]
 
@@ -65,10 +64,11 @@ class TaskPlanner(object):
 
         for task in tasks:
             task.task_started = datetime.utcnow()
-#            current_app.logger.debug("%s, %s, force_refresh %s" %(task.uuid, task.task_parameters["utility"], task.force_refresh))
+            utility = task.task_parameters.get('utility', task.task_parameters)
+            current_app.logger.debug("%s, %s, force_refresh %s" %(task.uuid, utility, task.force_refresh))
             # to update data obtained in previous searches
             if task.task_result and not task.force_refresh:
-                current_app.logger.debug("Not running, result exists")
+                current_app.logger.debug("Not running %s, result exists" %utility)
                 task.task_status = 'finished'
                 task.task_finished = datetime.utcnow()
             else:
@@ -84,10 +84,10 @@ class TaskPlanner(object):
             required_task = await self.get_prerequisite_tasks(task)
             if required_task:
                 new_parameters = {key: value for key, value in task.task_parameters.items()}
-                new_parameters['target_uuid'] = str(required_task.uuid)
-                task.task_parameters = new_parameters
+                await self.execute_and_store(required_task)                
+                task.target_uuid = required_task.uuid
                 db.session.commit()
-                await self.execute_and_store(required_task)
+
 
             if task.task_type == 'search':
                 # runs searches on the external database
@@ -105,9 +105,10 @@ class TaskPlanner(object):
     async def get_prerequisite_tasks(self, task):
         # TODO: Fix the task history to work in the new way (original task is the parent and everything generated
         #  by the planner are under it)
-        input_task_uuid = task.task_parameters.get('target_uuid')
+        input_task_uuid = task.target_uuid
         if input_task_uuid:
             input_task = Task.query.filter_by(uuid=input_task_uuid).first()
+            current_app.logger.debug("input_task_uuid %s" %input_task_uuid)
             if input_task is None:
                 raise ValueError('Invalid target_uuid')
             return input_task
@@ -130,7 +131,9 @@ class TaskPlanner(object):
                                    'utility_parameters': {},
                                    'target_search': search_parameters,
                                    'force_refresh' : task.force_refresh}
-
+                _, input_task = verify_analysis_parameters(('analysis', task_parameters))
+                
+                
                 input_task = generate_tasks(user=task.user, queries=('analysis', task_parameters), parent_id=task.uuid,
                                             return_tasks=True)
         # Generate tasks outputs a list, here with a length of one, so we only take the contents, and not the list
