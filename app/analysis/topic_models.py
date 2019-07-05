@@ -5,9 +5,42 @@ from config import Config
 from app.analysis.analysis_utils import AnalysisUtility
 from app.analysis import assessment
 from werkzeug.exceptions import NotFound
+from flask import current_app
+
+class TopicModelDocumentLinking(AnalysisUtility):
+    def __init__(self):
+        self.utility_name = 'tm_document_linking',
+        self.utility_description = 'Find similar documents using topic models',
+        self.utility_parameters = [
+            {
+                'parameter_name': 'num_docs',
+                'parameter_description' : 'Number of document IDs to return',
+                'parameter_type' : 'integer',
+                'parameter_default' : 3,
+                'parameter_is_required' : False
+            },
+        ]
+        self.input_type = 'id_list'
+        self.output_type = 'id_list2' # todo: fix that after implementing proper utility selection
+        super(TopicModelDocumentLinking, self).__init__()
+
+    async def __call__(self, task):
+        parameters = task.task_parameters.get('utility_parameters', {})
+        num_docs   = parameters.get('num_docs')
+
+        input_data = await self.get_input_data(task)
+        input_data = input_data['result']
+                
+        payload = {"num_docs" : num_docs, "documents" : input_data}
+        response = requests.post('{}/doc-linking'.format(Config.TOPIC_MODEL_URI), json=payload)
+
+        return {'result':json.loads(response.json()['similar_docs']),
+                'interestingness':0.0}
+                                 
 
 
 class QueryTopicModel(AnalysisUtility):
+
     def __init__(self):
         self.utility_name = 'query_topic_model'
         self.utility_description = 'Queries the selected topic model.'
@@ -91,3 +124,7 @@ class QueryTopicModel(AnalysisUtility):
                     assessment.find_large_numbers_from_lists(response_json["topic_weights"], coefficient=1.8),
                 "doc_weights":
                     assessment.find_large_numbers_from_lists(response_json["doc_weights"], coefficient=2.5)}
+
+
+
+

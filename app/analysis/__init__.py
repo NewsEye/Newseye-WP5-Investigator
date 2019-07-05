@@ -2,7 +2,7 @@ from flask_restplus import Namespace
 
 from app.analysis.analysis_utils import ExtractFacets, CommonFacetValues, GenerateTimeSeries, ExtractDocumentIds, \
     LemmaFrequencyTimeseries, AnalyseLemmaFrequency
-from app.analysis.topic_models import QueryTopicModel
+from app.analysis.topic_models import QueryTopicModel, TopicModelDocumentLinking
 from app.analysis.step_detection import FindStepsFromTimeSeries
 from app.analysis.basic_statistics import ExtractWords, MakeBasicStats, ComputeTfIdf
 
@@ -18,6 +18,7 @@ UTILITY_MAP = {
     'extract_words': ExtractWords(),
     'make_basic_stats': MakeBasicStats(),
     'compute_tf_idf': ComputeTfIdf(),
+    'tm_document_linking': TopicModelDocumentLinking()
     # These don't work yet without the pickled indexes
     # 'lemma_frequency_timeseries': LemmaFrequencyTimeseries(),
     # 'analyse_lemma_frequency': AnalyseLemmaFrequency(),

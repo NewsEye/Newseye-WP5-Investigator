@@ -79,6 +79,10 @@ def make_test_response(utility_name, max_try = 10):
         payload = '{"target_search": {"q": "Republik"},"utility": "find_steps_from_time_series","force_refresh": "True"}'
         task_result = make_analysis_response(payload, max_try=max_try)
 
+    elif utility_name == 'tm_doclinking':
+        payload = '{"target_search": {"q": "Republik"},"utility": "tm_document_linking"}'
+        task_result = make_analysis_response(payload, max_try=max_try)
+
     elif utility_name == 'report':
         payload = '{"target_search": {"q": "Flüchtlinge"},"utility": "common_facet_values","utility_parameters": {"n": 5}}'.encode('utf-8')
         task_result = make_report_response(payload, max_try=max_try)
@@ -94,5 +98,5 @@ if __name__ == '__main__':
     try:
         make_test_response(sys.argv[1])
     except Exception as e:
-        print("USAGE: make_task_response.py [search|utility_list|topics|tfidf|extract_docid|extract_facets|generate_timeseries|extract_words|find_steps|common_facets|report]")
+        print("USAGE: make_task_response.py [search|utility_list|topics|tfidf|extract_docid|extract_facets|generate_timeseries|extract_words|find_steps|common_facets|tm_doclinking|report]")
         # raise e

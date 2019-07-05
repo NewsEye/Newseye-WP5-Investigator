@@ -1,6 +1,6 @@
 import unittest
 from test_search import TestSearch
-from test_topic_modelling import TestTopic
+from test_topic_modelling import *
 from test_report import TestReport
 from test_utilities import *
 
@@ -15,6 +15,7 @@ if __name__ == '__main__':
     errors, failures, skipped, total = 0,0,0,0
     for TestClass in [TestSearch,
                       TestTopic,
+                      TestTopicLinking,
                       TestUtilityList,
                       TestExtractDocID,
                       TestExtractWords,
