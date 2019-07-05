@@ -98,7 +98,6 @@ def find_large_numbers(data, coefficient=2):
 
 def find_large_numbers_from_lists(lists, coefficient=2):
     # works differently than the previous function, returns big numbers mask
-    # used for topic modelling, might be useful for smth else
     arr = np.array(lists)
     mean, std = np.mean(arr), np.std(arr)
     mask = np.zeros(arr.shape)

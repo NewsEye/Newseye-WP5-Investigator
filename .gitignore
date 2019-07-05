@@ -8,4 +8,4 @@ logs/*
 *bkp
 *.pickle
 dump/*
-investigator.env
+investigator.env 

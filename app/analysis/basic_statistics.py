@@ -2,6 +2,10 @@ from app.analysis.analysis_utils import AnalysisUtility
 from flask import current_app
 from app.search.search_utils import search_database
 from collections import defaultdict
+import pandas as pd
+import numpy as np
+from app.analysis import assessment
+import json
 
 def make_batches(number_of_items, batch_size = 100):
     number_of_batches = ((number_of_items-1)//batch_size)+1             
@@ -24,8 +28,8 @@ class ExtractWords(AnalysisUtility):
                 'parameter_type': 'integer',
                 'parameter_default': 20,
                 'parameter_is_required': False
-            }
-        ]
+            },
+]
         self.input_type='id_list'
         self.output_type='word_counts'
         super(ExtractWords, self).__init__()
@@ -60,8 +64,8 @@ class ExtractWords(AnalysisUtility):
         current_app.logger.debug("ExtractWords: frequent words %d" %len(counts))
         
         total = sum(counts.values())
-        relatives = {w:c*1e6/total for w,c in counts.items()}
-        result = {"counts":counts, "ipms":relatives}
+        relatives = {w:c/total for w,c in counts.items()}
+        result = {"counts":counts, "relatives":relatives}
         return {'result':result,
                 'interestingness':0}
         
@@ -71,32 +75,82 @@ class ComputeTfIdf(AnalysisUtility):
         self.utility_name='compute_tf_idf'
         self.utility_description = 'computes TfIdf to compare given subcorpus to a whole corpus'
         # relies on min_count in extract_words utility
-        self.utility_parameters  = []
+        self.utility_parameters  = [
+            {
+                'parameter_name': 'interest_thr',
+                'parameter_description': 'Threshold for tfidf to be considered interesting. Value is interesting if value-mean > interest_thr*stabdard_deviation',
+                'parameter_type': 'float',
+                'parameter_default': 1,
+                'parameter_is_required': False
+            }
+] 
         self.input_type = 'word_counts'
         self.output_type = 'tf_idf'
         super(ComputeTfIdf, self).__init__()
+
+
         
     async def __call__(self, task):
         "Gets word counts, query database for each word document frequency, than makes tf-idf statistics"
+        parameters = task.task_parameters.get('utility_parameters', {})
+        interest_thr = parameters.get('interest_thr')
+        
+        count, tf, df, N = await self.query_data(task)
+        df = self.compute_td_idf(tf, df, N, interest_thr)
+        df["count"] = [count[w] for w in df.index]
+        df["ipm"] = df.tf*1e6
 
+        return {'result' : json.loads(df[["count", "ipm", "tfidf"]].to_json(orient='index', double_precision=2)),
+                'interestingness' : json.loads(df[df.interest>0]["interest"].to_json(orient='index'))}
+
+      
+    @staticmethod
+    def compute_td_idf(tf, df, N, thr):
+        # method might be useful later (e.g. for bigram tf-idf)
+        df = pd.DataFrame.from_dict([{"word":w, "tf":tf[w], "df":df[w]} for w in df])
+        df.set_index("word", inplace=True)
+        df["tfidf"] = df.tf*np.log(N/df["df"])
+        df["interest"] = assessment.find_large_numbers_from_lists(df["tfidf"], coefficient=thr)
+        return df.sort_values(by=['tfidf'], ascending=False)
+    
+    async def query_data(self, task):
         input_data = await self.get_input_data(task)
         counts = input_data['result']['counts']
+        relatives = input_data['result']['relatives']
 
+        # qf means query field, the query field differes depending on a wanted language
+        qf = task.task_parameters['target_search'].get("qf", None)
+
+        # find total
+        query = {"rows":0,
+                 "q":" ".join(["%s : [* TO *]" %langf
+                               for langf in ['all_text_tfr_siv', 'all_text_tfi_siv',
+                                             'all_text_tde_siv', 'all_text_tse_siv'] if langf in qf])}
+        total = await search_database(query)
+        total = total['numFound']
+        current_app.logger.debug("ComputeTfIdf: total %s" %total)
+        
+        # find df
         word_list = list(counts.keys())
+        df = {}
         for (s,e) in make_batches(len(word_list), batch_size=1000):
-            words = word_list[s:e]
 
+            words = word_list[s:e]
             current_app.logger.debug("ComputeTfIdf: search df for each word, %d-%d/%d" %(s,e,len(word_list)))
             qs = [{"q":w, "rows":0} for w in words]
+            if qf:
+                qs = [{**q, "qf":qf} for q in qs]
+
             responses = await search_database(qs)
 
-            current_app.logger.debug(responses[0])
-            break
-    
+            # the query return 0 for stopwords
+            # this cannot be true zero since the words were previously found in the same db
+            # thus replace zero with all
+            df.update({w:r['numFound'] if r['numFound'] else total for w,r in zip(words,responses)})
 
-
-
-        
+        return counts, relatives, df, total
+                               
+      
 
 class MakeBasicStats(AnalysisUtility):
     def __init__(self):
@@ -109,8 +163,6 @@ class MakeBasicStats(AnalysisUtility):
 
     async def __call__(self, task):
         raise NotImplementedError
-
-
     
         
         

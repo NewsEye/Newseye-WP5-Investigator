@@ -23,7 +23,7 @@ async def search_database(queries, **kwargs):
         return results[0]
 
 
-async def query_solr(session, query, retrieve='all', max_return_value=1000000):
+async def query_solr(session, query, retrieve='all', max_return_value=100000):
     """
     :param session: an aiohttp ClientSession
     :param query: query to be run on the solR server
@@ -43,10 +43,12 @@ async def query_solr(session, query, retrieve='all', max_return_value=1000000):
     # Parameters specifically defined in the query override everything else
     for key, value in query.items():
             parameters[key] = value
+    #current_app.logger.debug("QUERY_SOLR: %s" %parameters)
+    #current_app.logger.debug("retrieve %s" %retrieve)
     async with session.get(Config.SOLR_URI, json={'params': parameters}) as response:
         if response.status == 401:
             raise Unauthorized
-        response = await response.json()
+        response = await response.json()   
     # For retrieving docids, retrieve all of them, unless the number of rows is specified in the query
     if retrieve in ['docids', 'words'] and 'rows' not in query.keys():
         num_results = response['response']['numFound']

@@ -61,6 +61,10 @@ class TestExtractWords(TestUtility):
     payload = '{"target_search": {"q": "sortiraient","qf" : "all_text_tfr_siv"},"utility" : "extract_words"}'
    
 
+class TestTfIdf(TestUtility):
+    task_result = "tfidf_task_result.json"
+    payload = '{"target_search": {"q": "sortiraient","qf" : "all_text_tfr_siv"},"utility" : "extract_words"}'
+   
 class TestFindSteps(TestUtility):
     task_result = "find_steps_task_result.json"
     payload = '{"target_search": {"q": "Republik"},"utility": "find_steps_from_time_series","force_refresh": "True"}'
@@ -82,12 +86,5 @@ class TestCommonFacetValues(TestUtility):
 
     
     
-#TODO
-class TestTfIdf(TestUtility):
-    task_result = "tfidf_task_result.json"
-
-    def setUp(self):
-        payload = '{"target_search": {"q": "sortiraient","qf" : "all_text_tfr_siv"},"utility" : "compute_tf_idf"}'
-        self.setup(payload)
 
     

@@ -55,8 +55,7 @@ class Config(object):
             'fl'  : 'level_reading_order text_tfr_siv text_tse_siv text_tde_siv text_tfi_siv id',
             'fq'  : 'level:4.pages.blocks.lines.words',
             'rows': 0,
-            }
-        
+            },
     }
 
     SUPPORTED_LANGUAGES = ['fi', 'de', 'fr']

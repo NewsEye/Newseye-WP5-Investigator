@@ -111,6 +111,8 @@ class TaskPlanner(object):
             current_app.logger.debug("input_task_uuid %s" %input_task_uuid)
             if input_task is None:
                 raise ValueError('Invalid target_uuid')
+            task.task_parameters['target_search']=input_task['target_search']
+            db.session.commit()
             return input_task
         else:
             search_parameters = task.task_parameters.get('target_search')
