@@ -17,7 +17,7 @@ class TestUtility(unittest.TestCase):
 
     def expected_result(self):
         with open(os.path.join(os.path.dirname(__file__), "task_result", self.task_result)) as js:
-            return json.load(js)
+            return json.load(js, strict=False)
 
     def test_task_result(self, max_try=10):
         url = self.url + self.response["uuid"]

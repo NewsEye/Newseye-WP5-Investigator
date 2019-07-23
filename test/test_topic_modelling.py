@@ -5,5 +5,5 @@ class TestTopic(TestUtility):
     payload = '{"target_search": {"q": "Republik Flüchtlinge Australien","fq": "member_of_collection_ids_ssim:arbeiter_zeitung","mm": 3},"utility": "query_topic_model","utility_parameters": {"model_type": "lda","model_name": "arbeit-zeitung-lda"},"force_refresh": "T"}'.encode('utf-8')
     
 class TestTopicLinking(TestUtility):
-    task_result = "tm_doclinking_task_result.json",
+    task_result = "tm_doclinking_task_result.json"
     payload = '{"target_search": {"q": "Republik"},"utility": "tm_document_linking"}'
