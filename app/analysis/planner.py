@@ -1,6 +1,6 @@
 from app import db
 from app.main.db_utils import generate_tasks, store_results, verify_analysis_parameters
-from app.models import Task
+from app.models import TaskInstance
 from app.search.search_utils import search_database
 from app.analysis import UTILITY_MAP
 from datetime import datetime
@@ -38,8 +38,7 @@ class TaskPlanner(object):
         self.loop = loop
 
     async def execute_user_task(self, task_uuids=None):
-
-        tasks = Task.query.filter(Task.uuid.in_(task_uuids)).all()
+        tasks = TaskInstance.query.filter(TaskInstance.uuid.in_(task_uuids)).all()
         await self.execute_and_store(tasks)
 
     async def async_analysis(self, tasks):
@@ -47,7 +46,7 @@ class TaskPlanner(object):
 
         # generates coroutines out of task objects
         async_tasks = [UTILITY_MAP[task.task_parameters.get('utility')](task) for task in tasks]
-
+        
         # here tasks are actually executed asynchronously
         # returns list of results *or* exceptions if a task fail
         results = await asyncio.gather(*async_tasks, return_exceptions=True)
@@ -65,10 +64,10 @@ class TaskPlanner(object):
         for task in tasks:
             task.task_started = datetime.utcnow()
             utility = task.task_parameters.get('utility', task.task_parameters)
-            current_app.logger.debug("%s, %s, force_refresh %s" %(task.uuid, utility, task.force_refresh))
+            # current_app.logger.debug("======= %s utility: %s force_refresh: %s" %(task, utility, task.force_refresh))
             # to update data obtained in previous searches
             if task.task_result and not task.force_refresh:
-                current_app.logger.debug("Not running %s, result exists" %utility)
+                current_app.logger.debug("NOT RUNNING %s, result exists" %utility)
                 task.task_status = 'finished'
                 task.task_finished = datetime.utcnow()
             else:
@@ -88,7 +87,6 @@ class TaskPlanner(object):
                 task.target_uuid = required_task.uuid
                 db.session.commit()
 
-
             if task.task_type == 'search':
                 # runs searches on the external database
                 search_results = await search_database([task.task_parameters])
@@ -107,7 +105,7 @@ class TaskPlanner(object):
         #  by the planner are under it)
         input_task_uuid = task.target_uuid
         if input_task_uuid:
-            input_task = Task.query.filter_by(uuid=input_task_uuid).first()
+            input_task = InstanceTask.query.filter_by(uuid=input_task_uuid).first()
             current_app.logger.debug("input_task_uuid %s" %input_task_uuid)
             if input_task is None:
                 raise ValueError('Invalid target_uuid')
@@ -134,7 +132,6 @@ class TaskPlanner(object):
                                    'target_search': search_parameters,
                                    'force_refresh' : task.force_refresh}
                 _, input_task = verify_analysis_parameters(('analysis', task_parameters))
-                
                 
                 input_task = generate_tasks(user=task.user, queries=('analysis', task_parameters), parent_id=task.uuid,
                                             return_tasks=True)

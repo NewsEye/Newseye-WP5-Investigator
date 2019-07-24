@@ -2,7 +2,7 @@ from flask import current_app
 from flask_login import current_user
 from app.analysis.planner import TaskPlanner
 from app.main.db_utils import generate_tasks
-from app.models import Task, User
+from app.models import TaskInstance, User
 import threading
 import time
 import asyncio
@@ -22,10 +22,12 @@ def execute_tasks(queries):
 
     # Wait until the thread has started the tasks before responding to the user
     i = 0
-    while Task.query.filter(Task.uuid.in_(task_uuids), Task.task_status == 'created').count() > 0:
+    while TaskInstance.query.filter(TaskInstance.uuid.in_(task_uuids), TaskInstance.task_status == 'created').count() > 0:
         time.sleep(1)
 
-    return Task.query.filter(Task.uuid.in_(task_uuids)).all()
+    current_app.logger.debug(TaskInstance.query.filter(TaskInstance.uuid.in_(task_uuids)).all())
+        
+    return TaskInstance.query.filter(TaskInstance.uuid.in_(task_uuids)).all()
 
 
 def task_thread(app, user_id, task_uuid):

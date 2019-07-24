@@ -3,7 +3,7 @@ from flask_login import login_required, current_user
 from flask_restplus import Resource
 from app.auth import AuthParser
 from app.main import controller
-from app.models import Task
+from app.models import TaskInstance
 from app.search import ns
 from uuid import UUID
 from werkzeug.exceptions import InternalServerError, NotFound
@@ -64,7 +64,7 @@ class SearchTask(Resource):
             task_uuid = UUID(task_uuid)
         except ValueError:
             raise NotFound
-        task = Task.query.filter_by(uuid=task_uuid, user_id=current_user.id, task_type='search').first()
+        task = TaskInstance.query.filter_by(uuid=task_uuid).first()
         if task is None:
             raise NotFound('Task {} not found for user {}'.format(task_uuid, current_user.username))
         return task.dict(style='result')
