@@ -59,9 +59,11 @@ class Task(db.Model):
 
     # search/analysis
     task_type = db.Column(db.String(255), nullable=False)
-    task_parameters = db.Column(JSONB, nullable=False)
+    utility_name = db.Column(db.String(255))
+    search = db.Column(JSONB, nullable=False)
+    utility_parameters = db.Column(JSONB)
     
-    __table_args__ = (UniqueConstraint('task_type', 'task_parameters', name='uq_task_type_task_parameters'),)
+    __table_args__ = (UniqueConstraint('task_type', 'utility_name', 'search', 'utility_parameters', name='uq_task_type_task_parameters'),)
     
     # result_id = db.Column(db.Integer, db.ForeignKey('results.id', ondelete='CASCADE'))
     task_results = db.relationship('Result', back_populates='task', foreign_keys="Result.task_id")
@@ -72,7 +74,7 @@ class Task(db.Model):
        
 
     def __repr__(self):
-        return '<Task id: {} type: {} parameters: {}>'.format(self.id, self.task_type, self.task_parameters)
+        return '<Task id: {} type: {} utlity: {} search: {} parameters: {}>'.format(self.id, self.task_type, self.utility_name, self.search, self.utility_parameters)
 
 
 class TaskInstance(db.Model):
@@ -113,14 +115,35 @@ class TaskInstance(db.Model):
     result_id = db.Column(db.Integer, db.ForeignKey('results.id'))   
     
     @property
-    def task_parameters(self):
-        if self.task:
-            return self.task.task_parameters
+    def task_type(self):
+        return self.task.task_type
 
     @property
-    def task_type(self):
-        if self.task:
-            return self.task.task_type
+    def utility_parameters(self):
+        return self.task.utility_parameters
+
+    @property
+    def utility(self):
+        return self.task.utility_name
+
+    @property
+    def target_search(self):
+        return self.task.search
+
+    @target_search.setter
+    def target_search(self, search_value):
+        self.task.search = search_value
+    
+    @property
+    def task_parameters(self):
+
+        if self.task_type == "search":
+            return self.task.search
+        else:
+            return {"utility":self.task.utility_name,
+                    "target_search":self.task.search,
+                    "utility_parameters":self.task.utility_parameters}
+        
     
     @property
     def task_result(self):

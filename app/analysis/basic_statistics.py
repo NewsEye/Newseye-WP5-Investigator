@@ -36,9 +36,8 @@ class ExtractWords(AnalysisUtility):
         
     async def __call__(self, task):
         """ Queries word index in the Solr to obtain documents split into words """
-
-        parameters = task.task_parameters.get('utility_parameters', {})
-        min_count = int(parameters.get('min_count'))
+        current_app.logger.debug("UTILITY_PARAMETERS: %s" %task.utility_parameters)
+        min_count = int(task.utility_parameters.get('min_count'))
         
         input_data = await self.get_input_data(task)
         input_data = input_data['result']
@@ -92,8 +91,7 @@ class ComputeTfIdf(AnalysisUtility):
         
     async def __call__(self, task):
         "Gets word counts, query database for each word document frequency, than makes tf-idf statistics"
-        parameters = task.task_parameters.get('utility_parameters', {})
-        interest_thr = parameters.get('interest_thr')
+        interest_thr = task.utility_parameters.get('interest_thr')
         
         count, tf, df, N = await self.query_data(task)
         df = self.compute_td_idf(tf, df, N, interest_thr)

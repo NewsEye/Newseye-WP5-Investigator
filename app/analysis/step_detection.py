@@ -30,9 +30,8 @@ class FindStepsFromTimeSeries(AnalysisUtility):
         super(FindStepsFromTimeSeries, self).__init__()
 
     async def __call__(self, task):
-        parameters = task.task_parameters.get('utility_parameters', {})
-        column_name = parameters.get('column_name')
-        step_threshold = parameters.get('step_threshold')
+        column_name = task.utility_parameters.get('column_name')
+        step_threshold = task.utility_parameters.get('step_threshold')
 
         input_data = await self.get_input_data(task)
         input_data = input_data['result']

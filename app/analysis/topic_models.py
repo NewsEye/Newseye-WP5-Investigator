@@ -25,9 +25,8 @@ class TopicModelDocumentLinking(AnalysisUtility):
         super(TopicModelDocumentLinking, self).__init__()
 
     async def __call__(self, task):
-        parameters = task.task_parameters.get('utility_parameters', {})
-        num_docs   = parameters.get('num_docs')
-
+        num_docs   = task.utility_parameters.get('num_docs')
+        
         input_data = await self.get_input_data(task)
         input_data = input_data['result']
                 
@@ -65,11 +64,10 @@ class QueryTopicModel(AnalysisUtility):
         super(QueryTopicModel, self).__init__()
 
     async def __call__(self, task):
-        parameters = task.task_parameters.get('utility_parameters', {})
-        model_type = parameters.get('model_type')
+        model_type = task.utility_parameters.get('model_type')
         if model_type is None:
             raise KeyError
-        model_name = parameters.get('model_name')
+        model_name = task.utility_parameters.get('model_name')
         if model_name is None:
             available_models = self.request_topic_models(model_type)
             if available_models:
