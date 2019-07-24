@@ -1,5 +1,5 @@
 from app import db
-from app.models import Task
+from app.models import TaskInstance
 from app.search.search_utils import search_database
 from config import Config
 from flask import current_app
@@ -25,7 +25,7 @@ class AnalysisUtility(object):
     def get_input_task(task):
         input_task_uuid = task.target_uuid
         if input_task_uuid:
-            input_task = Task.query.filter_by(uuid=input_task_uuid).first()
+            input_task = TaskInstance.query.filter_by(uuid=input_task_uuid).first()
         else:
             input_task = None
         return input_task

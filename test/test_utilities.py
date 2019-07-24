@@ -29,6 +29,7 @@ class TestUtility(unittest.TestCase):
                 break
             
         returned_result = response.get('task_result', response)
+        
         err = "Task takes too much time" if response.get("task_status", None)=="running" else "Unexpected task result"
         expected_result = self.expected_result()
         

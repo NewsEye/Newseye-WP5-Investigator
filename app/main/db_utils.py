@@ -3,7 +3,7 @@ from flask import current_app
 from sqlalchemy.exc import IntegrityError
 from flask_login import current_user
 from app import db
-from app.models import Task, Result
+from app.models import Task, TaskInstance, Result
 from datetime import datetime
 from werkzeug.exceptions import BadRequest
 from app.analysis import UTILITY_MAP
@@ -46,7 +46,7 @@ def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=Fals
     if not queries:
         return []
 
-    tasks = []
+    instances = []
 
     for query in queries:
         if not isinstance(query, tuple):
@@ -54,30 +54,45 @@ def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=Fals
         if query[0] == 'analysis':
             query = verify_analysis_parameters(query)
             
-        parameters=query[1]
-        force_refresh = bool(parameters.get('force_refresh', False))
-        task = Task(task_type=query[0],
-                    task_parameters = {key: value for key, value in parameters.items() if key not in ['force_refresh', 'target_uuid']},
-                    force_refresh   = force_refresh,
-                    target_uuid     = parameters.get('target_uuid', None),
-                    hist_parent_id=parent_id, user_id=user.id, task_status='created')
-        tasks.append(task)
+        task_type, task_parameters = query
+        force_refresh = bool(task_parameters.get('force_refresh', False))
+        target_uuid   = task_parameters.get('target_uuid', None)
+
+        task_parameters = {key: value for key, value in task_parameters.items() if key not in ['force_refresh', 'target_uuid']}
+
+        task = Task.query.filter_by(task_type = task_type, task_parameters = task_parameters).one_or_none()
+        if not task:
+            task = Task(task_type = task_type, task_parameters = task_parameters)
+            # crucial to commit immediately, otherwise task won't have an id 
+            db.session.add(task)
+            db.session.commit()
+            current_app.logger.debug("Created a new task: %s" %task)
+            
+        task_instance = TaskInstance(task_id =  task.id,
+                                     force_refresh   = force_refresh,
+                                     target_uuid     = target_uuid,
+                                     hist_parent_id=parent_id,
+                                     user_id=user.id,
+                                     task_status='created')
+        
+
+        instances.append(task_instance)
 
     while True:
         try:
-            db.session.add_all(tasks)
+            db.session.add_all(instances)
             db.session.commit()
             break
         except IntegrityError as e:
             current_app.logger.error("Got a UUID collision? Trying with different UUIDs. Exception: {}".format(e))
             db.session.rollback()
-            for task in tasks:
-                task.uuid = uuid.uuid4()
+            for instance in instances:
+                instance.uuid = uuid.uuid4()
 
     if return_tasks:
-        return tasks
+        return instances
     else:
-        return [task.uuid for task in tasks]
+        return [instance.uuid for instance in instances]
 
 
 def store_results(tasks, task_results):
@@ -86,7 +101,7 @@ def store_results(tasks, task_results):
     # Speedier results vs. more sql calls. If different tasks in the same query take wildly different amounts of
     # time, it would make sense to store the finished ones immediately instead of waiting for the last one, but I
     # doubt this would be the case here.
-
+    
     for task, result in zip(tasks, task_results):
         task.task_finished = datetime.utcnow()
         if isinstance(result, ValueError):
@@ -97,23 +112,28 @@ def store_results(tasks, task_results):
             task.task_status = 'failed: Unexpected exception: {}'.format(result)[:255]
         else:
             task.task_status = 'finished'
-            res = Result.query.filter_by(task_type=task.task_type, task_parameters=task.task_parameters).one_or_none()
+            res = Result.query.filter_by(id=task.result_id).one_or_none()
+                                     
             if not res:
                 db.session.commit()
                 try:
-                    res = Result(task_type=task.task_type, task_parameters=task.task_parameters)
+                    res = Result(id=task.result_id)
                     db.session.add(res)
                     db.session.commit()
                 # If another thread created the query in the meanwhile, this should recover from that, and simply overwrite the result with the newest one.
                 # If the filter still returns None after IntegrityError, we log the event, ignore the result and continue
                 except IntegrityError:
                     db.session.rollback()
-                    res = Result.query.filter_by(task_type=task.task_type,
-                                               task_parameters=task.task_parameters).one_or_none()
+                    res = Result.query.filter_by(id=task.result_id).one_or_none()
                     if not res:
                         current_app.logger.error("Unable to create or retrieve Result for {}. Store results failed!".format(task))
                         continue
+
             res.result = result
             res.last_updated = datetime.utcnow()
+            res.task_id = task.task_id
+            task.result_id = res.id
+            task.task.result_id = res.id
+
     current_app.logger.info("Storing results into database")
     db.session.commit()
