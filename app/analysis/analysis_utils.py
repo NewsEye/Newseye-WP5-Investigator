@@ -41,8 +41,8 @@ class AnalysisUtility(object):
             db.session.commit()
             input_data = input_task.task_result.result
             
-        elif task.task_parameters.get('target_search'):
-            input_data = await search_database(task.task_parameters['target_search'], retrieve=retrieve)            
+        elif task.target_search:
+            input_data = await search_database(task.target_search, retrieve=retrieve)            
         else:
             raise BadRequest('Request missing valid target_uuid or target_search!')
 
@@ -111,9 +111,8 @@ class CommonFacetValues(AnalysisUtility):
         super(CommonFacetValues, self).__init__()
 
     async def __call__(self, task):
-        parameters = task.task_parameters.get('utility_parameters', {})
-        n = int(parameters.get('n'))
-        facet_name = parameters['facet_name']
+        n = int(task.utility_parameters.get('n'))
+        facet_name = task.utility_parameters['facet_name']
         facet_name = Config.AVAILABLE_FACETS.get(facet_name, facet_name)
 
         input_data = await self.get_input_data(task)
@@ -150,8 +149,7 @@ class GenerateTimeSeries(AnalysisUtility):
     async def __call__(self, task):
         # TODO Add support for total document count
 
-        parameters = task.task_parameters.get('utility_parameters', {})
-        facet_name = parameters['facet_name']
+        facet_name = task.utility_parameters['facet_name']
         facet_string = Config.AVAILABLE_FACETS.get(facet_name)
         if facet_string is None:
             raise TypeError("Facet not specified or specified facet not available in current database")
@@ -248,8 +246,7 @@ class LemmaFrequencyTimeseries(AnalysisUtility):
         super(LemmaFrequencyTimeseries, self).__init__()
 
     async def __call__(self, task):
-        parameters = task.task_parameters.get('utility_parameters', {})
-        filename, item, item_type = itemgetter('corpus_filename', 'item', 'item_type')(parameters)
+        filename, item, item_type = itemgetter('corpus_filename', 'item', 'item_type')(task.utility_parameters)
         corpus = load_corpus_from_pickle(filename)
         if corpus is None:
             return None
@@ -293,8 +290,7 @@ class AnalyseLemmaFrequency(AnalysisUtility):
         super(AnalyseLemmaFrequency, self).__init__()
 
     async def __call__(self, task):
-        parameters = task.task_parameters.get('utility_parameters', {})
-        filename, word, suffix = itemgetter('corpus_filename', 'word', 'suffix')(parameters)
+        filename, word, suffix = itemgetter('corpus_filename', 'word', 'suffix')(task.utility_parameters)
         corpus = load_corpus_from_pickle(filename)
         if corpus is None:
             return None

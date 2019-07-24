@@ -10,6 +10,11 @@ from app.analysis import UTILITY_MAP
 
 
 def verify_analysis_parameters(query):
+    ''' 
+    checks the correctness 
+    and updates missed parameters with defaults
+    '''
+    
     if query[0] == 'search':
         return query
     args = query[1]
@@ -51,26 +56,29 @@ def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=Fals
     for query in queries:
         if not isinstance(query, tuple):
             raise ValueError('query should be of the type tuple')
-        if query[0] == 'analysis':
-            query = verify_analysis_parameters(query)
-            
-        task_type, task_parameters = query
-        force_refresh = bool(task_parameters.get('force_refresh', False))
-        target_uuid   = task_parameters.get('target_uuid', None)
-
-        task_parameters = {key: value for key, value in task_parameters.items() if key not in ['force_refresh', 'target_uuid']}
-
-        task = Task.query.filter_by(task_type = task_type, task_parameters = task_parameters).one_or_none()
+        
+        task_type, task_parameters = verify_analysis_parameters(query)                      
+        utility_name = task_parameters.get('utility', None)
+        search = task_parameters.get('target_search', task_parameters)
+        utility_parameters = task_parameters.get('utility_parameters', {})
+        task = Task.query.filter_by(task_type = task_type,
+                                    utility_name = utility_name,
+                                    search = search,
+                                    utility_parameters = utility_parameters).one_or_none()
         if not task:
-            task = Task(task_type = task_type, task_parameters = task_parameters)
+            task = Task(task_type = task_type,
+                        utility_name = utility_name,
+                        search = search,
+                        utility_parameters = utility_parameters)
+            
             # crucial to commit immediately, otherwise task won't have an id 
             db.session.add(task)
             db.session.commit()
             current_app.logger.debug("Created a new task: %s" %task)
             
         task_instance = TaskInstance(task_id =  task.id,
-                                     force_refresh   = force_refresh,
-                                     target_uuid     = target_uuid,
+                                     force_refresh   = bool(task_parameters.get('force_refresh', False)),
+                                     target_uuid     = task_parameters.get('target_uuid', None),
                                      hist_parent_id=parent_id,
                                      user_id=user.id,
                                      task_status='created')

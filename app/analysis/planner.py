@@ -45,12 +45,12 @@ class TaskPlanner(object):
         """ Generate asyncio tasks and run them, returning when all tasks are done"""
 
         # generates coroutines out of task objects
-        async_tasks = [UTILITY_MAP[task.task_parameters.get('utility')](task) for task in tasks]
+        async_tasks = [UTILITY_MAP[task.utility](task) for task in tasks]
         
         # here tasks are actually executed asynchronously
         # returns list of results *or* exceptions if a task fail
-        results = await asyncio.gather(*async_tasks, return_exceptions=True)
-        current_app.logger.info("%s finished, returning results" %[t.task_parameters.get('utility') for t in tasks])
+        results = await asyncio.gather(*async_tasks, return_exceptions=False)
+        current_app.logger.info("%s finished, returning results" %[t.utility for t in tasks])
         return results
 
     async def execute_and_store(self, tasks):
@@ -63,11 +63,9 @@ class TaskPlanner(object):
 
         for task in tasks:
             task.task_started = datetime.utcnow()
-            utility = task.task_parameters.get('utility', task.task_parameters)
-            # current_app.logger.debug("======= %s utility: %s force_refresh: %s" %(task, utility, task.force_refresh))
             # to update data obtained in previous searches
-            if task.task_result and not task.force_refresh:
-                current_app.logger.debug("NOT RUNNING %s, result exists" %utility)
+            if not task.force_refresh and task.task_result:
+                current_app.logger.debug("NOT RUNNING %s, result exists" %task.utility)
                 task.task_status = 'finished'
                 task.task_finished = datetime.utcnow()
             else:
@@ -109,14 +107,16 @@ class TaskPlanner(object):
             current_app.logger.debug("input_task_uuid %s" %input_task_uuid)
             if input_task is None:
                 raise ValueError('Invalid target_uuid')
-            task.task_parameters['target_search']=input_task['target_search']
+            task.target_search=input_task.target_search
             db.session.commit()
             return input_task
         else:
-            search_parameters = task.task_parameters.get('target_search')
+            search_parameters = task.target_search
             if search_parameters is None:
                 return None
-            utility = UTILITY_MAP[task.task_parameters.get('utility')]
+            if not task.utility:
+                return None
+            utility = UTILITY_MAP[task.utility] 
             if utility.input_type == 'search_query':
                 return None
             source_utilities = [key for key, value in UTILITY_MAP.items() if key != utility.utility_name
