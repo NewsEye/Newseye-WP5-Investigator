@@ -14,8 +14,8 @@ def verify_analysis_parameters(query):
     checks the correctness 
     and updates missed parameters with defaults
     '''
-    
-    if query[0] == 'search':
+
+    if query[0] != 'analysis':
         return query
     args = query[1]
     if args['utility'] is None:

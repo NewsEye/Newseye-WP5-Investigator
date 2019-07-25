@@ -98,11 +98,13 @@ class TaskPlanner(object):
                 # store in the database
                 store_results([task], analysis_results)
 
-            if task.task_type == 'explore':
-                # runs autonomous exploration and investigation of the data
-                # TODO
-                pass
+            if task.task_type == 'investigator':
+                current_app.logger.debug("HERE INVESTIGATIONS START")
 
+
+
+
+                
     async def get_prerequisite_tasks(self, task):
         # TODO: Fix the task history to work in the new way (original task is the parent and everything generated
         #  by the planner are under it)
