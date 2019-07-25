@@ -52,18 +52,16 @@ class Report(db.Model):
 
 
 class Task(db.Model):
-    # TODO: columns for target_uuid and utility name
-    
     __tablename__ = 'tasks'
     id = db.Column(db.Integer, primary_key=True)
 
     # search/analysis
     task_type = db.Column(db.String(255), nullable=False)
     utility_name = db.Column(db.String(255))
-    search = db.Column(JSONB, nullable=False)
+    search_query = db.Column(JSONB, nullable=False)
     utility_parameters = db.Column(JSONB)
     
-    __table_args__ = (UniqueConstraint('task_type', 'utility_name', 'search', 'utility_parameters', name='uq_task_type_task_parameters'),)
+    __table_args__ = (UniqueConstraint('task_type', 'utility_name', 'search_query', 'utility_parameters', name='uq_task_type_task_parameters'),)
     
     # result_id = db.Column(db.Integer, db.ForeignKey('results.id', ondelete='CASCADE'))
     task_results = db.relationship('Result', back_populates='task', foreign_keys="Result.task_id")
@@ -74,7 +72,7 @@ class Task(db.Model):
        
 
     def __repr__(self):
-        return '<Task id: {} type: {} utlity: {} search: {} parameters: {}>'.format(self.id, self.task_type, self.utility_name, self.search, self.utility_parameters)
+        return '<Task id: {} type: {} utlity: {} search: {} parameters: {}>'.format(self.id, self.task_type, self.utility_name, self.search_query, self.utility_parameters)
 
 
 class TaskInstance(db.Model):
@@ -101,7 +99,7 @@ class TaskInstance(db.Model):
     force_refresh = db.Column(db.Boolean)
 
     # parent task
-    target_uuid = db.Column(UUID(as_uuid=True), db.ForeignKey('task_instances.uuid'))
+    source_uuid = db.Column(UUID(as_uuid=True), db.ForeignKey('task_instances.uuid'))
 
     # created/running/finished/failed
     task_status = db.Column(db.String(255))
@@ -127,21 +125,21 @@ class TaskInstance(db.Model):
         return self.task.utility_name
 
     @property
-    def target_search(self):
-        return self.task.search
+    def search_query(self):
+        return self.task.search_query
 
-    @target_search.setter
-    def target_search(self, search_value):
-        self.task.search = search_value
+    @search_query.setter
+    def search_query(self, query):
+        self.task.search_query = query
     
     @property
     def task_parameters(self):
 
         if self.task_type == "search":
-            return self.task.search
+            return self.task.search_query
         else:
             return {"utility":self.task.utility_name,
-                    "target_search":self.task.search,
+                    "search_query":self.task.search_query,
                     "utility_parameters":self.task.utility_parameters}
         
     

@@ -82,7 +82,7 @@ class TaskPlanner(object):
             if required_task:
                 new_parameters = {key: value for key, value in task.task_parameters.items()}
                 await self.execute_and_store(required_task)                
-                task.target_uuid = required_task.uuid
+                task.source_uuid = required_task.uuid
                 db.session.commit()
 
             if task.task_type == 'search':
@@ -98,20 +98,25 @@ class TaskPlanner(object):
                 # store in the database
                 store_results([task], analysis_results)
 
+            if task.task_type == 'explore':
+                # runs autonomous exploration and investigation of the data
+                # TODO
+                pass
+
     async def get_prerequisite_tasks(self, task):
         # TODO: Fix the task history to work in the new way (original task is the parent and everything generated
         #  by the planner are under it)
-        input_task_uuid = task.target_uuid
+        input_task_uuid = task.source_uuid
         if input_task_uuid:
             input_task = InstanceTask.query.filter_by(uuid=input_task_uuid).first()
             current_app.logger.debug("input_task_uuid %s" %input_task_uuid)
             if input_task is None:
-                raise ValueError('Invalid target_uuid')
-            task.target_search=input_task.target_search
+                raise ValueError('Invalid source_uuid')
+            task.search_query=input_task.search_query
             db.session.commit()
             return input_task
         else:
-            search_parameters = task.target_search
+            search_parameters = task.search_query
             if search_parameters is None:
                 return None
             if not task.utility:
@@ -129,7 +134,7 @@ class TaskPlanner(object):
             else:
                 task_parameters = {'utility': source_utilities[0],
                                    'utility_parameters': {},
-                                   'target_search': search_parameters,
+                                   'search_query': search_parameters,
                                    'force_refresh' : task.force_refresh}
                 _, input_task = verify_analysis_parameters(('analysis', task_parameters))
                 

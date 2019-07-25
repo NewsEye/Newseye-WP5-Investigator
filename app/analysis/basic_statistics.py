@@ -117,7 +117,7 @@ class ComputeTfIdf(AnalysisUtility):
         relatives = input_data['result']['relatives']
 
         # qf means query field, the query field differes depending on a wanted language
-        qf = task.task_parameters['target_search'].get("qf", None)
+        qf = task.search_query.get("qf", None)
 
         # find total
         query = {"rows":0,

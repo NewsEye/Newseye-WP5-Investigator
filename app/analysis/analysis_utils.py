@@ -23,7 +23,7 @@ class AnalysisUtility(object):
 
     @staticmethod
     def get_input_task(task):
-        input_task_uuid = task.target_uuid
+        input_task_uuid = task.source_uuid
         if input_task_uuid:
             input_task = TaskInstance.query.filter_by(uuid=input_task_uuid).first()
         else:
@@ -41,10 +41,10 @@ class AnalysisUtility(object):
             db.session.commit()
             input_data = input_task.task_result.result
             
-        elif task.target_search:
-            input_data = await search_database(task.target_search, retrieve=retrieve)            
+        elif task.search_query:
+            input_data = await search_database(task.search_query, retrieve=retrieve)            
         else:
-            raise BadRequest('Request missing valid target_uuid or target_search!')
+            raise BadRequest('Request missing valid source_uuid or search_query!')
 
         if return_input_task:
             return input_data, input_task
