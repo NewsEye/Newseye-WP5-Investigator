@@ -19,7 +19,7 @@ class AnalysisTaskList(Resource):
         Retrieve all analysis tasks started by the user
         """
         tasks = [task.dict(style='result') for task in
-                 Task.query.filter_by(user_id=current_user.id, task_type='analysis').all()]
+                 TaskInstance.query.filter_by(user_id=current_user.id, task_type='analysis').all()]
         if len(tasks) == 1:
             tasks = tasks[0]
         return tasks
