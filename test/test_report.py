@@ -4,6 +4,8 @@ import os
 from read_config import read_config
 
 class TestReport(TestUtility):
+    # TODO: replace target_search with search_query once new version is deployed
+    
     utype="report"
     task_result = "report_task_result.json"
     payload = '{"target_search": {"q": "Flüchtlinge"},"utility": "common_facet_values","utility_parameters": {"n": 5}}'.encode('utf-8')

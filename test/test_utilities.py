@@ -55,33 +55,33 @@ class TestUtilityList(TestUtility):
 
 class TestExtractDocID(TestUtility):
     task_result = "extract_docid_task_result.json"
-    payload = '{"target_search": {"q": "sortiraient","qf" : "all_text_tfr_siv"},"utility": "extract_document_ids","force_refresh": "T"}'
+    payload = '{"search_query": {"q": "sortiraient","qf" : "all_text_tfr_siv"},"utility": "extract_document_ids","force_refresh": "T"}'
 
 class TestExtractWords(TestUtility):
     task_result = "extract_words_task_result.json"
-    payload = '{"target_search": {"q": "sortiraient","qf" : "all_text_tfr_siv"},"utility" : "extract_words"}'
+    payload = '{"search_query": {"q": "sortiraient","qf" : "all_text_tfr_siv"},"utility" : "extract_words"}'
    
 
 class TestTfIdf(TestUtility):
     task_result = "tfidf_task_result.json"
-    payload = '{"target_search": {"q": "sortiraient","qf" : "all_text_tfr_siv"},"utility" : "extract_words"}'
+    payload = '{"search_query": {"q": "sortiraient","qf" : "all_text_tfr_siv"},"utility" : "extract_words"}'
    
 class TestFindSteps(TestUtility):
     task_result = "find_steps_task_result.json"
-    payload = '{"target_search": {"q": "Republik"},"utility": "find_steps_from_time_series","force_refresh": "True"}'
+    payload = '{"search_query": {"q": "Republik"},"utility": "find_steps_from_time_series","force_refresh": "True"}'
 
 class TestExtractFacets(TestUtility):
     task_result = "extract_facets_task_result.json"
-    payload = '{"target_search": {"q": "maito"},"utility": "extract_facets","force_refresh": "T"}'
+    payload = '{"search_query": {"q": "maito"},"utility": "extract_facets","force_refresh": "T"}'
 
 
 class TestGenerateTimeseries(TestUtility):
     task_result = "generate_timeseries_task_result.json"
-    payload = '{"target_search": {"q": "maito"},"utility": "generate_time_series","utility_parameters": {"facet_name": "NEWSPAPER_NAME"},"force_refresh": "True"}'
+    payload = '{"search_query": {"q": "maito"},"utility": "generate_time_series","utility_parameters": {"facet_name": "NEWSPAPER_NAME"},"force_refresh": "True"}'
     
 class TestCommonFacetValues(TestUtility):
     task_result = "common_facets_task_result.json"
-    payload = '{"target_search": {"q": "maito"},"utility": "common_facet_values","n": 5}'
+    payload = '{"search_query": {"q": "maito"},"utility": "common_facet_values","n": 5}'
            
     
 

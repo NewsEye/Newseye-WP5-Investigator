@@ -43,7 +43,7 @@ def make_test_response(utility_name, max_try = 10):
         task_result = make_response(url, payload, headers, max_try=max_try)
         
     elif utility_name == 'topics':
-        payload = '{"target_search": {"q": "Republik Flüchtlinge Australien","fq": "member_of_collection_ids_ssim:arbeiter_zeitung","mm": 3},"utility": "query_topic_model","utility_parameters": {"model_type": "lda","model_name": "arbeit-zeitung-lda"},"force_refresh": "T"}'.encode('utf-8')
+        payload = '{"search_query": {"q": "Republik Flüchtlinge Australien","fq": "member_of_collection_ids_ssim:arbeiter_zeitung","mm": 3},"utility": "query_topic_model","utility_parameters": {"model_type": "lda","model_name": "arbeit-zeitung-lda"},"force_refresh": "T"}'.encode('utf-8')
         task_result = make_analysis_response(payload, max_try=max_try)
 
     elif utility_name == 'utility_list':
@@ -52,38 +52,39 @@ def make_test_response(utility_name, max_try = 10):
         task_result = requests.request("GET", url, data="", headers=headers).json()
 
     elif utility_name == 'extract_docid':
-        payload = '{"target_search": {"q": "sortiraient","qf" : "all_text_tfr_siv"},"utility": "extract_document_ids","force_refresh": "T"}'
+        payload = '{"search_query": {"q": "sortiraient","qf" : "all_text_tfr_siv"},"utility": "extract_document_ids","force_refresh": "T"}'
         task_result = make_analysis_response(payload, max_try=max_try)
 
     elif utility_name == 'extract_words':
-        payload = '{"target_search": {"q": "sortiraient","qf" : "all_text_tfr_siv"},"utility" : "extract_words"}'
+        payload = '{"search_query": {"q": "sortiraient","qf" : "all_text_tfr_siv"},"utility" : "extract_words"}'
         task_result = make_analysis_response(payload, max_try=max_try)    
         
     elif utility_name == 'tfidf':
-        payload = '{"target_search": {"q": "sortiraient","qf" : "all_text_tfr_siv"},"utility" : "compute_tf_idf"}'
+        payload = '{"search_query": {"q": "sortiraient","qf" : "all_text_tfr_siv"},"utility" : "compute_tf_idf"}'
         task_result = make_analysis_response(payload, max_try=max_try)
 
     elif utility_name == 'extract_facets':
-        payload = '{"target_search": {"q": "maito"},"utility": "extract_facets","force_refresh": "T"}'
+        payload = '{"search_query": {"q": "maito"},"utility": "extract_facets","force_refresh": "T"}'
         task_result = make_analysis_response(payload, max_try=max_try)
 
     elif utility_name == 'generate_timeseries':
-        payload = '{"target_search": {"q": "maito"},"utility": "generate_time_series","utility_parameters": {"facet_name": "NEWSPAPER_NAME"},"force_refresh": "True"}'
+        payload = '{"search_query": {"q": "maito"},"utility": "generate_time_series","utility_parameters": {"facet_name": "NEWSPAPER_NAME"},"force_refresh": "True"}'
         task_result = make_analysis_response(payload, max_try=max_try)
 
     elif utility_name == 'common_facets':
-        payload = '{"target_search": {"q": "maito"},"utility": "common_facet_values","n": 5}'
+        payload = '{"search_query": {"q": "maito"},"utility": "common_facet_values","n": 5}'
         task_result = make_analysis_response(payload, max_try=max_try)
 
     elif utility_name == 'find_steps':
-        payload = '{"target_search": {"q": "Republik"},"utility": "find_steps_from_time_series","force_refresh": "True"}'
+        payload = '{"search_query": {"q": "Republik"},"utility": "find_steps_from_time_series","force_refresh": "True"}'
         task_result = make_analysis_response(payload, max_try=max_try)
 
     elif utility_name == 'tm_doclinking':
-        payload = '{"target_search": {"q": "Republik"},"utility": "tm_document_linking"}'
+        payload = '{"search_query": {"q": "Republik"},"utility": "tm_document_linking"}'
         task_result = make_analysis_response(payload, max_try=max_try)
 
     elif utility_name == 'report':
+        # TODO: replace target_search with search_query once new version is deployed
         payload = '{"target_search": {"q": "Flüchtlinge"},"utility": "common_facet_values","utility_parameters": {"n": 5}}'.encode('utf-8')
         task_result = make_report_response(payload, max_try=max_try)
 

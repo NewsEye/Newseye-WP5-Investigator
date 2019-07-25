@@ -59,16 +59,16 @@ def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=Fals
         
         task_type, task_parameters = verify_analysis_parameters(query)                      
         utility_name = task_parameters.get('utility', None)
-        search = task_parameters.get('target_search', task_parameters)
+        search_query = task_parameters.get('search_query', task_parameters)
         utility_parameters = task_parameters.get('utility_parameters', {})
         task = Task.query.filter_by(task_type = task_type,
                                     utility_name = utility_name,
-                                    search = search,
+                                    search_query = search_query,
                                     utility_parameters = utility_parameters).one_or_none()
         if not task:
             task = Task(task_type = task_type,
                         utility_name = utility_name,
-                        search = search,
+                        search_query = search_query,
                         utility_parameters = utility_parameters)
             
             # crucial to commit immediately, otherwise task won't have an id 
@@ -78,7 +78,7 @@ def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=Fals
             
         task_instance = TaskInstance(task_id =  task.id,
                                      force_refresh   = bool(task_parameters.get('force_refresh', False)),
-                                     target_uuid     = task_parameters.get('target_uuid', None),
+                                     source_uuid     = task_parameters.get('target_uuid', None),
                                      hist_parent_id=parent_id,
                                      user_id=user.id,
                                      task_status='created')
