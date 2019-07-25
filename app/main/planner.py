@@ -32,11 +32,11 @@ class Planner(object):
 
 
 class TaskPlanner(object):
-    def __init__(self, loop, user):
+
+    def __init__(self, user):
         self.planned_tasks = {}
         self.user = user
-        self.loop = loop
-
+        
     async def execute_user_task(self, task_uuids=None):
         tasks = TaskInstance.query.filter(TaskInstance.uuid.in_(task_uuids)).all()
         await self.execute_and_store(tasks)
