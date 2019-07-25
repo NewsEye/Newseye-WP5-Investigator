@@ -17,7 +17,7 @@ class SearchTaskList(Resource):
         """
         Retrieve all search tasks started by the user
         """
-        tasks = [task.dict(style='result') for task in Task.query.filter_by(user_id=current_user.id, task_type='search').all()]
+        tasks = [task.dict(style='result') for task in TaskInstance.query.filter_by(user_id=current_user.id, task_type='search').all()]
         if len(tasks) == 1:
             tasks = tasks[0]
         return tasks
