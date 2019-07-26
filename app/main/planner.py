@@ -88,7 +88,6 @@ class TaskPlanner(object):
             if task.task_type == 'analysis':
                 required_task = await self.get_prerequisite_tasks(task)
                 if required_task:
-                    new_parameters = {key: value for key, value in task.task_parameters.items()}
                     await self.execute_and_store(required_task)                
                     task.source_uuid = required_task.uuid
                     db.session.commit()
