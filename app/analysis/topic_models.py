@@ -82,7 +82,9 @@ class QueryTopicModel(AnalysisUtility):
             'model': model_name,
             'documents': input_data
         }
+        
         response = requests.post('{}/{}/query'.format(Config.TOPIC_MODEL_URI, model_type), json=payload)
+        
         uuid = response.json().get('task_uuid')
         if not uuid:
             raise ValueError('Invalid response from the Topic Model API')
