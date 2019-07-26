@@ -9,8 +9,8 @@ from flask import current_app
 
 class TopicModelDocumentLinking(AnalysisUtility):
     def __init__(self):
-        self.utility_name = 'tm_document_linking',
-        self.utility_description = 'Find similar documents using topic models',
+        self.utility_name = 'tm_document_linking'
+        self.utility_description = 'Find similar documents using topic models'
         self.utility_parameters = [
             {
                 'parameter_name': 'num_docs',
@@ -21,7 +21,7 @@ class TopicModelDocumentLinking(AnalysisUtility):
             },
         ]
         self.input_type = 'id_list'
-        self.output_type = 'id_list2' # todo: fix that after implementing proper utility selection
+        self.output_type = 'id_list' # that's fine, get_prerequisite_tasks checks that input utility != ouput utility
         super(TopicModelDocumentLinking, self).__init__()
 
     async def __call__(self, task):
