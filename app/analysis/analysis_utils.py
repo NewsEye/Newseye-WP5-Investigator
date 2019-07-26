@@ -15,8 +15,14 @@ class AnalysisUtility(object):
     def __init__(self):
         self.parameter_defaults = {}
         self.set_defaults()
+        
 
     async def __call__(self, task):
+        self.input_data = await self.get_input_data(task)
+        return await self.call(task)
+
+
+    async def call(self, task):
         return {
             'error': 'This utility has not yet been implemented'
         }
@@ -72,11 +78,10 @@ class ExtractFacets(AnalysisUtility):
         self.output_type = 'facet_list'
         super(ExtractFacets, self).__init__()
 
-    async def __call__(self, task):
+    async def call(self, task):
         """ Extract all facet values found in the input data and the number of occurrences for each."""
-        input_data = await self.get_input_data(task)
         facets = {}
-        for feature in input_data[Config.FACETS_KEY]:
+        for feature in self.input_data[Config.FACETS_KEY]:
             values = {}
             for item in feature[Config.FACET_ITEMS_KEY]:
                 values[item[Config.FACET_VALUE_LABEL_KEY]] = item[Config.FACET_VALUE_HITS_KEY]
@@ -109,15 +114,12 @@ class CommonFacetValues(AnalysisUtility):
         self.output_type = 'topic_list'
         super(CommonFacetValues, self).__init__()
 
-    async def __call__(self, task):
+    async def call(self, task):
         n = int(task.utility_parameters.get('n'))
         facet_name = task.utility_parameters['facet_name']
         facet_name = Config.AVAILABLE_FACETS.get(facet_name, facet_name)
 
-        input_data = await self.get_input_data(task)
-        input_data = input_data['result']
-
-        facets = input_data[facet_name]
+        facets = self.input_data['result'][facet_name]
         facet_list = [(facets[key], key) for key in facets.keys()]
         facet_list.sort(reverse=True)
         facet_list = facet_list[:n]
@@ -145,18 +147,16 @@ class GenerateTimeSeries(AnalysisUtility):
         self.output_type = 'time_series'
         super(GenerateTimeSeries, self).__init__()
 
-    async def __call__(self, task):
+    async def call(self, task):
         # TODO Add support for total document count
 
         facet_name = task.utility_parameters['facet_name']
         facet_string = Config.AVAILABLE_FACETS.get(facet_name)
         if facet_string is None:
             raise TypeError("Facet not specified or specified facet not available in current database")
-
-        input_data = await self.get_input_data(task)
         
         year_facet = Config.AVAILABLE_FACETS['PUB_YEAR']
-        for facet in input_data[Config.FACETS_KEY]:
+        for facet in self.input_data[Config.FACETS_KEY]:
             if facet[Config.FACET_ID_KEY] == year_facet:
                 years_in_data = [item['value'] for item in facet['items']]
                 break

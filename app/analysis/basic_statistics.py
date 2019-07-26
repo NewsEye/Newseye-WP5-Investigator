@@ -34,13 +34,12 @@ class ExtractWords(AnalysisUtility):
         self.output_type='word_counts'
         super(ExtractWords, self).__init__()
         
-    async def __call__(self, task):
+    async def call(self, task):
         """ Queries word index in the Solr to obtain documents split into words """
         current_app.logger.debug("UTILITY_PARAMETERS: %s" %task.utility_parameters)
         min_count = int(task.utility_parameters.get('min_count'))
         
-        input_data = await self.get_input_data(task)
-        input_data = input_data['result']
+        input_data = self.input_data['result']
 
         word2docid = defaultdict(list)
 
@@ -89,7 +88,7 @@ class ComputeTfIdf(AnalysisUtility):
 
 
         
-    async def __call__(self, task):
+    async def call(self, task):
         "Gets word counts, query database for each word document frequency, than makes tf-idf statistics"
         interest_thr = task.utility_parameters.get('interest_thr')
         
@@ -112,9 +111,9 @@ class ComputeTfIdf(AnalysisUtility):
         return df.sort_values(by=['tfidf'], ascending=False)
     
     async def query_data(self, task):
-        input_data = await self.get_input_data(task)
-        counts = input_data['result']['counts']
-        relatives = input_data['result']['relatives']
+
+        counts = self.input_data['result']['counts']
+        relatives = self.input_data['result']['relatives']
 
         # qf means query field, the query field differes depending on a wanted language
         qf = task.search_query.get("qf", None)

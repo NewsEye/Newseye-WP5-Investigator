@@ -24,13 +24,11 @@ class TopicModelDocumentLinking(AnalysisUtility):
         self.output_type = 'id_list' # that's fine, get_prerequisite_tasks checks that input utility != ouput utility
         super(TopicModelDocumentLinking, self).__init__()
 
-    async def __call__(self, task):
+    async def call(self, task):
         num_docs   = task.utility_parameters.get('num_docs')
         
-        input_data = await self.get_input_data(task)
-        input_data = input_data['result']
-                
-        payload = {"num_docs" : num_docs, "documents" : input_data}
+               
+        payload = {"num_docs" : num_docs, "documents" : self.input_data['result']}
         response = requests.post('{}/doc-linking'.format(Config.TOPIC_MODEL_URI), json=payload)
 
         return {'result':json.loads(response.json()['similar_docs']),
@@ -63,7 +61,7 @@ class QueryTopicModel(AnalysisUtility):
         self.output_type = 'topic_analysis'
         super(QueryTopicModel, self).__init__()
 
-    async def __call__(self, task):
+    async def call(self, task):
         model_type = task.utility_parameters.get('model_type')
         if model_type is None:
             raise KeyError
@@ -75,12 +73,9 @@ class QueryTopicModel(AnalysisUtility):
             else:
                 raise NotFound('No trained topic models exist for the selected model type.')
 
-        input_data = await self.get_input_data(task)
-        input_data = input_data['result']
-
         payload = {
             'model': model_name,
-            'documents': input_data
+            'documents': self.input_data['result']
         }
         
         response = requests.post('{}/{}/query'.format(Config.TOPIC_MODEL_URI, model_type), json=payload)
