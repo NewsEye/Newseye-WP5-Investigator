@@ -126,8 +126,10 @@ class TaskPlanner(object):
             utility = UTILITY_MAP[task.utility] 
             if utility.input_type == 'search_query':
                 return None
+
             source_utilities = [key for key, value in UTILITY_MAP.items() if key != utility.utility_name
                                 and value.output_type == utility.input_type]
+            
             if not source_utilities:
                 current_app.logger.debug("%s takes 'search_result' as an input" %utility.utility_name)
                 search_parameters['force_refresh'] = task.force_refresh
@@ -143,4 +145,5 @@ class TaskPlanner(object):
                 input_task = generate_tasks(user=task.user, queries=('analysis', task_parameters), parent_id=task.uuid,
                                             return_tasks=True)
         # Generate tasks outputs a list, here with a length of one, so we only take the contents, and not the list
+        # TODO: output more than one source task
         return input_task[0]

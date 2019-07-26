@@ -6,4 +6,4 @@ class TestTopic(TestUtility):
     
 class TestTopicLinking(TestUtility):
     task_result = "tm_doclinking_task_result.json"
-    payload = '{"search_query": {"q": "Republik"},"utility": "tm_document_linking"}'
+    payload = '{"search_query": {"q": "Republik"},"utility": "tm_document_linking", "force_refresh": "T"}'
