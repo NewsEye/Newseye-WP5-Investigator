@@ -7,34 +7,9 @@ from datetime import datetime
 from flask import current_app
 import asyncio
 
-
-# TODO: planner plans the task according to the task dependencies tree
-#  Later on this will become an investigator
-class Planner(object):
-    """
-    This class is not used for anything. Here as a remainder of the planned structure for the planner, to be removed
-    when TaskPlanner is ready
-    """
-    async def plan(self, task):
-        results = []
-        while not self.satisfied(results):
-            research_plan = self.plan_the_research(task, results)
-            results = self.async_analysis(research_plan)
-        return results
-
-    @staticmethod
-    def satisfied(task, results):
-        return True
-
-    @staticmethod
-    def plan_the_research(task, results):
-        return []  # return a list of new tasks
-
-
 class TaskPlanner(object):
 
     def __init__(self, user):
-        self.planned_tasks = {}
         self.user = user
         
     async def execute_user_task(self, task_uuids=None):
@@ -100,7 +75,7 @@ class TaskPlanner(object):
 
             if task.task_type == 'investigator':
                 current_app.logger.debug("HERE INVESTIGATIONS START")
-                current_app.logger.debug(task.search_query)
+
 
 
 
