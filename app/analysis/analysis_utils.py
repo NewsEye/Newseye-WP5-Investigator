@@ -30,7 +30,7 @@ class AnalysisUtility(object):
             input_task = None
         return input_task
 
-    async def get_input_data(self, task, return_input_task=False, retrieve='facets'):
+    async def get_input_data(self, task, retrieve='facets'):
         input_task = self.get_input_task(task)
         if input_task:
             wait_time=0
@@ -42,12 +42,11 @@ class AnalysisUtility(object):
             input_data = input_task.task_result.result
             
         elif task.search_query:
+            
             input_data = await search_database(task.search_query, retrieve=retrieve)            
         else:
             raise BadRequest('Request missing valid source_uuid or search_query!')
 
-        if return_input_task:
-            return input_data, input_task
         return input_data
 
     def set_defaults(self):
@@ -142,7 +141,7 @@ class GenerateTimeSeries(AnalysisUtility):
             },
             ## TODO: Add a parameter for choosing what to do with missing data
         ]
-        self.input_type = 'search_result'
+        self.input_type = 'search_query'
         self.output_type = 'time_series'
         super(GenerateTimeSeries, self).__init__()
 
@@ -154,7 +153,7 @@ class GenerateTimeSeries(AnalysisUtility):
         if facet_string is None:
             raise TypeError("Facet not specified or specified facet not available in current database")
 
-        input_data, input_task = await self.get_input_data(task, return_input_task=True)
+        input_data = await self.get_input_data(task)
         
         year_facet = Config.AVAILABLE_FACETS['PUB_YEAR']
         for facet in input_data[Config.FACETS_KEY]:
@@ -165,7 +164,9 @@ class GenerateTimeSeries(AnalysisUtility):
             raise TypeError(
                 "Search results don't contain required facet {}".format(year_facet))
         
-        original_search = {key: value for key, value in input_task.task_parameters.items() if key != 'fq'}
+        original_search = task.search_query
+
+        
         queries = [{'fq': '{}:{}'.format(year_facet, item)} for item in years_in_data]
         for query in queries:
             query.update(original_search)

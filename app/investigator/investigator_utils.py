@@ -1,10 +1,12 @@
-# TODO: planner plans the task according to the task dependencies tree
-#  Later on this will become an investigator
-class Planner(object):
-    """
-    This class is not used for anything. Here as a remainder of the planned structure for the planner, to be removed
-    when TaskPlanner is ready
-    """
+
+
+class Investigator(object):
+    
+    def __init__(self, task):
+        input_task = generate_tasks(queries=('search', search_parameters), user=self.user, parent_id=task.uuid,
+                                    return_tasks=True)
+
+
     async def plan(self, task):
         results = []
         while not self.satisfied(results):

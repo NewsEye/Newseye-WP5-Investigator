@@ -104,6 +104,21 @@ class TaskPlanner(object):
 
 
 
+    @staticmethod
+    def get_source_utility(utility):
+        
+            source_utility = INPUT_TYPE_MAP.get(utility.input_type, None)
+            if not source_utility:
+                source_utilities = [key for key, value in UTILITY_MAP.items() if key != utility.utility_name
+                                and value.output_type == utility.input_type]
+                if source_utilities:
+                    if len(source_utilities) > 1:
+                        # TODO: output more than one source task
+                        current_app.logger.debug("More than one source utility for %s : %s, taking the first one"
+                                             %(utility.utility_name, source_utilities))
+                    source_utility = source_utilities[0]
+            return source_utility
+                
 
                 
     async def get_prerequisite_tasks(self, task):
@@ -118,38 +133,21 @@ class TaskPlanner(object):
             task.search_query=input_task.search_query
             db.session.commit()
             return input_task
-        else:
-            search_parameters = task.search_query
-            if search_parameters is None:
-                return None
-            utility = UTILITY_MAP[task.utility] 
-            if utility.input_type == 'search_query':
-                return None
 
 
-            source_utility = INPUT_TYPE_MAP.get(utility.input_type, None)
-            if not source_utility:
-                source_utilities = [key for key, value in UTILITY_MAP.items() if key != utility.utility_name
-                                and value.output_type == utility.input_type]
-                if source_utilities:
-                    if len(source_utilities) > 1:
-                        # TODO: output more than one source task
-                        current_app.logger.debug("More than one source utility for %s : %s, taking the first one"
-                                             %(utility.utility_name, source_utilities))
-                    source_utility = source_utilities[0]
-                    
-            if not source_utility:
-                current_app.logger.debug("%s takes 'search_result' as an input" %utility.utility_name)
-                search_parameters['force_refresh'] = task.force_refresh
-                input_task = generate_tasks(queries=('search', search_parameters), user=self.user, parent_id=task.uuid,
-                                                return_tasks=True)
-            else:
-                task_parameters = {'utility': source_utility,
+        search_parameters = task.search_query
+        if search_parameters is None:
+            return None
+        utility = UTILITY_MAP[task.utility] 
+        if utility.input_type == 'search_query':
+            return None
+
+        task_parameters = {'utility': self.get_source_utility(utility),
                                    'utility_parameters': {},
                                    'search_query': search_parameters,
                                    'force_refresh' : task.force_refresh}
-                _, input_task = verify_analysis_parameters(('analysis', task_parameters))
-                input_task = generate_tasks(user=task.user, queries=('analysis', task_parameters), parent_id=task.uuid,
+        _, input_task = verify_analysis_parameters(('analysis', task_parameters))
+        input_task = generate_tasks(user=task.user, queries=('analysis', task_parameters), parent_id=task.uuid,
                                             return_tasks=True)
         # Generate tasks outputs a list, here with a length of one, so we only take the contents, and not the list
         return input_task[0]
