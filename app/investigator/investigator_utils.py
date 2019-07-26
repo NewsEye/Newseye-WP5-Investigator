@@ -2,10 +2,12 @@
 
 class Investigator(object):
     
-    def __init__(self, task):
-        input_task = generate_tasks(queries=('search', search_parameters), user=self.user, parent_id=task.uuid,
-                                    return_tasks=True)
-
+    async def __init__(self, task):
+        current_app.logger.debug("HERE INVESTIGATIONS START")
+        self.input_data = await search_database(task.search_query, retrieve=retrieve)
+        current_app.logger.debug(self.input_data)
+        return
+        
 
     async def plan(self, task):
         results = []
