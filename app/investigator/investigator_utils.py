@@ -19,3 +19,18 @@ class Planner(object):
     @staticmethod
     def plan_the_research(task, results):
         return []  # return a list of new tasks
+
+
+
+'''
+asyncio.as_completed(aws, *, loop=None, timeout=None)
+Run awaitable objects in the aws set concurrently. Return an iterator of Future objects. Each Future object returned represents the earliest result from the set of the remaining awaitables.
+
+Raises asyncio.TimeoutError if the timeout occurs before all Futures are done.
+
+Example:
+
+for f in as_completed(aws):
+    earliest_result = await f
+    # ...
+'''

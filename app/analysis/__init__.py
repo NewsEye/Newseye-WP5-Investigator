@@ -24,4 +24,10 @@ UTILITY_MAP = {
     # 'analyse_lemma_frequency': AnalyseLemmaFrequency(),
 }
 
+INPUT_TYPE_MAP = {
+    # there are more than one utility that outputs 'id_list'
+    # this map specifies default utility to be used 
+    'id_list' : 'extract_document_ids'
+}
+
 from app.analysis import routes
