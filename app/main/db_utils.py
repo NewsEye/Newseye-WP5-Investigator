@@ -23,7 +23,7 @@ def verify_analysis_parameters(query):
     if args['utility'] not in UTILITY_MAP.keys():
         raise BadRequest("Utility '{}' is currently not supported.".format(args['utility']))
     utility_info = UTILITY_MAP[args['utility']].get_description()
-    query_parameters = args['utility_parameters']
+    query_parameters = args.get('utility_parameters', {})
     new_parameters = {}
     for parameter in utility_info['utility_parameters']:
         parameter_name = parameter['parameter_name']
@@ -32,7 +32,7 @@ def verify_analysis_parameters(query):
         else:
             if parameter['parameter_is_required']:
                 raise BadRequest(
-                    "Required utility parameter '{}' is not defined in the query:\n{}".format(parameter['parameter_name', query]))
+                    "Required utility parameter '{}' is not defined in the query:\n{}".format(parameter['parameter_name'], query))
             else:
                 new_parameters[parameter_name] = parameter['parameter_default']
     new_args = {key: value for key, value in args.items() if key != 'utility_parameters'}
@@ -41,9 +41,11 @@ def verify_analysis_parameters(query):
 
 
 def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=False):
-    # turns queries into Task objects
-    # stores them in the database
-    # returns task objects or task ids
+    '''
+    turns queries into Task objects
+    stores them in the database
+    returns task objects or task ids
+    '''
 
     if not isinstance(queries, list):
         queries = [queries]

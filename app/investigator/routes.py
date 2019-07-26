@@ -27,7 +27,11 @@ class AnalysisTaskList(Resource):
     post_parser = AuthParser()
     post_parser.add_argument('search_query', type=dict, location='json', help='A JSON object containing a search query that defines the input data for the investigator')
     post_parser.add_argument('source_uuid', location='json', help='A task_uuid that defines the input data for the investigator')
+    post_parser.add_argument('force_refresh', type=bool, default=False, location='json', help='Set to true to redo the analysis even if an older result exists')
 
+    # TODO: force_refresh levels, e.g. to update only top-most 
+    
+    
     @login_required
     @ns.expect(post_parser)
     @ns.response(200, 'The task has been executed, and the results are ready for retrieval')

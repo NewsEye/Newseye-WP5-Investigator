@@ -43,6 +43,7 @@ class ExtractWords(AnalysisUtility):
 
         word2docid = defaultdict(list)
 
+        # TODO: parallel
         for (s,e) in make_batches(len(input_data)):
             docids = input_data[s:e]
             
@@ -111,7 +112,9 @@ class ComputeTfIdf(AnalysisUtility):
         return df.sort_values(by=['tfidf'], ascending=False)
     
     async def query_data(self, task):
+        # TODO: parallel
 
+        
         counts = self.input_data['result']['counts']
         relatives = self.input_data['result']['relatives']
 

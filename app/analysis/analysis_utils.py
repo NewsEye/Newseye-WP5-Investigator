@@ -47,9 +47,9 @@ class AnalysisUtility(object):
             db.session.commit()
             input_data = input_task.task_result.result
             
-        elif task.search_query:
+        elif task.search_query:            
+            input_data = await search_database(task.search_query, retrieve=retrieve)
             
-            input_data = await search_database(task.search_query, retrieve=retrieve)            
         else:
             raise BadRequest('Request missing valid source_uuid or search_query!')
 
