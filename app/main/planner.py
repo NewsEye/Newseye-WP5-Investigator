@@ -78,12 +78,6 @@ class TaskPlanner(object):
         # A quick and dirty fix.
         # TODO: we should be able to perform the tasks in parallel.
         for task in tasks_to_perform:
-            required_task = await self.get_prerequisite_tasks(task)
-            if required_task:
-                new_parameters = {key: value for key, value in task.task_parameters.items()}
-                await self.execute_and_store(required_task)                
-                task.source_uuid = required_task.uuid
-                db.session.commit()
 
             if task.task_type == 'search':
                 # runs searches on the external database
@@ -92,6 +86,13 @@ class TaskPlanner(object):
                 store_results([task], search_results)
 
             if task.task_type == 'analysis':
+                required_task = await self.get_prerequisite_tasks(task)
+                if required_task:
+                    new_parameters = {key: value for key, value in task.task_parameters.items()}
+                    await self.execute_and_store(required_task)                
+                    task.source_uuid = required_task.uuid
+                    db.session.commit()
+                
                 # waiting for tasks to be done
                 # calls main processing function
                 analysis_results = await self.async_analysis([task])
@@ -100,6 +101,7 @@ class TaskPlanner(object):
 
             if task.task_type == 'investigator':
                 current_app.logger.debug("HERE INVESTIGATIONS START")
+                current_app.logger.debug(task.search_query)
 
 
 
@@ -120,8 +122,6 @@ class TaskPlanner(object):
         else:
             search_parameters = task.search_query
             if search_parameters is None:
-                return None
-            if not task.utility:
                 return None
             utility = UTILITY_MAP[task.utility] 
             if utility.input_type == 'search_query':
