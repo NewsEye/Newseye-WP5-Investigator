@@ -22,8 +22,8 @@ if __name__ == '__main__':
     		       TestGenerateTimeseries,
     		       TestCommonFacetValues,
     		       TestReport,
-#                       TestTopic,
-#    		       TestTopicLinking
+                       TestTopic,
+    		       TestTopicLinking
                            ]:
         print("")
         print(TestClass.__name__)

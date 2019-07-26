@@ -29,14 +29,11 @@ class FindStepsFromTimeSeries(AnalysisUtility):
         self.output_type = 'step_list'
         super(FindStepsFromTimeSeries, self).__init__()
 
-    async def __call__(self, task):
+    async def call(self, task):
         column_name = task.utility_parameters.get('column_name')
         step_threshold = task.utility_parameters.get('step_threshold')
-
-        input_data = await self.get_input_data(task)
-        input_data = input_data['result']
         
-        input_data, filled_in = self.prepare_timeseries(input_data['absolute_counts'])
+        input_data, filled_in = self.prepare_timeseries(self.input_data['result']['absolute_counts'])
         column_steps = []
         interestingness = []
         if column_name:
