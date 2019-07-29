@@ -67,4 +67,4 @@ class SearchTask(Resource):
         task = TaskInstance.query.filter_by(uuid=task_uuid).first()
         if task is None:
             raise NotFound('Task {} not found for user {}'.format(task_uuid, current_user.username))
-        return task.dict(style='result')
+        return task.dict(style='search_result')

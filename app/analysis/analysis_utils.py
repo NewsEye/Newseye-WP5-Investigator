@@ -119,7 +119,7 @@ class CommonFacetValues(AnalysisUtility):
         facet_name = task.utility_parameters['facet_name']
         facet_name = Config.AVAILABLE_FACETS.get(facet_name, facet_name)
 
-        facets = self.input_data['result'][facet_name]
+        facets = self.input_data[facet_name]
         facet_list = [(facets[key], key) for key in facets.keys()]
         facet_list.sort(reverse=True)
         facet_list = facet_list[:n]

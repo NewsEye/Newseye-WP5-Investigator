@@ -123,13 +123,14 @@ def store_results(tasks, task_results):
         else:
             task.task_status = 'finished'
             res = Result.query.filter_by(id=task.result_id).one_or_none()
-                                     
+            
             if not res:
                 db.session.commit()
                 try:
                     res = Result(id=task.result_id)
                     db.session.add(res)
                     db.session.commit()
+                    
                 # If another thread created the query in the meanwhile, this should recover from that, and simply overwrite the result with the newest one.
                 # If the filter still returns None after IntegrityError, we log the event, ignore the result and continue
                 except IntegrityError:
@@ -138,8 +139,11 @@ def store_results(tasks, task_results):
                     if not res:
                         current_app.logger.error("Unable to create or retrieve Result for {}. Store results failed!".format(task))
                         continue
-
-            res.result = result
+                    
+            # analysis utilities return {'result': ..., 'interestingness': ...}
+            # search return just result            
+            res.result = result.get('result', result)
+            res.interestingness = result.get('interestingness', 0.0)
             res.last_updated = datetime.utcnow()
             res.task_id = task.task_id
             task.result_id = res.id

@@ -38,16 +38,13 @@ class ExtractWords(AnalysisUtility):
         """ Queries word index in the Solr to obtain documents split into words """
         current_app.logger.debug("UTILITY_PARAMETERS: %s" %task.utility_parameters)
         min_count = int(task.utility_parameters.get('min_count'))
-        
-        input_data = self.input_data['result']
-
         word2docid = defaultdict(list)
 
         # TODO: parallel
-        for (s,e) in make_batches(len(input_data)):
-            docids = input_data[s:e]
+        for (s,e) in make_batches(len(self.input_data)):
+            docids = self.input_data[s:e]
             
-            current_app.logger.debug("ExtractWords: search docs one by one, %d-%d/%d" %(s,e,len(input_data)))
+            current_app.logger.debug("ExtractWords: search docs one by one, %d-%d/%d" %(s,e,len(self.input_data)))
             qs = [{"q" : docid + '*'} for docid in docids]
             responses = await search_database(qs, retrieve='words')
 
@@ -57,7 +54,7 @@ class ExtractWords(AnalysisUtility):
                     word = [word_info[f] for f in ["text_tfr_siv", "text_tse_siv", "text_tde_siv", "text_tfi_siv"] if f in word_info][0]
                     word2docid[word].append(docid)
                    
-        current_app.logger.debug("docs %d, words %d" %(len(input_data), len(word2docid)))
+        current_app.logger.debug("docs %d, words %d" %(len(self.input_data), len(word2docid)))
         counts = {w:len(d) for w,d in word2docid.items() if len(d) >= min_count}
 
         current_app.logger.debug("ExtractWords: frequent words %d" %len(counts))
