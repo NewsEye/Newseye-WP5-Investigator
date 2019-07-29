@@ -33,7 +33,7 @@ class FindStepsFromTimeSeries(AnalysisUtility):
         column_name = task.utility_parameters.get('column_name')
         step_threshold = task.utility_parameters.get('step_threshold')
         
-        input_data, filled_in = self.prepare_timeseries(self.input_data['result']['absolute_counts'])
+        input_data, filled_in = self.prepare_timeseries(self.input_data['absolute_counts'])
         column_steps = []
         interestingness = []
         if column_name:

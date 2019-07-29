@@ -29,6 +29,7 @@ class Result(db.Model):
     task_id = db.Column(db.Integer, db.ForeignKey('tasks.id'))
     task = db.relationship('Task', back_populates='task_results', foreign_keys=[task_id])
     result = db.Column(db.JSON)
+    interestingness = db.Column(db.JSON)
     last_updated = db.Column(db.DateTime, default=datetime.utcnow)
     # __table_args__ = (UniqueConstraint('task_type', 'task_parameters', name='uq_results_task_type_task_parameters'),)
 
@@ -142,7 +143,6 @@ class TaskInstance(db.Model):
                     "search_query":self.task.search_query,
                     "utility_parameters":self.task.utility_parameters}
         
-    
     @property
     def task_result(self):
         if self.result_id:
@@ -153,6 +153,12 @@ class TaskInstance(db.Model):
                 self.result_id = the_most_recent_result.id
             return the_most_recent_result
 
+    @property
+    def result_with_interestness(self):
+        if self.task_result:
+            return {'result' : self.task_result.result,
+                    'interestingness' : self.task_result.interestingness}
+        
     # different versions of the output
     def dict(self, style='status'):
         if style == 'status':
@@ -172,15 +178,26 @@ class TaskInstance(db.Model):
                 'task_status': self.task_status,
                 'task_started': http_date(self.task_started),
                 'task_finished': http_date(self.task_finished),
-                'task_result': self.task_result.result if self.task_result else None,
+                'task_result': self.result_with_interestness,
             }
+        elif style == 'search_result':
+            return {
+                'uuid': str(self.uuid),
+                'task_type': self.task_type,
+                'task_parameters': self.task_parameters,
+                'task_status': self.task_status,
+                'task_started': http_date(self.task_started),
+                'task_finished': http_date(self.task_finished),
+                'task_result': self.task_result.result
+            }
+
         elif style == 'full':
             return {
                 'uuid': str(self.uuid),
                 'task_type': self.task_type,
                 'task_parameters': self.task_parameters,
                 'task_status': self.task_status,
-                'task_result': self.task_result.result if self.task_result else None,
+                'task_result':  self.result_with_interestness,
                 'hist_parent_id': self.hist_parent_id,
                 'task_started': http_date(self.task_started),
                 'task_finished': http_date(self.task_finished),
