@@ -9,10 +9,6 @@ import asyncio
 from app.investigator import DEFAULT_UTILITIES
 
 class TaskPlanner(object):
-    # TODO: neads major clean up in regards which functions get a single tasks and which get a list of tasks as an input
-    # some functions gets lists but use onlt first value
-    # others truly expect lists but execute tehm one by one instead of running in parallel 
-    
     
     def __init__(self, user):
         self.user = user
@@ -42,22 +38,17 @@ class TaskPlanner(object):
         2. runs in parallel, store in db as soon as ready
         3. result of the main task is a list of task uuid (children tasks) + interestness
 
-        default utilites: 
-        1. topics: to run topics we need to know language, so it will be done on a second iteration
-        2. tf-idf
-        3. facets
-
         """
        
         subtasks = generate_tasks(user=task.user,
                                queries = [('analysis', {'search_query' : task.search_query, 'utility' : u, 'force_refresh' : task.force_refresh}) for u in utilities],
                                parent_id=task.uuid,
                                return_tasks=True)
-
-
         
         for subtask in asyncio.as_completed([self.execute_and_store(s) for s in subtasks]):
             done_subtask = await subtask
+            # the subtask result is already stored, now we have to add subtask into list of task results
+            
             current_app.logger.debug("Subtask %s, result %s" %(done_subtask, done_subtask.result_id ))
             # TODO:
             # 1.
@@ -68,14 +59,11 @@ class TaskPlanner(object):
 
 
     async def execute_and_store_tasks(self, tasks):
-        # TODO: parallel                             
-        for task in tasks:
-            await self.execute_and_store(task)
-
+        ''' this function ensures parallelization task execution'''
+        await asyncio.gather(*[self.execute_and_store(task) for task in tasks])
 
     async def execute_and_store(self, task):
-        '''this function executes exactly one task'''
-        
+        '''this function executes one task and its prerequisites'''
         
         # Todo: delay estimates: based on old runtime history for similar tasks?
         # ToDo: Add timeouts for the results: timestamps are already stored, simply rerun the query if the timestamp
