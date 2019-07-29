@@ -3,6 +3,7 @@ from test_search import TestSearch
 from test_topic_modelling import *
 from test_report import TestReport
 from test_utilities import *
+import sys
 
 def make_suite(TestClass):
     suite = unittest.TestSuite()
@@ -12,8 +13,11 @@ def make_suite(TestClass):
 
 if __name__ == '__main__':
     runner = unittest.TextTestRunner()
-    errors, failures, skipped, total = 0,0,0,0
-    for TestClass in [ TestUtilityList,
+    if len(sys.argv) > 1:
+        tests = [globals()[t] for t in sys.argv[1:]]
+       
+    else:
+        tests = [ TestUtilityList,
                        TestSearch,
     		       TestExtractDocID,
     		       TestExtractWords,
@@ -24,7 +28,9 @@ if __name__ == '__main__':
     		       TestReport,
                        TestTopic,
     		       TestTopicLinking
-                           ]:
+                           ]
+    errors, failures, skipped, total = 0,0,0,0
+    for TestClass in tests:
         print("")
         print(TestClass.__name__)
         result = runner.run(make_suite(TestClass))
