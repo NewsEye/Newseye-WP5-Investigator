@@ -95,7 +95,7 @@ class ComputeTfIdf(AnalysisUtility):
         df["count"] = [count[w] for w in df.index]
         df["ipm"] = df.tf*1e6
 
-        return {'result' : json.loads(df[["count", "ipm", "tfidf"]].to_json(orient='index', double_precision=2)),
+        return {'result' : json.loads(df[["count", "ipm", "tfidf"]].to_json(orient='index', double_precision=6)),
                 'interestingness' : json.loads(df[df.interest>0]["interest"].to_json(orient='index'))}
 
       
@@ -112,8 +112,8 @@ class ComputeTfIdf(AnalysisUtility):
         # TODO: parallel
 
         
-        counts = self.input_data['result']['counts']
-        relatives = self.input_data['result']['relatives']
+        counts = self.input_data['counts']
+        relatives = self.input_data['relatives']
 
         # qf means query field, the query field differes depending on a wanted language
         qf = task.search_query.get("qf", None)
