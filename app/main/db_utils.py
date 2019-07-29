@@ -105,7 +105,7 @@ def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=Fals
         return [instance.uuid for instance in instances]
 
 
-def store_results(tasks, task_results):
+def store_results(tasks, task_results, set_to_finished=True, interestingness=0.0):
     # Store the new results to the database after everything has been finished
     # Todo: Should we offer the option to store results as soon as they are ready? Or do that by default?
     # Speedier results vs. more sql calls. If different tasks in the same query take wildly different amounts of
@@ -113,7 +113,8 @@ def store_results(tasks, task_results):
     # doubt this would be the case here.
     
     for task, result in zip(tasks, task_results):
-        task.task_finished = datetime.utcnow()
+        if set_to_finished:
+            task.task_finished = datetime.utcnow()
         if isinstance(result, ValueError):
             current_app.logger.error("ValueError: {}".format(result))
             task.task_status = 'failed: {}'.format(result)[:255]
@@ -121,7 +122,10 @@ def store_results(tasks, task_results):
             current_app.logger.error("Unexpected exception: {}".format(result))
             task.task_status = 'failed: Unexpected exception: {}'.format(result)[:255]
         else:
-            task.task_status = 'finished'
+            if set_to_finished:
+                task.task_status = 'finished'
+            # else update result but keep task running (for investigator)
+            
             res = Result.query.filter_by(id=task.result_id).one_or_none()
             
             if not res:
@@ -143,7 +147,7 @@ def store_results(tasks, task_results):
             # analysis utilities return {'result': ..., 'interestingness': ...}
             # search return just result            
             res.result = result.get('result', result)
-            res.interestingness = result.get('interestingness', 0.0)
+            res.interestingness = result.get('interestingness', interestingness)
             res.last_updated = datetime.utcnow()
             res.task_id = task.task_id
             task.result_id = res.id
@@ -151,3 +155,5 @@ def store_results(tasks, task_results):
 
     current_app.logger.info("Storing results into database")
     db.session.commit()
+
+
