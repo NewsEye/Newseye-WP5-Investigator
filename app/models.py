@@ -106,7 +106,7 @@ class TaskInstance(db.Model):
     task_status = db.Column(db.String(255))
     
     # timestamps
-    task_started = db.Column(db.DateTime, default=datetime.utcnow)
+    task_started  = db.Column(db.DateTime, default=datetime.utcnow)
     task_finished = db.Column(db.DateTime)
     last_accessed = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -135,7 +135,6 @@ class TaskInstance(db.Model):
     
     @property
     def task_parameters(self):
-
         if self.task_type == "search":
             return self.task.search_query
         else:
