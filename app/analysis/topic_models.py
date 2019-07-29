@@ -28,10 +28,10 @@ class TopicModelDocumentLinking(AnalysisUtility):
         num_docs   = task.utility_parameters.get('num_docs')
         
                
-        payload = {"num_docs" : num_docs, "documents" : self.input_data['result']}
+        payload = {"num_docs" : num_docs, "documents" : self.input_data}
         response = requests.post('{}/doc-linking'.format(Config.TOPIC_MODEL_URI), json=payload)
 
-        return {'result':json.loads(response.json()['similar_docs']),
+        return {'result':response.json(),
                 'interestingness':0.0}
                                  
 
@@ -75,7 +75,7 @@ class QueryTopicModel(AnalysisUtility):
 
         payload = {
             'model': model_name,
-            'documents': self.input_data['result']
+            'documents': self.input_data
         }
         
         response = requests.post('{}/{}/query'.format(Config.TOPIC_MODEL_URI, model_type), json=payload)
@@ -94,9 +94,9 @@ class QueryTopicModel(AnalysisUtility):
         # If the lists are stored as strings, fix them into proper lists
         if isinstance(response_data['topic_weights'], str):
             response_data = {key: (json.loads(value) if isinstance(value, str) else value) for key, value in response_data.items()}
+        response_data['model_name'] = model_name
         return {'result': response_data,
-                'interestingness': self.estimate_interestingness(response_data),
-                'model_name': model_name}
+                'interestingness': self.estimate_interestingness(response_data)}
 
     @staticmethod
     def request_topic_models(model_type):
