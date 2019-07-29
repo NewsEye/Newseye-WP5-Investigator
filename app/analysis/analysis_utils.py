@@ -97,7 +97,7 @@ class CommonFacetValues(AnalysisUtility):
         self.utility_parameters = [
             {
                 'parameter_name': 'n',
-                'parameter_description': 'The number of facet values to be included in the result',
+                'parameter_description': 'The number of facet values to be included in the result. 0 means all',
                 'parameter_type': 'integer',
                 'parameter_default': 5,
                 'parameter_is_required': False,
@@ -122,9 +122,13 @@ class CommonFacetValues(AnalysisUtility):
         facets = self.input_data[facet_name]
         facet_list = [(facets[key], key) for key in facets.keys()]
         facet_list.sort(reverse=True)
-        facet_list = facet_list[:n]
+        total = sum([v for v,_ in facet_list])
+        interestingness = [v/total for v,_ in facet_list]
+        if n != 0:
+            facet_list = facet_list[:n]
+            interestingness = interestingness[:n]
         facet_list = [{"facet_value": key, "document_count": value} for value, key in facet_list]
-        interestingness = [1] * len(facet_list)
+        # interestingness = [1] * len(facet_list)
         return {'result': facet_list,
                 'interestingness': interestingness}
 
