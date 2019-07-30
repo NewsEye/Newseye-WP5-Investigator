@@ -41,6 +41,7 @@ class AnalysisUtility(object):
         if input_task:
             wait_time=0
             while input_task.task_status != 'finished' and wait_time < 100:
+                # what happens after that? should we raise some exception? cancell all tasks?
                 asyncio.sleep(wait_time)
                 wait_time += 1            
             task.hist_parent_id = input_task.uuid
@@ -87,8 +88,12 @@ class ExtractFacets(AnalysisUtility):
                 values[item[Config.FACET_VALUE_LABEL_KEY]] = item[Config.FACET_VALUE_HITS_KEY]
             facets[feature[Config.FACET_ID_KEY]] = values
         return {'result': facets,
-                'interestingness': facets}
-
+                # interestingness as distribution
+                # before it was just facet values, now it's normalized to [0,1]
+                'interestingness': {f:{k:v for (k,v) in zip(facets[f].keys(),
+                                                       list(assessment.Distribution(facets[f].values()).dist))}
+                                    for f in facets}}
+ 
 
 class CommonFacetValues(AnalysisUtility):
     def __init__(self):
@@ -118,12 +123,16 @@ class CommonFacetValues(AnalysisUtility):
         n = int(task.utility_parameters.get('n'))
         facet_name = task.utility_parameters['facet_name']
         facet_name = Config.AVAILABLE_FACETS.get(facet_name, facet_name)
-
         facets = self.input_data[facet_name]
+
         facet_list = [(facets[key], key) for key in facets.keys()]
         facet_list.sort(reverse=True)
-        total = sum([v for v,_ in facet_list])
-        interestingness = [v/total for v,_ in facet_list]
+
+        # interestness ~ a certain value percent among all values
+        # though it is 1 for some obvious cases (e.g. language)
+        # maybe we are more interested in diversity? 
+        interestingness = list(assessment.Distribution([f[0] for f in facet_list]).dist)
+
         if n != 0:
             facet_list = facet_list[:n]
             interestingness = interestingness[:n]

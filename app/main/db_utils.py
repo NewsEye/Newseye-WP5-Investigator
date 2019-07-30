@@ -80,7 +80,7 @@ def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=Fals
             
         task_instance = TaskInstance(task_id =  task.id,
                                      force_refresh   = bool(task_parameters.get('force_refresh', False)),
-                                     source_uuid     = task_parameters.get('target_uuid', None),
+                                     source_uuid     = task_parameters.get('source_uuid', None),
                                      hist_parent_id=parent_id,
                                      user_id=user.id,
                                      task_status='created')

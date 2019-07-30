@@ -7,6 +7,7 @@ from app.analysis import assessment
 from werkzeug.exceptions import NotFound
 from flask import current_app
 
+
 class TopicModelDocumentLinking(AnalysisUtility):
     def __init__(self):
         self.utility_name = 'tm_document_linking'
