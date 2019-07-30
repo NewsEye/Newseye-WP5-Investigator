@@ -70,7 +70,7 @@ class Config(object):
     AVAILABLE_FACETS = {
         'LANGUAGE': 'language_ssi',
         'NEWSPAPER_NAME': 'member_of_collection_ids_ssim',
-        'PUB_DATE': 'date_created_dtsi',
+#        'PUB_DATE': 'date_created_dtsi', # ??? does not exist 
         'TYPE_OF_DOCUMENT': 'has_model_ssim',
         'PUB_YEAR': 'year_isi',
     }
