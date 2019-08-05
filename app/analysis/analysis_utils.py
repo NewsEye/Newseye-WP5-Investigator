@@ -91,7 +91,7 @@ class ExtractFacets(AnalysisUtility):
                 # interestingness as distribution
                 # before it was just facet values, now it's normalized to [0,1]
                 'interestingness': {f:{k:v for (k,v) in zip(facets[f].keys(),
-                                                       list(assessment.Distribution(facets[f].values()).dist))}
+                                                            list(assessment.Distribution(facets[f].values()).dist))}
                                     for f in facets}}
  
 
