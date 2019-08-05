@@ -153,7 +153,7 @@ class TaskInstance(db.Model):
             return the_most_recent_result
 
     @property
-    def result_with_interestness(self):
+    def result_with_interestingness(self):
         if self.task_result:
             return {'result' : self.task_result.result,
                     'interestingness' : self.task_result.interestingness}
@@ -177,7 +177,7 @@ class TaskInstance(db.Model):
                 'task_status': self.task_status,
                 'task_started': http_date(self.task_started),
                 'task_finished': http_date(self.task_finished),
-                'task_result': self.result_with_interestness,
+                'task_result': self.result_with_interestingness
             }
         elif style == 'search_result':
             return {
@@ -196,7 +196,7 @@ class TaskInstance(db.Model):
                 'task_type': self.task_type,
                 'task_parameters': self.task_parameters,
                 'task_status': self.task_status,
-                'task_result':  self.result_with_interestness,
+                'task_result':  self.result_with_interestingness,
                 'hist_parent_id': self.hist_parent_id,
                 'task_started': http_date(self.task_started),
                 'task_finished': http_date(self.task_finished),
