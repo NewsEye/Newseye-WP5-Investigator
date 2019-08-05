@@ -1,8 +1,8 @@
-from app.main.db_utils import generate_tasks, store_results
+from app.main.db_utils import store_results
 import asyncio
 from flask import current_app
-from app.analysis.topic_models import QueryTopicModel 
 from config import Config
+from app.investigator import DEFAULT_PATTERNS
 
 def max_interestingness(interestingness):
     if isinstance(interestingness, float):        
@@ -30,78 +30,12 @@ class Investigator(object):
            2nd pattern: extract languages, run topics
         '''
 
-        subtasks = await asyncio.gather(self.generate_facet_subtasks(),
-                                        self.generate_basic_stats(),
-                                        self.generate_topic_tasks())
-                                        
+        patterns = [Pattern(self.planner.user, self.main_task, self) for Pattern in DEFAULT_PATTERNS]
+        subtasks = await asyncio.gather(*[pattern() for pattern in patterns])
+        current_app.logger.debug("SUBTASKS: %s" %subtasks)
         subtasks = [task for tasklist in subtasks for task in tasklist]
         
         await self.run_subtasks_and_update_results(subtasks)
-
-
-    async def generate_topic_tasks(self):
-        prerequisite_utility = [('common_facet_values', {'facet_name':'LANGUAGE'})]
-        prerequisite_task = self.generate_investigation_tasks(prerequisite_utility)
-        prerequisite_task = prerequisite_task[0]
-
-        language_list = [d['facet_value'] for d in prerequisite_task.task_result.result]
-
-        if len(language_list) > 1:
-            current_app.logger.error("More than one language in a corpus %s" %prerequisite_task.search_query)
-            raise NotImplementedError("More than one language in a corpus")
-        lang = language_list[0]
-        
-        # TODO: model_type selection (currently only one is available)
-        model_type = 'lda'
-
-        available_models = QueryTopicModel.request_topic_models(model_type)
-        available_names = []
-        
-        for model in available_models:
-            if model['lang'] == lang:
-                available_names.append(model['name'])
-
-        if len(available_names) == 1:
-            model_name = available_names[0]
-        elif len(available_names) > 1:
-            current_app.logger.error("More than one model for language %s: %s" %(lang, available_models))
-            raise NotImplementedError("More than one model")
-        else:
-            current_app.logger.error("Cannot find model for language %s: %s" %(lang, available_models))
-            raise NotFound('No trained topic models exist for the selected model type and language.')
-            
-
-        return self.generate_investigation_tasks([('query_topic_model', {'model_type' : model_type,
-                                                                         'model_name' :model_name})])                                                                      
-        
-        
-        
-    async def generate_basic_stats(self):
-        return self.generate_investigation_tasks([('compute_tf_idf', {})])
-
-    async def generate_facet_subtasks(self):
-        prerequisite_utility = [('extract_facets', {})]
-        prerequisite_task = self.generate_investigation_tasks(prerequisite_utility)
-        await self.run_subtasks_and_update_results(prerequisite_task)
-        prerequisite_task = prerequisite_task[0]
-
-        facet_names = prerequisite_task.task_result.result.keys()
-    
-        target_utilities = [('common_facet_values', {'facet_name':facet_name}) 
-                            for facet_name in facet_names]
-        return self.generate_investigation_tasks(target_utilities, source_uuid=prerequisite_task.uuid)
-        
-    def generate_investigation_tasks(self, utilities, source_uuid=None):
-        return generate_tasks(user=self.planner.user,
-                                  queries = [('analysis',
-                                              {'source_uuid' : source_uuid,
-                                               'search_query' : self.main_task.search_query,
-                                               'utility' : u,
-                                               'utility_parameters' : params,
-                                               'force_refresh' : self.force_refresh})
-                                             for u,params in utilities],
-                                  parent_id=self.main_task.uuid,
-                                  return_tasks=True)
         
     async def run_subtasks_and_update_results(self, subtasks):
         """ Generate and runs may tasks in parallel, assesses results and generate new tasks if needed.
