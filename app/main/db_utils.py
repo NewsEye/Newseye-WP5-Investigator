@@ -67,6 +67,7 @@ def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=Fals
                                     utility_name = utility_name,
                                     search_query = search_query,
                                     utility_parameters = utility_parameters).one_or_none()
+
         if not task:
             task = Task(task_type = task_type,
                         utility_name = utility_name,
@@ -80,7 +81,7 @@ def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=Fals
             
         task_instance = TaskInstance(task_id =  task.id,
                                      force_refresh   = bool(task_parameters.get('force_refresh', False)),
-                                     source_uuid     = task_parameters.get('target_uuid', None),
+                                     source_uuid     = task_parameters.get('source_uuid', None),
                                      hist_parent_id=parent_id,
                                      user_id=user.id,
                                      task_status='created')
@@ -153,7 +154,7 @@ def store_results(tasks, task_results, set_to_finished=True, interestingness=0.0
             task.result_id = res.id
             task.task.result_id = res.id
 
-    current_app.logger.info("Storing results into database")
+    current_app.logger.info("Storing results into database %s" %[str(task.uuid) for task in tasks])
     db.session.commit()
 
 

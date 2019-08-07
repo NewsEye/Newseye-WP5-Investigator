@@ -92,7 +92,7 @@ def make_test_response(utility_name, max_try = 10):
     outfile_name = utility_name + "_task_result.NEW.json"
     with open(outfile_name, 'w') as outfile:  
         json.dump(task_result, outfile)
-    print("Task result written into %s" %outfile_name)
+    print("Task result written into %s" %os.path.abspath(outfile_name))
 
 
 if __name__ == '__main__':

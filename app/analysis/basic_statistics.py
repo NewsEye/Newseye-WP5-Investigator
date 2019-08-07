@@ -29,14 +29,14 @@ class ExtractWords(AnalysisUtility):
                 'parameter_default': 20,
                 'parameter_is_required': False
             },
+            # TODO: language
 ]
         self.input_type='id_list'
         self.output_type='word_counts'
         super(ExtractWords, self).__init__()
         
     async def call(self, task):
-        """ Queries word index in the Solr to obtain documents split into words """
-        current_app.logger.debug("UTILITY_PARAMETERS: %s" %task.utility_parameters)
+        """ Queries word index in the Solr to obtain document s split into words """
         min_count = int(task.utility_parameters.get('min_count'))
         word2docid = defaultdict(list)
 
@@ -51,6 +51,7 @@ class ExtractWords(AnalysisUtility):
             current_app.logger.debug("ExtractWords: counting words")
             for docid, response in zip(docids, responses):
                 for word_info in response['docs']:
+                    # TODO: search only required languages 
                     word = [word_info[f] for f in ["text_tfr_siv", "text_tse_siv", "text_tde_siv", "text_tfi_siv"] if f in word_info][0]
                     word2docid[word].append(docid)
                    
@@ -78,6 +79,13 @@ class ComputeTfIdf(AnalysisUtility):
                 'parameter_type': 'float',
                 'parameter_default': 1,
                 'parameter_is_required': False
+            },
+            {
+                'parameter_name': 'languages',
+                'parameter_description': 'use only documents written in this languages',
+                'parameter_type' : 'string',
+                'parameter_default' : None,
+                'parameter_is_required' : False
             }
 ] 
         self.input_type = 'word_counts'
@@ -105,28 +113,36 @@ class ComputeTfIdf(AnalysisUtility):
         df = pd.DataFrame.from_dict([{"word":w, "tf":tf[w], "df":df[w]} for w in df])
         df.set_index("word", inplace=True)
         df["tfidf"] = df.tf*np.log(N/df["df"])
+        # TODO: more sophosticated elbow-based method
         df["interest"] = assessment.find_large_numbers_from_lists(df["tfidf"], coefficient=thr)
         return df.sort_values(by=['tfidf'], ascending=False)
     
     async def query_data(self, task):
         # TODO: parallel
-
         
         counts = self.input_data['counts']
         relatives = self.input_data['relatives']
-
         # qf means query field, the query field differes depending on a wanted language
-        qf = task.search_query.get("qf", None)
 
+        qf = task.search_query.get("qf", None)
+        languages = task.utility_parameters.get('languages')
+        if languages:
+            lang_fields = ['all_text_t'+l+'_siv' for l in languages]
+        elif qf:
+            # for word search we don't need anything but language query field
+            lang_fields = [langf for langf in ['all_text_tfr_siv', 'all_text_tfi_siv',
+                                             'all_text_tde_siv', 'all_text_tse_siv'] if langf in qf]
+        
+        
         # find total
         query = {"rows":0,
-                 "q":" ".join(["%s : [* TO *]" %langf
-                               for langf in ['all_text_tfr_siv', 'all_text_tfi_siv',
-                                             'all_text_tde_siv', 'all_text_tse_siv'] if langf in qf])}
+                 "q":" ".join(["%s : [* TO *]" %langf for langf in lang_fields])}
+        
         total = await search_database(query)
         total = total['numFound']
-        current_app.logger.debug("ComputeTfIdf: total %s" %total)
+
         
+        qf = ' '.join(lang_fields)
         # find df
         word_list = list(counts.keys())
         df = {}

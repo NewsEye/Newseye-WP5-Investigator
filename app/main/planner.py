@@ -6,7 +6,7 @@ from app.analysis import UTILITY_MAP, INPUT_TYPE_MAP
 from datetime import datetime
 from flask import current_app
 import asyncio
-from app.investigator.investigator_utils import investigate
+from app.investigator.investigator import Investigator
 
 class TaskPlanner(object):
     
@@ -25,8 +25,9 @@ class TaskPlanner(object):
         
         # here tasks are actually executed asynchronously
         # returns list of results *or* exceptions if a task fail
-        results = await asyncio.gather(*async_tasks, return_exceptions=True)
-        current_app.logger.info("%s finished, returning results" %[t.utility for t in tasks])
+        results = await asyncio.gather(*async_tasks, return_exceptions=False)
+        for t in tasks:
+            current_app.logger.info("%s:%s finished, returning results" %(t.utility, t.uuid))
         return results            
 
     async def execute_and_store_tasks(self, tasks):
@@ -74,7 +75,8 @@ class TaskPlanner(object):
             store_results([task], analysis_results)
 
         if task.task_type == 'investigator':
-            await investigate(self, task)
+            investigator = Investigator(self, task)
+            await investigator.investigate()
             task.task_status = 'finished'
             db.session.commit()
 
@@ -105,7 +107,7 @@ class TaskPlanner(object):
         #  by the planner are under it)
         input_task_uuid = task.source_uuid
         if input_task_uuid:
-            input_task = InstanceTask.query.filter_by(uuid=input_task_uuid).first()
+            input_task = TaskInstance.query.filter_by(uuid=input_task_uuid).first()
             current_app.logger.debug("input_task_uuid %s" %input_task_uuid)
             if input_task is None:
                 raise ValueError('Invalid source_uuid')

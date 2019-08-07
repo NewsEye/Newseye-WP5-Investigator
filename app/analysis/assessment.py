@@ -1,6 +1,6 @@
 import numpy as np
 import sys
-
+from flask import current_app
 from collections import Iterable
 
 EPSILON = sys.float_info.epsilon  # smallest possible number
@@ -12,10 +12,10 @@ class Distribution(object):
         self.entropy = -np.sum((self.dist*np.log2(self.dist)))
         self.number_of_outcomes = len(self.dist)
         
-    def make_distribution(self, list_of_counts):
+    def make_distribution(self, counts):
         # Normalize a non-negative discrete distribution onto the
         # range [0-1], ensuring no zero value.
-        arr = np.array(list_of_counts)
+        arr = np.array(list(counts))
         
         # TODO: smoothing factor depending on number of outcomes
         smoothing_factor = self.smoothing if self.smoothing else EPSILON
@@ -26,8 +26,7 @@ class Distribution(object):
         if self.number_of_outcomes == 1:
             return 0
         return self.entropy/np.log2(self.number_of_outcomes)
-
-    
+  
 def ensure_distributions(*dist):
     ret = []
     for d in dist:
