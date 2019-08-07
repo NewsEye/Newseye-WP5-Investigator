@@ -2,6 +2,7 @@ from app.main.db_utils import store_results
 import asyncio
 from flask import current_app
 from config import Config
+
 from app.investigator import ANALYSING_PATTERNS, LINKING_PATTERNS
 from app.analysis import UTILITY_MAP
 
@@ -13,6 +14,7 @@ class Investigator(object):
        self.force_refresh = task.force_refresh
        self.task_result = {}
        self.interestingness = 0.0
+
 
 
     # TODO: make recoursive function for infinite investigation loop
@@ -60,7 +62,5 @@ class Investigator(object):
                     'qf':'id ' + self.main_task.search_query['qf']}
                             
             
-
-
         
         

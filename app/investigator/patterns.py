@@ -7,7 +7,7 @@ import numpy as np
 def max_interestingness(interestingness):
     if not interestingness:
         return 0.0
-    if isinstance(interestingness, float):
+    if isinstance(interestingness, float):        
         return interestingness
     elif isinstance(interestingness, list):
         return max([max_interestingness(i) for i in interestingness])
@@ -44,6 +44,7 @@ class InvestigationPattern(object):
         # all patterns update result and interestingness 
         self.planner = planner
         self.user = planner.user
+
         self.main_task = main_task
         self.task_result = task_result
         self.interestingness = interestingness
@@ -65,6 +66,7 @@ class InvestigationPattern(object):
         subtasks = await self.generate_subtasks()
         # run subtasks in parallel, estimate interestingness, store
         await self.run_subtasks_and_update_results(subtasks)
+
         return subtasks
     
     async def run_prerequisite_utilities(self):
@@ -85,6 +87,7 @@ class InvestigationPattern(object):
         
         for subtask in asyncio.as_completed([self.execute_and_store(s) for s in subtasks]):
             done_subtask = await subtask
+            # the subtask result is already stored, now we have to add subtask into list of task results
             subtask_interestingness = max_interestingness(self.estimate_interestingness(done_subtask))
             if subtask_interestingness > self.interestingness:
                 self.interestingness = subtask_interestingness
@@ -93,7 +96,6 @@ class InvestigationPattern(object):
                                                             "utility_parameters" : done_subtask.utility_parameters,
                                                             "search_query" : done_subtask.search_query,
                                                             "interestingness" : subtask_interestingness}
-            
             store_results([self.main_task], [self.task_result],
                           set_to_finished=False, interestingness=self.interestingness)
 
@@ -110,9 +112,6 @@ class InvestigationPattern(object):
                                              for u,params in utilities],
                                   parent_id=self.main_task.uuid,
                                   return_tasks=True)
-
-
-    
     # TODO: need to think out what is interesting and what is not
     def estimate_interestingness(self, subtask):
         # pattern dependent
@@ -146,6 +145,7 @@ class InvestigationPattern(object):
     
     
 class BasicStats(InvestigationPattern):
+
     def __init__(self, *args, **kwargs):
         super(BasicStats, self).__init__(*args, **kwargs)
         self.utility_name = 'compute_tf_idf'
@@ -218,6 +218,7 @@ class Topics(InvestigationPattern):
         if subtask.utility == 'common_facet_values':
             # preliminary task, we are not really intertersted in result
             return 0.0
+
         outcome = subtask.result_with_interestingness
         result, interestingness = outcome['result'], outcome['interestingness']
         # here interestingness is a [0-1] mask
@@ -230,7 +231,5 @@ class DocumentLinkingTM(InvestigationPattern):
         super(DocumentLinkingTM, self).__init__(*args)
         self.utility_name = 'tm_document_linking'
         self.parameters = {'num_docs':10}
-        
-    
 
 
