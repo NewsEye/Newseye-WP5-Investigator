@@ -30,4 +30,6 @@ INPUT_TYPE_MAP = {
     'id_list' : 'extract_document_ids'
 }
 
+
+
 from app.analysis import routes

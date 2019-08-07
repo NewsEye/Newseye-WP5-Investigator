@@ -1,19 +1,7 @@
 from app.analysis.topic_models import QueryTopicModel
-from app.main.db_utils import generate_tasks,  store_results
 import asyncio
 from flask import current_app
 import numpy as np
-
-def max_interestingness(interestingness):
-    if isinstance(interestingness, float):        
-        return interestingness
-    elif isinstance(interestingness, list):
-        return max([max_interestingness(i) for i in interestingness])
-    elif isinstance(interestingness, dict):
-        return max([max_interestingness(i) for i in interestingness.values()])
-    else:
-        return interestingness
-
 
     
 def mask_times_data(mask, data):
@@ -37,18 +25,18 @@ class InvestigationPattern(object):
    '''  
  
 
-    def __init__(self, planner, main_task, task_result, interestingness):
+    def __init__(self, runner, main_task, search_query=None):
         # global variables, shared across patterns
         # all patterns update result and interestingness 
-        self.planner = planner
-        self.user = planner.user
-        self.main_task = main_task       
-        self.task_result = task_result
-        self.interestingness = interestingness
+
+        self.main_task = main_task
+        # document dependent
+        self.search_query = search_query if search_query else self.main_task.search_query
         # pattern dependent
         self.prerequisite_utilities = []
         self.parameters = {}
         self.utility_name = None
+        self.runner = runner
     
     async def __call__(self):
         # run 1-2 prerequisits, needed to define core pattern tasks
@@ -60,51 +48,17 @@ class InvestigationPattern(object):
         # generate subtasks  --- generate core pattern tasks
         subtasks = await self.generate_subtasks()
         # run subtasks in parallel, estimate interestingness, store
-        await self.run_subtasks_and_update_results(subtasks)
-        
+        await self.runner.run_subtasks_and_update_results(subtasks, self.estimate_interestingness,
+                                                          reference={"pattern":type(self).__name__})
+
+        return subtasks
+    
     async def run_prerequisite_utilities(self):
-        self.prerequisite_tasks = self.generate_investigation_tasks(self.prerequisite_utilities)
-        await self.run_subtasks_and_update_results(self.prerequisite_tasks)
-
-
-    async def run_subtasks_and_update_results(self, subtasks):
-        """ 
-        Generates and runs may tasks in parallel, assesses results and generate new tasks if needed.
-        Stores data in the database as soon as they ready
-
-               1. gets list of subtasks
-               2. runs in parallel, store in db as soon as ready
-               3. result of the main task is a list of task uuid (children tasks) + interestness
-
-         """
+        self.prerequisite_tasks = self.runner.generate_investigation_tasks(self.prerequisite_utilities, search_query=self.search_query)
+        await self.runner.run_subtasks_and_update_results(self.prerequisite_tasks, self.estimate_interestingness,
+                                                          reference={"pattern":type(self).__name__})
+                                                          
         
-        for subtask in asyncio.as_completed([self.execute_and_store(s) for s in subtasks]):
-            done_subtask = await subtask
-            # the subtask result is already stored, now we have to add subtask into list of task results
-            subtask_interestingness = max_interestingness(self.estimate_interestingness(done_subtask))
-            if subtask_interestingness > self.interestingness:
-                self.interestingness = subtask_interestingness
-            if not str(done_subtask.uuid) in self.task_result:
-                self.task_result[str(done_subtask.uuid)] = {"utility_name" : done_subtask.utility,
-                                                            "utility_parameters" : done_subtask.utility_parameters,
-                                                            "interestingness" : subtask_interestingness}
-
-            store_results([self.main_task], [self.task_result],
-                          set_to_finished=False, interestingness=self.interestingness)
-
-        
-
-    def generate_investigation_tasks(self, utilities, source_uuid=None):
-        return generate_tasks(user=self.user,
-                                  queries = [('analysis',
-                                              {'source_uuid' : source_uuid,
-                                               'search_query' : self.main_task.search_query,
-                                               'utility' : u,
-                                               'utility_parameters' : params,
-                                               'force_refresh' : self.main_task.force_refresh})
-                                             for u,params in utilities],
-                                  parent_id=self.main_task.uuid,
-                                  return_tasks=True)
     # TODO: need to think out what is interesting and what is not
     def estimate_interestingness(self, subtask):
         # pattern dependent
@@ -115,48 +69,32 @@ class InvestigationPattern(object):
         pass
 
     async def generate_subtasks(self):
-        return self.generate_investigation_tasks([(self.utility_name, self.parameters)])          
-    
-    async def execute_and_store(self, subtask):
-        if subtask.force_refresh:
-            for uuid, done_task in self.task_result.items():
-                if (done_task['utility_name'] == subtask.utility and
-                    done_task['utility_parameters'] == subtask.utility_parameters):
-                    # don't repeat task even if force_refresh (inherited from the main task) is True
-                    # ---they are refreshed already in this investigation loop, nothing should change in between
-                    # this way we can define patterns independently, without
-                    # worrying if some utils are repeated many times across patterns
-                    # NOTE: this does not work if patterns are different but have the same meaning,
-                    # e.g. LANGUAGE = language_ssi for common_facet_values
-                    subtask.force_refresh = False
-                    break
-        return await self.planner.execute_and_store(subtask)
-
- 
-    
+        return self.runner.generate_investigation_tasks([(self.utility_name, self.parameters)], search_query=self.search_query)   
     
 class BasicStats(InvestigationPattern):
-    def __init__(self, *args):
-        super(BasicStats, self).__init__(*args)
+
+    def __init__(self, *args, **kwargs):
+        super(BasicStats, self).__init__(*args, **kwargs)
         self.utility_name = 'compute_tf_idf'
-    
+        self.prerequisite_utilities = [('common_facet_values', {'facet_name':'LANGUAGE'})]
 
-
+        
 class Facets(InvestigationPattern):
-    def __init__(self, *args):
-        super(Facets, self).__init__(*args)
+    def __init__(self, *args, **kwargs):
+        super(Facets, self).__init__(*args, **kwargs)
         self.prerequisite_utilities = [('extract_facets', {})]
         self.utility_name = 'common_facet_values'
+        self.parameters['n'] = 0
 
     async def update_parameters(self):
         prerequisite_task = self.prerequisite_tasks[0]
         self.parameters['facet_names'] = prerequisite_task.task_result.result.keys()
     
     async def generate_subtasks(self):
-        target_utilities = [('common_facet_values', {'facet_name':facet_name}) 
+        target_utilities = [('common_facet_values', {'facet_name':facet_name, 'n':self.parameters['n']}) 
                             for facet_name in self.parameters['facet_names']]
         # TODO: more than one prerequisite_task?
-        return self.generate_investigation_tasks(target_utilities, source_uuid=self.prerequisite_tasks[0].uuid)
+        return self.runner.generate_investigation_tasks(target_utilities, source_uuid=self.prerequisite_tasks[0].uuid, search_query=self.search_query)
 
     def estimate_interestingness(self, subtask):
         if subtask.utility == 'extract_facets':
@@ -164,11 +102,18 @@ class Facets(InvestigationPattern):
             return 0.0
         # else default
         return super(Facets, self).estimate_interestingness(subtask)
-        
+
+    
+class FindSteps(InvestigationPattern):
+
+    def __init__(self, *args, **kwargs):
+        super(FindSteps, self).__init__(*args, **kwargs)
+        self.utility_name = 'find_steps_from_time_series'
+
     
 class Topics(InvestigationPattern):
-    def __init__(self, *args):
-        super(Topics, self).__init__(*args)
+    def __init__(self, *args, **kwargs):
+        super(Topics, self).__init__(*args, **kwargs)
         self.prerequisite_utilities = [('common_facet_values', {'facet_name':'LANGUAGE'})]
         self.utility_name = 'query_topic_model'
 
@@ -209,18 +154,18 @@ class Topics(InvestigationPattern):
         if subtask.utility == 'common_facet_values':
             # preliminary task, we are not really intertersted in result
             return 0.0
-        current_app.logger.debug("SUBTASK %s" %subtask)
+
         outcome = subtask.result_with_interestingness
-        current_app.logger.debug("OUTCOME %s" %outcome)
         result, interestingness = outcome['result'], outcome['interestingness']
-        current_app.logger.debug("RESULT %s" %result)
-        current_app.logger.debug("INTERESTINGNESS %s" %interestingness)
         # here interestingness is a [0-1] mask
         interestingness = mask_times_data(interestingness, result)
-        
-        current_app.logger.debug("NEW INTERESTINGNESS %s" %interestingness)        
         return interestingness
         
         
+class DocumentLinkingTM(InvestigationPattern):
+    def __init__(self, *args, **kwargs):
+        super(DocumentLinkingTM, self).__init__(*args)
+        self.utility_name = 'tm_document_linking'
+        self.parameters = {'num_docs':10}
 
 

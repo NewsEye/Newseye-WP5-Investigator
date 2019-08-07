@@ -15,7 +15,7 @@ async def search_database(queries, **kwargs):
         # if queries: current_app.logger.info("Log, appending searches: {}".format(queries))
         for query in queries:
             tasks.append(query_solr(session, query, **kwargs))
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        results = await asyncio.gather(*tasks, return_exceptions=False)
         # if results: current_app.logger.info("Searches finished, returning results")
     if return_list:
         return results
@@ -24,6 +24,9 @@ async def search_database(queries, **kwargs):
 
 
 async def query_solr(session, query, retrieve='all', max_return_value=100000):
+
+#    current_app.logger.debug("============== QUERY: %s RETRIEVE: %s" %(query, retrieve))
+    
     """
     :param session: an aiohttp ClientSession
     :param query: query to be run on the solR server
@@ -43,8 +46,9 @@ async def query_solr(session, query, retrieve='all', max_return_value=100000):
     # Parameters specifically defined in the query override everything else
     for key, value in query.items():
             parameters[key] = value
-    #current_app.logger.debug("QUERY_SOLR: %s" %parameters)
-    #current_app.logger.debug("retrieve %s" %retrieve)
+            
+ #   current_app.logger.debug("QUERY_SOLR: %s" %parameters)
+
     async with session.get(Config.SOLR_URI, json={'params': parameters}) as response:
         if response.status == 401:
             raise Unauthorized
@@ -60,6 +64,7 @@ async def query_solr(session, query, retrieve='all', max_return_value=100000):
             if response.status == 401:
                 raise Unauthorized
             response = await response.json()
+            
     result = {'numFound': response['response']['numFound'], 'docs': response['response']['docs'], 'facets': format_facets(response['facet_counts']['facet_fields'])}
     return result
 

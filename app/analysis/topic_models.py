@@ -22,7 +22,7 @@ class TopicModelDocumentLinking(AnalysisUtility):
             },
         ]
         self.input_type = 'id_list'
-        self.output_type = 'id_list' # that's fine, get_prerequisite_tasks checks that input utility != ouput utility
+        self.output_type = 'id_list_with_dist' 
         super(TopicModelDocumentLinking, self).__init__()
 
     async def call(self, task):
@@ -30,10 +30,12 @@ class TopicModelDocumentLinking(AnalysisUtility):
         
                
         payload = {"num_docs" : num_docs, "documents" : self.input_data}
-        response = requests.post('{}/doc-linking'.format(Config.TOPIC_MODEL_URI), json=payload)
+        response = requests.post('{}/doc-linking'.format(Config.TOPIC_MODEL_URI), json=payload).json()
 
-        return {'result':response.json(),
-                'interestingness':0.0}
+        interestingness = [1-dist for dist in response['distance']]
+        
+        return {'result':response,
+                'interestingness':interestingness}
                                  
 
 
