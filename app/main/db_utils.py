@@ -14,7 +14,6 @@ def verify_analysis_parameters(query):
     checks the correctness 
     and updates missed parameters with defaults
     '''
-
     if query[0] != 'analysis':
         return query
     args = query[1]
@@ -23,7 +22,9 @@ def verify_analysis_parameters(query):
     if args['utility'] not in UTILITY_MAP.keys():
         raise BadRequest("Utility '{}' is currently not supported.".format(args['utility']))
     utility_info = UTILITY_MAP[args['utility']].get_description()
+
     query_parameters = args.get('utility_parameters', {})
+    
     new_parameters = {}
     for parameter in utility_info['utility_parameters']:
         parameter_name = parameter['parameter_name']
@@ -67,12 +68,16 @@ def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=Fals
                                     utility_name = utility_name,
                                     search_query = search_query,
                                     utility_parameters = utility_parameters).one_or_none()
-
+        input_type = UTILITY_MAP[utility_name].input_type if utility_name else None
+        output_type = UTILITY_MAP[utility_name].output_type if utility_name else None
         if not task:
+            
             task = Task(task_type = task_type,
                         utility_name = utility_name,
                         search_query = search_query,
-                        utility_parameters = utility_parameters)
+                        utility_parameters = utility_parameters,
+                        input_type = input_type,
+                        output_type = output_type)
             
             # crucial to commit immediately, otherwise task won't have an id 
             db.session.add(task)
@@ -108,7 +113,7 @@ def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=Fals
 
 def store_results(tasks, task_results, set_to_finished=True, interestingness=0.0):
     # Store the new results to the database after everything has been finished
-    # Todo: Should we offer the option to store results as soon as they are ready? Or do that by default?
+    # TODO: Should we offer the option to store results as soon as they are ready? Or do that by default?
     # Speedier results vs. more sql calls. If different tasks in the same query take wildly different amounts of
     # time, it would make sense to store the finished ones immediately instead of waiting for the last one, but I
     # doubt this would be the case here.
