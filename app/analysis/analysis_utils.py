@@ -132,7 +132,7 @@ class CommonFacetValues(AnalysisUtility):
         # though it is 1 for some obvious cases (e.g. language)
         # maybe we are more interested in diversity? 
         interestingness = list(assessment.Distribution([f[0] for f in facet_list]).dist)
-
+        
         if n != 0:
             facet_list = facet_list[:n]
             interestingness = interestingness[:n]

@@ -74,6 +74,12 @@ class Task(db.Model):
     input_type = db.Column(db.String(255))
     output_type = db.Column(db.String(255))
 
+    @property
+    def task_result(self):
+        if self.task_results:
+            return sorted(self.task_results, key=lambda r: r.last_updated)[-1]
+
+    
     def __repr__(self):
         return '<Task id: {} type: {} utlity: {} search: {} parameters: {}>'.format(self.id, self.task_type, self.utility_name, self.search_query, self.utility_parameters)
 
@@ -156,11 +162,12 @@ class TaskInstance(db.Model):
     def task_result(self):
         if self.result_id:
             return next((result for result in self.task.task_results if result.id == self.result_id), None)
-        elif self.task.task_results:
-            the_most_recent_result = sorted(self.task.task_results, key=lambda r: r.last_updated)[-1]
-            if not self.force_refresh:
-                self.result_id = the_most_recent_result.id
-            return the_most_recent_result
+        else:
+            the_most_recent_result = self.task.task_result
+            if the_most_recent_result:
+                if not self.force_refresh:
+                    self.result_id = the_most_recent_result.id
+                return the_most_recent_result
 
     @property
     def result_with_interestingness(self):

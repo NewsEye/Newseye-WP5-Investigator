@@ -67,7 +67,12 @@ def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=Fals
         task = Task.query.filter_by(task_type = task_type,
                                     utility_name = utility_name,
                                     search_query = search_query,
-                                    utility_parameters = utility_parameters).one_or_none()
+                                    utility_parameters = utility_parameters).one_or_none() \
+                                    if utility_name != 'comparison' else \
+                                       Task.query.filter_by(task_type = task_type,
+                                                            utility_name = utility_name,
+                                                            utility_parameters = utility_parameters).one_or_none()
+                                                                                                              
         input_type = UTILITY_MAP[utility_name].input_type if utility_name else None
         output_type = UTILITY_MAP[utility_name].output_type if utility_name else None
         if not task:
