@@ -38,7 +38,8 @@ def ensure_distributions(*dist):
             
             
 # DISTRIBUTION COMPARISON METRICS
-    
+# TODO: Wasserstain distance
+
 def kl_divergence(p,q):
     p,q = ensure_distributions(p,q)
     return np.sum(p.dist*np.log2(p.dist/q.dist))
@@ -47,7 +48,13 @@ def kl_distance(p,q):
     p,q = ensure_distributions(p,q)
     # this one is symmetrical
     return np.sum((p.dist-q.dist)*np.log2(p.dist/q.dist))
-    
+
+def js_divergence(p,q):
+    p,q = ensure_distributions(p,q)
+    M = ensure_distributions([(p.dist[i]+q.dist[i])/2 for i in range(len(p.dist))])[0]
+    return kl_divergence(p,M)/2+kl_divergence(q,M)/2
+        
+
 def normalized_kl_divergence(p,q):
     p,q = ensure_distributions(p,q)
     return kl_divergence(p.dist,q.dist) / (np.log2(q.number_of_outcomes)-q.entropy())
@@ -58,6 +65,26 @@ def cross_entropy(p,q):
 
 
 # DICTIONARY COMPARISON METHODS
+
+def dicts_to_comparable_dist(dict1, dict2):
+    # assume dicts are aligned
+    p = [dict1[k] for k in dict1]
+    q = [dict2[k] for k in dict1]  # ensure order
+    return p,q
+    
+def dict_normalized_kl_divergence(dict1, dict2):
+    p, q = dicts_to_comparable_dist(dict1, dict2)
+    return normalized_kl_divergence(p,q)
+
+def dict_kl_distance(dict1, dict2):
+    p, q = dicts_to_comparable_dist(dict1, dict2)
+    return kl_distance(p,q)
+    
+def dict_js_divergence(dict1, dict2):
+    p, q = dicts_to_comparable_dist(dict1, dict2)
+    return js_divergence(p,q)
+    
+    
 
 def align_dicts_from_to(from_dict, to_dict, default_value=0.0):
     # insert missed values, so that all keys from_dict have values in to_dict
@@ -77,7 +104,7 @@ def weighted_frequency_ratio(dict1, dict2, weights=None, weight_func=np.log10):
     # TODO: slowish, check what's going on
     # maybe switch to np arrays, pandas, whatever
     # frequency ratio where more weight given to some cases
-    # default weight is a log10 of denominator, the bigger denominator (e.g. corpus frequency) the mpre relyable considered result
+    # default weight is a log10 of denominator, the bigger denominator (e.g. corpus frequency) the more reliable considered result
     # maybe better to replace all hacks with statistical significance
     if not weights:
         weights = dict2
@@ -86,6 +113,7 @@ def weighted_frequency_ratio(dict1, dict2, weights=None, weight_func=np.log10):
     # fr = 1 is a neutral value, thus (fr - 1) for that cases would be zero
     # and not magnified by weighting
     return {k:((fr[k]-1)*weight_func(weights[k])+1) for k in dict1.keys()}  
+  
 
 def find_large_numbers(data, coefficient=2):
     # dummy function, most probably will be replaced with something more clever
@@ -103,3 +131,21 @@ def find_large_numbers_from_lists(lists, coefficient=2):
     mask[np.where(arr - mean > coefficient*std)] = 1
     return mask.tolist()
     
+
+# INTERESTINGNESS
+def recoursive_max(data):
+    if not data:
+        return 0.0
+    if isinstance(data, float):        
+        return data
+    elif isinstance(data, (list or tuple or set)):
+        return max([recoursive_max(i) for i in data])
+    elif isinstance(data, dict):
+        return recoursive_max([recoursive_max(i) for i in data.values()])
+    else:
+        return data
+
+def max_interestingness(interestingness):
+    if not interestingness:
+        return 0.0
+    return recoursive_max(interestingness)
