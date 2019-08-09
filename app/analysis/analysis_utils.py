@@ -41,7 +41,7 @@ class AnalysisUtility(object):
         if input_task:
             wait_time=0
             while input_task.task_status != 'finished' and wait_time < 100:
-                # what happens after that? should we raise some exception? cancell all tasks?
+                # what happens after that? should we raise some exception? cancel all tasks?
                 asyncio.sleep(wait_time)
                 wait_time += 1            
             task.hist_parent_id = input_task.uuid
@@ -116,7 +116,7 @@ class CommonFacetValues(AnalysisUtility):
             }
         ]
         self.input_type = 'facet_list'
-        self.output_type = 'topic_list'
+        self.output_type = 'facet_list'
         super(CommonFacetValues, self).__init__()
 
     async def call(self, task):
