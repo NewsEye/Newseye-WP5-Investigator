@@ -5,6 +5,7 @@ from app.analysis.analysis_utils import ExtractFacets, CommonFacetValues, Genera
 from app.analysis.topic_models import QueryTopicModel, TopicModelDocumentLinking
 from app.analysis.step_detection import FindStepsFromTimeSeries
 from app.analysis.basic_statistics import ExtractWords, MakeBasicStats, ComputeTfIdf
+from app.analysis.result_comparison import ComparisonUtility
 
 ns = Namespace('analysis', description='Analysis operations')
 
@@ -18,7 +19,8 @@ UTILITY_MAP = {
     'extract_words': ExtractWords(),
     'make_basic_stats': MakeBasicStats(),
     'compute_tf_idf': ComputeTfIdf(),
-    'tm_document_linking': TopicModelDocumentLinking()
+    'tm_document_linking': TopicModelDocumentLinking(),
+    'comparison': ComparisonUtility()
     # These don't work yet without the pickled indexes
     # 'lemma_frequency_timeseries': LemmaFrequencyTimeseries(),
     # 'analyse_lemma_frequency': AnalyseLemmaFrequency(),
