@@ -118,6 +118,7 @@ class ComputeTfIdf(AnalysisUtility):
         return df.sort_values(by=['tfidf'], ascending=False)
     
     async def query_data(self, task):
+        
         # TODO: parallel
         
         counts = self.input_data['counts']
@@ -142,12 +143,11 @@ class ComputeTfIdf(AnalysisUtility):
         qf = ' '.join(lang_fields)
         word_list = list(counts.keys())
         df = {}
-        await asyncio.gather(*[self.search(word_list[s:e], df, qf) for (s,e) in make_batches(len(word_list), batch_size=1000)])
+        await asyncio.gather(*[self.search(word_list[s:e], df, total, qf) for (s,e) in make_batches(len(word_list), batch_size=1000)])
 
         return counts, relatives, df, total
 
-    async def search(self, words, df, qf):
-            current_app.logger.debug("ComputeTfIdf: search df for each word, %d-%d/%d" %(s,e,len(word_list)))
+    async def search(self, words, df, total, qf):
             qs = [{"q":w, "rows":0} for w in words]
             if qf:
                 qs = [{**q, "qf":qf} for q in qs]
