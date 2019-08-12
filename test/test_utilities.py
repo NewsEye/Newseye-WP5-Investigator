@@ -64,7 +64,7 @@ class TestExtractWords(TestUtility):
 
 class TestTfIdf(TestUtility):
     task_result = "tfidf_task_result.json"
-    payload = '{"search_query": {"q": "sortiraient","qf" : "all_text_tfr_siv"},"utility" : "extract_words"}'
+    payload = '{"search_query": {"q": "sortiraient","qf" : "all_text_tfr_siv"},"utility" : "compute_tf_idf"}'
    
 class TestFindSteps(TestUtility):
     task_result = "find_steps_task_result.json"
