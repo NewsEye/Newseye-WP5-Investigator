@@ -18,16 +18,17 @@ if __name__ == '__main__':
        
     else:
         tests = [ TestUtilityList,
-                       TestSearch,
-    		       TestExtractDocID,
-    		       TestExtractWords,
-    		       TestFindSteps,
-    		       TestExtractFacets,
-    		       TestGenerateTimeseries,
-    		       TestCommonFacetValues,
-    		       TestReport,
-                       TestTopic,
-    		       TestTopicLinking
+                  TestSearch,
+    		  TestExtractDocID,
+    		  TestExtractWords,
+                  TestTfIdf,
+    		  TestFindSteps,
+    		  TestExtractFacets,
+    		  TestGenerateTimeseries,
+    		  TestCommonFacetValues,
+    		  TestReport,
+                  TestTopic,
+    		  TestTopicLinking
                            ]
     errors, failures, skipped, total = 0,0,0,0
     for TestClass in tests:
