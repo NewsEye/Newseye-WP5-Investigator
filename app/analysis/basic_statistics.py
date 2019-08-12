@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 from app.analysis import assessment
 import json
+import asyncio
 
 def make_batches(number_of_items, batch_size = 100):
     number_of_batches = ((number_of_items-1)//batch_size)+1             
@@ -34,27 +35,26 @@ class ExtractWords(AnalysisUtility):
         self.input_type='id_list'
         self.output_type='word_counts'
         super(ExtractWords, self).__init__()
+
+    async def count(self, response, word2docid):
+        for word_info in response['docs']:
+            # TODO: search only required languages 
+            word = [word_info[f] for f in ["text_tfr_siv","text_tse_siv","text_tde_siv","text_tfi_siv"] if f in word_info][0]
+            docid = word_info['id'][:-9]# word id has a form docid_pageno_word_wordno, e.g. la_presse_12148-bpt6k477386c_3_word_1
+            word2docid[word].append(docid)
+        
+    async def search(self, docids, word2docid, message):
+        qs = [{"q" : docid + '*'} for docid in docids]
+        responses = await search_database(qs, retrieve='words')
+        await asyncio.gather(*[self.count(response) for response in responses])
         
     async def call(self, task):
         """ Queries word index in the Solr to obtain document s split into words """
         min_count = int(task.utility_parameters.get('min_count'))
         word2docid = defaultdict(list)
 
-        # TODO: parallel
-        for (s,e) in make_batches(len(self.input_data)):
-            docids = self.input_data[s:e]
-            
-            current_app.logger.debug("ExtractWords: search docs one by one, %d-%d/%d" %(s,e,len(self.input_data)))
-            qs = [{"q" : docid + '*'} for docid in docids]
-            responses = await search_database(qs, retrieve='words')
+        await asyncio.gather(*[self.search(self.input_data[s:e], word2docid) for (s,e) in make_batches(len(self.input_data))])
 
-            current_app.logger.debug("ExtractWords: counting words")
-            for docid, response in zip(docids, responses):
-                for word_info in response['docs']:
-                    # TODO: search only required languages 
-                    word = [word_info[f] for f in ["text_tfr_siv", "text_tse_siv", "text_tde_siv", "text_tfi_siv"] if f in word_info][0]
-                    word2docid[word].append(docid)
-                   
         current_app.logger.debug("docs %d, words %d" %(len(self.input_data), len(word2docid)))
         counts = {w:len(d) for w,d in word2docid.items() if len(d) >= min_count}
 
@@ -132,23 +132,21 @@ class ComputeTfIdf(AnalysisUtility):
             # for word search we don't need anything but language query field
             lang_fields = [langf for langf in ['all_text_tfr_siv', 'all_text_tfi_siv',
                                              'all_text_tde_siv', 'all_text_tse_siv'] if langf in qf]
-        
-        
-        # find total
-        query = {"rows":0,
-                 "q":" ".join(["%s : [* TO *]" %langf for langf in lang_fields])}
-        
-        total = await search_database(query)
+       
+        # FIND TOTAL
+        total = await search_database({"rows":0,
+                 "q":" ".join(["%s : [* TO *]" %langf for langf in lang_fields])})
         total = total['numFound']
-
-        
+           
+        # FIND DF
         qf = ' '.join(lang_fields)
-        # find df
         word_list = list(counts.keys())
         df = {}
-        for (s,e) in make_batches(len(word_list), batch_size=1000):
+        await asyncio.gather(*[self.search(word_list[s:e], df, qf) for (s,e) in make_batches(len(word_list), batch_size=1000)])
 
-            words = word_list[s:e]
+        return counts, relatives, df, total
+
+    async def search(self, words, df, qf):
             current_app.logger.debug("ComputeTfIdf: search df for each word, %d-%d/%d" %(s,e,len(word_list)))
             qs = [{"q":w, "rows":0} for w in words]
             if qf:
@@ -160,9 +158,7 @@ class ComputeTfIdf(AnalysisUtility):
             # this cannot be true zero since the words were previously found in the same db
             # thus replace zero with all
             df.update({w:r['numFound'] if r['numFound'] else total for w,r in zip(words,responses)})
-
-        return counts, relatives, df, total
-                               
+        
       
 
 class MakeBasicStats(AnalysisUtility):
