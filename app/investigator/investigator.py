@@ -44,7 +44,7 @@ class Investigator(object):
             for subtask in subtasks:
                 comparison_tasks.append(self.make_comparison_task(subtask))
        
-        await asyncio.gather(*comparison_tasks, return_exceptions=False)
+        await asyncio.gather(*comparison_tasks, return_exceptions=True)
 
 
 
@@ -69,7 +69,9 @@ class Investigator(object):
 
         current_app.logger.debug("PATTERNS %s SEARCH_QUERY %s" %(patterns, search_query))
         # each pattern returns a list of subtasks hence patternset returns list of lists
-        subtasks = await asyncio.gather(*[pattern() for pattern in patterns], return_exceptions=False)
+        subtasks = await asyncio.gather(*[pattern() for pattern in patterns], return_exceptions=True)
+        subtasks = [s for s in subtasks if not isinstance(s, Exception)]
+
         return [s for sl in subtasks for s in sl]
         
 
