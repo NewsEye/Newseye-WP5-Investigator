@@ -35,13 +35,23 @@ class ComparisonUtility(AnalysisUtility):
         
     async def get_input_data(self, task):
         if task.utility_parameters['task_ids']:
+            # for calling from investigator
+            # currently investigator checks that tasks are finnished
+            # may cause problems in future?
             tasks = Task.query.filter(Task.id.in_(task.utility_parameters['task_ids'])).all()
         elif task.utility_parameters['task_uuids']:
-            tasks = TaskInstance.query.filter(Task.uuid.in_(task.utility_parameters['task_uuids'])).all()
+            # calling directly from api
+            tasks = TaskInstance.query.filter(TaskInstance.uuid.in_(task.utility_parameters['task_uuids'])).all()
+            
+            wait_time = 0
+            while any([task.task_status != 'finished' for task in tasks]) and wait_time < 100:
+                asyncio.sleep(wait_time)
+                wait_time += 1
+
             tasks = [task.task for task in tasks]
         else:
             raise BadRequest('Request missing valid task_uuids or task_ids!')
-        
+
         input_data_type = [task.output_type for task in tasks]
         assert(len(set(input_data_type))==1)
         input_data = [task.task_result.result for task in tasks]
