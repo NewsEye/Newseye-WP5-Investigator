@@ -5,7 +5,7 @@ from config import Config
 from flask import current_app
 import numpy as np
 import pandas as pd
-from app.analysis import assessment, timeseries
+from app.analysis import assessment #, timeseries
 from operator import itemgetter
 from werkzeug.exceptions import BadRequest
 import asyncio

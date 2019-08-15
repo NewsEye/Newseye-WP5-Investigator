@@ -1,7 +1,7 @@
 from flask_restplus import Namespace
 
-from app.analysis.analysis_utils import ExtractFacets, CommonFacetValues, GenerateTimeSeries, ExtractDocumentIds, \
-    LemmaFrequencyTimeseries, AnalyseLemmaFrequency
+from app.analysis.analysis_utils import ExtractFacets, CommonFacetValues, GenerateTimeSeries, ExtractDocumentIds
+#from app.analysis.analysis_utils import LemmaFrequencyTimeseries, AnalyseLemmaFrequency
 from app.analysis.topic_models import QueryTopicModel, TopicModelDocumentLinking
 from app.analysis.step_detection import FindStepsFromTimeSeries
 from app.analysis.basic_statistics import ExtractWords, MakeBasicStats, ComputeTfIdf

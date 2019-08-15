@@ -21,7 +21,7 @@ class Investigator(object):
 
 
 
-    # TODO: make recoursive function for infinite investigation loop
+    # TODO: make recoursive function for an infinite investigation loop
     async def investigate(self):
         linked_docs_analysing_tasks = []
         
