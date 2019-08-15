@@ -3,6 +3,7 @@ from test_search import TestSearch
 from test_topic_modelling import *
 from test_report import TestReport
 from test_utilities import *
+from test_comparison import TestComparison
 import sys
 
 def make_suite(TestClass):
@@ -27,8 +28,9 @@ if __name__ == '__main__':
     		  TestGenerateTimeseries,
     		  TestCommonFacetValues,
     		  TestReport,
-                  TestTopic,
-    		  TestTopicLinking
+                  TestComparison,
+                  #TestTopic,
+    		  #TestTopicLinking
                            ]
     errors, failures, skipped, total = 0,0,0,0
     for TestClass in tests:

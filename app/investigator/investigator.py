@@ -20,7 +20,7 @@ class Investigator(object):
        self.runner = SubtaskRunner(self.planner, self.main_task, self.interestingness, self.task_result)
 
 
-    # TODO: make recoursive function for infinite investigation loop
+    # TODO: make recoursive function for an infinite investigation loop
     async def investigate(self):
         linked_docs_analysing_tasks = []
         

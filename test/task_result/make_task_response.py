@@ -33,11 +33,23 @@ def make_analysis_response(payload, max_try):
     headers, url = read_config()
     return make_response(url, payload, headers, max_try=max_try)
 
+def make_comparison_response(*payloads, max_try):
+    headers, url = read_config()
+    responses = [requests.request("POST", url, data=payload, headers={'content-type': "application/json", **headers}).json()
+                 for payload in payloads]
+    uuids = [response["uuid"] for response in responses]
 
+    payload = json.dumps({"utility":"comparison", "utility_parameters":{"task_uuids":uuids}})
+    
+    return make_response(url, payload, headers, max_try)
 
 def make_test_response(utility_name, max_try = 10): 
-    
-    if utility_name == 'search':
+    if utility_name == 'comparison':
+        payload1 = '{"search_query": {"q": "sortiraient","qf" : "all_text_tfr_siv"}, "utility": "common_facet_values","force_refresh":"T"}'
+        payload2 = '{"search_query": {"q": "la_presse_12148-bpt6k5148665 la_presse_12148-bpt6k5440774 la_presse_12148-bpt6k478627w la_presse_12148-bpt6k479480z la_presse_12148-bpt6k4783044 la_presse_12148-bpt6k4779778 la_presse_12148-bpt6k543650c la_presse_12148-bpt6k5131113 la_presse_12148-bpt6k513085q la_presse_12148-bpt6k515326h", "mm": 1, "qf": "id all_text_tfr_siv"}, "utility": "common_facet_values","force_refresh":"T"}'
+        task_result = make_comparison_response(payload1, payload2, max_try=max_try)
+        
+    elif utility_name == 'search':
         headers, url = read_config(utility_name)
         payload = '{"q": "Republik AND Flüchtlinge AND Australien","fq": "member_of_collection_ids_ssim:arbeiter_zeitung","mm": 3,"force_refresh":"T"}'.encode('utf-8')
         task_result = make_response(url, payload, headers, max_try=max_try)
@@ -99,5 +111,5 @@ if __name__ == '__main__':
     try:
         make_test_response(sys.argv[1])
     except Exception as e:
-        print("USAGE: make_task_response.py [search|utility_list|topics|tfidf|extract_docid|extract_facets|generate_timeseries|extract_words|find_steps|common_facets|tm_doclinking|report]")
-        # raise e
+        print("USAGE: make_task_response.py [search|utility_list|topics|tfidf|extract_docid|extract_facets|generate_timeseries|extract_words|find_steps|common_facets|tm_doclinking|report|comparison]")
+#        raise e
