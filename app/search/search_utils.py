@@ -15,7 +15,7 @@ async def search_database(queries, **kwargs):
         # if queries: current_app.logger.info("Log, appending searches: {}".format(queries))
         for query in queries:
             tasks.append(query_solr(session, query, **kwargs))
-        results = await asyncio.gather(*tasks, return_exceptions=False)
+        results = await asyncio.gather(*tasks, return_exceptions=True)
         # if results: current_app.logger.info("Searches finished, returning results")
     if return_list:
         return results
