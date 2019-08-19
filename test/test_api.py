@@ -29,8 +29,8 @@ if __name__ == '__main__':
     		  TestCommonFacetValues,
     		  TestReport,
                   TestComparison,
-                  #TestTopic,
-    		  #TestTopicLinking
+                  TestTopic,
+    		  TestTopicLinking
                            ]
     errors, failures, skipped, total = 0,0,0,0
     for TestClass in tests:
