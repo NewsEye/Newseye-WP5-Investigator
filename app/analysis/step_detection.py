@@ -12,7 +12,7 @@ class FindStepsFromTimeSeries(AnalysisUtility):
         self.utility_parameters = [
             {
                 'parameter_name': 'step_threshold',
-                'parameter_description': 'Not yet written',
+                'parameter_description': 'Threshold value that defines a step.',
                 'parameter_type': 'float',
                 'parameter_default': None,
                 'parameter_is_required': False
