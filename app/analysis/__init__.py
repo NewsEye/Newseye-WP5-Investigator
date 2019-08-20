@@ -5,7 +5,7 @@ from app.analysis.analysis_utils import ExtractFacets, CommonFacetValues, Genera
 from app.analysis.topic_models import QueryTopicModel, TopicModelDocumentLinking
 from app.analysis.step_detection import FindStepsFromTimeSeries
 from app.analysis.basic_statistics import ExtractWords, MakeBasicStats, ComputeTfIdf
-from app.analysis.result_comparison import ComparisonUtility
+from app.investigator.result_comparison import ComparisonUtility
 
 ns = Namespace('analysis', description='Analysis operations')
 
