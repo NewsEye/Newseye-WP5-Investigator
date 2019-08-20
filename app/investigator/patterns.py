@@ -78,6 +78,7 @@ class BasicStats(InvestigationPattern):
         self.utility_name = 'compute_tf_idf'
         self.prerequisite_utilities = [('common_facet_values', {'facet_name':'LANGUAGE'})]
 
+        
 class Facets(InvestigationPattern):
     def __init__(self, *args, **kwargs):
         super(Facets, self).__init__(*args, **kwargs)
@@ -101,7 +102,14 @@ class Facets(InvestigationPattern):
             return 0.0
         # else default
         return super(Facets, self).estimate_interestingness(subtask)
-        
+
+    
+class FindSteps(InvestigationPattern):
+
+    def __init__(self, *args, **kwargs):
+        super(FindSteps, self).__init__(*args, **kwargs)
+        self.utility_name = 'find_steps_from_time_series'
+
     
 class Topics(InvestigationPattern):
     def __init__(self, *args, **kwargs):
