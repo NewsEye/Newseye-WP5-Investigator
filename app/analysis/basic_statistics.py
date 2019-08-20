@@ -43,10 +43,10 @@ class ExtractWords(AnalysisUtility):
             docid = word_info['id'][:-9]# word id has a form docid_pageno_word_wordno, e.g. la_presse_12148-bpt6k477386c_3_word_1
             word2docid[word].append(docid)
         
-    async def search(self, docids, word2docid, message):
+    async def search(self, docids, word2docid):
         qs = [{"q" : docid + '*'} for docid in docids]
         responses = await search_database(qs, retrieve='words')
-        await asyncio.gather(*[self.count(response) for response in responses])
+        await asyncio.gather(*[self.count(response, word2docid) for response in responses])
         
     async def call(self, task):
         """ Queries word index in the Solr to obtain document s split into words """
