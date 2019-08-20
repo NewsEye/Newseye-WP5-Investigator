@@ -25,7 +25,7 @@ class TaskPlanner(object):
         
         # here tasks are actually executed asynchronously
         # returns list of results *or* exceptions if a task fail
-        results = await asyncio.gather(*async_tasks, return_exceptions=True)
+        results = await asyncio.gather(*async_tasks, return_exceptions=(not current_app.debug))
         for t in tasks:
             current_app.logger.info("%s:%s finished, returning results" %(t.utility, t.uuid))
         return results            
