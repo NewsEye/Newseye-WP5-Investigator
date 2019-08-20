@@ -39,7 +39,7 @@ def make_comparison_response(*payloads, max_try):
                  for payload in payloads]
     uuids = [response["uuid"] for response in responses]
 
-    payload = json.dumps({"utility":"comparison", "utility_parameters":{"task_uuids":uuids}})
+    payload = json.dumps({"utility":"comparison", "utility_parameters":{"task_uuids":uuids}, "force_refresh":"T"})
     
     return make_response(url, payload, headers, max_try)
 
@@ -68,11 +68,11 @@ def make_test_response(utility_name, max_try = 10):
         task_result = make_analysis_response(payload, max_try=max_try)
 
     elif utility_name == 'extract_words':
-        payload = '{"search_query": {"q": "sortiraient","qf" : "all_text_tfr_siv"},"utility" : "extract_words"}'
+        payload = '{"search_query": {"q": "sortiraient","qf" : "all_text_tfr_siv"},"utility" : "extract_words","force_refresh":"T"}'
         task_result = make_analysis_response(payload, max_try=max_try)    
         
     elif utility_name == 'tfidf':
-        payload = '{"search_query": {"q": "sortiraient","qf" : "all_text_tfr_siv"},"utility" : "compute_tf_idf"}'
+        payload = '{"search_query": {"q": "sortiraient","qf" : "all_text_tfr_siv"},"utility" : "compute_tf_idf","force_refresh":"T"}'
         task_result = make_analysis_response(payload, max_try=max_try)
 
     elif utility_name == 'extract_facets':
@@ -84,7 +84,7 @@ def make_test_response(utility_name, max_try = 10):
         task_result = make_analysis_response(payload, max_try=max_try)
 
     elif utility_name == 'common_facets':
-        payload = '{"search_query": {"q": "maito"},"utility": "common_facet_values","n": 5}'
+        payload = '{"search_query": {"q": "maito"},"utility": "common_facet_values","n": 5,"force_refresh":"T"}'
         task_result = make_analysis_response(payload, max_try=max_try)
 
     elif utility_name == 'find_steps':
@@ -92,12 +92,12 @@ def make_test_response(utility_name, max_try = 10):
         task_result = make_analysis_response(payload, max_try=max_try)
 
     elif utility_name == 'tm_doclinking':
-        payload = '{"search_query": {"q": "Republik"},"utility": "tm_document_linking"}'
+        payload = '{"search_query": {"q": "Republik"},"utility": "tm_document_linking","force_refresh":"T"}'
         task_result = make_analysis_response(payload, max_try=max_try)
 
     elif utility_name == 'report':
         # TODO: replace target_search with search_query once new version is deployed
-        payload = '{"target_search": {"q": "Flüchtlinge"},"utility": "common_facet_values","utility_parameters": {"n": 5}}'.encode('utf-8')
+        payload = '{"target_search": {"q": "Flüchtlinge"},"utility": "common_facet_values","utility_parameters": {"n": 5},"force_refresh":"T"}'.encode('utf-8')
         task_result = make_report_response(payload, max_try=max_try)
 
     os.chdir(os.path.abspath(os.path.dirname(__file__)))

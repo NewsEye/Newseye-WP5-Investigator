@@ -59,16 +59,16 @@ class TestExtractDocID(TestUtility):
 
 class TestExtractWords(TestUtility):
     task_result = "extract_words_task_result.json"
-    payload = '{"search_query": {"q": "sortiraient","qf" : "all_text_tfr_siv"},"utility" : "extract_words"}'
+    payload = '{"search_query": {"q": "sortiraient","qf" : "all_text_tfr_siv"},"utility" : "extract_words","force_refresh":"T"}'
    
 
 class TestTfIdf(TestUtility):
     task_result = "tfidf_task_result.json"
-    payload = '{"search_query": {"q": "sortiraient","qf" : "all_text_tfr_siv"},"utility" : "compute_tf_idf"}'
+    payload = '{"search_query": {"q": "sortiraient","qf" : "all_text_tfr_siv"},"utility" : "compute_tf_idf","force_refresh":"T"}'
    
 class TestFindSteps(TestUtility):
     task_result = "find_steps_task_result.json"
-    payload = '{"search_query": {"q": "Republik"},"utility": "find_steps_from_time_series","force_refresh": "True"}'
+    payload = '{"search_query": {"q": "Republik"},"utility": "find_steps_from_time_series","force_refresh": "T"}'
 
 class TestExtractFacets(TestUtility):
     task_result = "extract_facets_task_result.json"
@@ -77,11 +77,11 @@ class TestExtractFacets(TestUtility):
 
 class TestGenerateTimeseries(TestUtility):
     task_result = "generate_timeseries_task_result.json"
-    payload = '{"search_query": {"q": "maito"},"utility": "generate_time_series","utility_parameters": {"facet_name": "NEWSPAPER_NAME"},"force_refresh": "True"}'
+    payload = '{"search_query": {"q": "maito"},"utility": "generate_time_series","utility_parameters": {"facet_name": "NEWSPAPER_NAME"},"force_refresh": "T"}'
     
 class TestCommonFacetValues(TestUtility):
     task_result = "common_facets_task_result.json"
-    payload = '{"search_query": {"q": "maito"},"utility": "common_facet_values","n": 5}'
+    payload = '{"search_query": {"q": "maito"},"utility": "common_facet_values","n": 5,"force_refresh":"T"}'
            
     
 
