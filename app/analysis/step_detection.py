@@ -18,6 +18,7 @@ class FindStepsFromTimeSeries(AnalysisUtility):
                 'parameter_is_required': False
             },
             {
+                # what 'column' means?
                 'parameter_name': 'column_name',
                 'parameter_description': 'Not yet written',
                 'parameter_type': 'string',

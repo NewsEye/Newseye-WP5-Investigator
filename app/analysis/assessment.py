@@ -136,7 +136,9 @@ def find_large_numbers_from_lists(lists, coefficient=2):
 def recoursive_max(data):
     if not data:
         return 0.0
-    if isinstance(data, float):        
+    if isinstance(data, str):        
+        return 0.0
+    elif isinstance(data, float):        
         return data
     elif isinstance(data, (list or tuple or set)):
         return max([recoursive_max(i) for i in data])

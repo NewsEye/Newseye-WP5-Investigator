@@ -26,7 +26,6 @@ class ComparisonUtility(AnalysisUtility):
                 'parameter_default': [],
                 'parameter_is_required': False
             }
-
         ]
         self.input_type = 'task_id_list'
         self.output_type = 'comparison'
@@ -79,6 +78,8 @@ class ComparisonUtility(AnalysisUtility):
             return self.make_facet_dict(data)
         elif self.data_type == 'topic_analysis':
             return self.make_topic_dict(data)
+        elif self.data_type == 'step_list':
+            return self.make_step_list(data)
         else:
             raise NotImplementedError("Unknown data_type: %s" %self.data_type)
 
@@ -96,5 +97,14 @@ class ComparisonUtility(AnalysisUtility):
     def make_topic_dict(topic_analysis_output):
         return dict(enumerate(topic_analysis_output['topic_weights']))
 
+    @staticmethod
+    def make_step_list(step_detection_output):
+        # assuming only one column
+        # assuming column is the same        
+        return {s['step_time']:s['step_error'] for s in step_detection_output[0]['steps']}  # ???
+
+    
+    
+    
 def estimate_interestingness(subtask):
     return subtask.task_result.interestingness['jensen_shannon_divergence']
