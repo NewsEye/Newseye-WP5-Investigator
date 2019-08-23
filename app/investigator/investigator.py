@@ -3,7 +3,7 @@ import asyncio
 from flask import current_app
 from config import Config
 from app.main.db_utils import generate_tasks,  store_results
-from app.investigator import ANALYSING_PATTERNS, LINKING_PATTERNS
+from app.investigator import ANALYSIS, LINKING
 from app.analysis import UTILITY_MAP
 from app.analysis.assessment import max_interestingness
 from app.investigator.result_comparison import estimate_interestingness
@@ -23,25 +23,23 @@ class Investigator(object):
 
     # TODO: make recoursive function for an infinite investigation loop
     async def investigate(self):
-        linked_docs_analysing_tasks = []
+        # TODO: call investigate function recoursively for infinive investigation loop          
+        
+        linked_analysing_tasks = []
         
         for pattern_set in asyncio.as_completed([self.run_pattern_set(ps)
-                                                 for ps in [ANALYSING_PATTERNS, LINKING_PATTERNS]]):
+                                                 for ps in [ANALYSIS, LINKING]]):
             subtasks = await pattern_set
             for subtask in subtasks:
                 if UTILITY_MAP[subtask.utility].output_type == 'id_list_with_dist':
-                    # TODO: call investigate function recoursively
-                    
                     query = self.make_search_query_from_linked_documents(subtask)
-                    # current_app.logger.debug("QUERY: %s" %query)
                     if query:
-                        linked_docs_analysing_tasks.append(asyncio.create_task(
-                           self.run_pattern_set(ANALYSING_PATTERNS, search_query=query)))
-
+                        linked_analysing_tasks.append(asyncio.create_task(
+                           self.run_pattern_set(ANALYSIS_LINKED_DOCS, search_query=query)))
                         
                         
         comparison_tasks = []
-        for linked_analysis_task in asyncio.as_completed(linked_docs_analysing_tasks):
+        for linked_analysis_task in asyncio.as_completed(linked_analysing_tasks):
             subtasks = await linked_analysis_task
             for subtask in subtasks:
                 comparison_tasks.append(self.make_comparison_task(subtask))
@@ -55,8 +53,8 @@ class Investigator(object):
         comparable_task_uuids = [str(subtask.uuid)]+[uuid for uuid, res in self.task_result.items()
                                            # TODO: more flexible definition of comparable task
                                            if (res['utility_name'] == subtask_parameters['utility'] and
-                                               res['search_query'] != subtask_parameters['search_query'] and
-                                               res['utility_parameters'] == subtask_parameters['utility_parameters'])]
+                                               res['utility_parameters'] == subtask_parameters['utility_parameters'] and
+                                               res['search_query'] != subtask_parameters['search_query'])]
         task_ids = [TaskInstance.query.filter_by(uuid=uuid).first().task_id for uuid in comparable_task_uuids]
         comparison_task = self.runner.generate_investigation_tasks([('comparison', {'task_ids' : task_ids})])
                                                             #app.investigator.result_comparison 
