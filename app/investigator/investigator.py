@@ -5,7 +5,7 @@ from config import Config
 from app.investigator import ANALYSING_PATTERNS, LINKING_PATTERNS
 from app.analysis import UTILITY_MAP
 from app.analysis.assessment import max_interestingness
-from app.investigator.result_comparison import estimate_interestingness
+from app.analysis.result_comparison import estimate_interestingness
 from app.models import TaskInstance
 
 
@@ -35,17 +35,15 @@ class Investigator(object):
                     # current_app.logger.debug("QUERY: %s" %query)
                     if query:
                         linked_docs_analysing_tasks.append(asyncio.create_task(
-                           self.run_pattern_set(ANALYSING_PATTERNS, search_query=query)))
+                            self.run_pattern_set(ANALYSING_PATTERNS, search_query=query)))
 
-                        
-                        
         comparison_tasks = []
         for linked_analysis_task in asyncio.as_completed(linked_docs_analysing_tasks):
             subtasks = await linked_analysis_task
             for subtask in subtasks:
                 comparison_tasks.append(self.make_comparison_task(subtask))
        
-        await asyncio.gather(*comparison_tasks, return_exceptions=(not current_app.debug))
+        await asyncio.gather(*comparison_tasks, return_exceptions=True)
 
 
 
@@ -58,11 +56,11 @@ class Investigator(object):
                                                res['utility_parameters'] == subtask_parameters['utility_parameters'])]
         task_ids = [TaskInstance.query.filter_by(uuid=uuid).first().task_id for uuid in comparable_task_uuids]
         comparison_task = self.runner.generate_investigation_tasks([('comparison', {'task_ids' : task_ids})])
-                                                            #app.investigator.result_comparison 
         return asyncio.create_task(self.runner.run_subtasks_and_update_results(comparison_task, estimate_interestingness,
                                                                                reference={subtask.output_type:comparable_task_uuids}))
                
                
+
     async def run_pattern_set(self, pattern_set, search_query=None):
 
         patterns = [Pattern(self.runner, self.main_task, search_query = search_query)
@@ -70,7 +68,7 @@ class Investigator(object):
 
         current_app.logger.debug("PATTERNS %s SEARCH_QUERY %s" %(patterns, search_query))
         # each pattern returns a list of subtasks hence patternset returns list of lists
-        subtasks = await asyncio.gather(*[pattern() for pattern in patterns], return_exceptions=(not current_app.debug))
+        subtasks = await asyncio.gather(*[pattern() for pattern in patterns], return_exceptions=True)
         subtasks = [s for s in subtasks if not isinstance(s, Exception)]
 
         return [s for sl in subtasks for s in sl]
@@ -117,9 +115,8 @@ class SubtaskRunner(object):
         
         for subtask in asyncio.as_completed([self.execute_and_store(s) for s in subtasks]):
             # the subtask result is already stored, now we have to add subtask into list of task results
-
             done_subtask = await subtask
-            
+
             subtask_interestingness = max_interestingness(estimate_interestingness(done_subtask))
             if subtask_interestingness > self.interestingness:
                 self.interestingness = subtask_interestingness 
