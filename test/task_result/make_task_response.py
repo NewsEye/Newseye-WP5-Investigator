@@ -24,8 +24,10 @@ def make_report_response(payload, max_try):
     # if task execution is too slow may need to do it in a sleeping loop
     
     headers, url = read_config('report')
+
     response = requests.request("POST", os.path.join(url, "analysis/"),
                                 data=payload, headers={'content-type': "application/json", **headers}).json()
+
     return requests.request("GET", os.path.join(url, "report/", response["uuid"]), data="", headers=headers).json()
     
 
@@ -97,7 +99,7 @@ def make_test_response(utility_name, max_try = 10):
 
     elif utility_name == 'report':
         # TODO: replace target_search with search_query once new version is deployed
-        payload = '{"target_search": {"q": "Flüchtlinge"},"utility": "common_facet_values","utility_parameters": {"n": 5},"force_refresh":"T"}'.encode('utf-8')
+        payload = '{"search_query": {"q": "Flüchtlinge"},"utility": "common_facet_values","utility_parameters": {"n": 5},"force_refresh":"T"}'.encode('utf-8')
         task_result = make_report_response(payload, max_try=max_try)
 
     os.chdir(os.path.abspath(os.path.dirname(__file__)))
@@ -112,4 +114,4 @@ if __name__ == '__main__':
         make_test_response(sys.argv[1])
     except Exception as e:
         print("USAGE: make_task_response.py [search|utility_list|topics|tfidf|extract_docid|extract_facets|generate_timeseries|extract_words|find_steps|common_facets|tm_doclinking|report|comparison]")
-#        raise e
+        raise e

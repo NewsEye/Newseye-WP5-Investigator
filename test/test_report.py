@@ -8,7 +8,7 @@ class TestReport(TestUtility):
     
     utype="report"
     task_result = "report_task_result.json"
-    payload = '{"target_search": {"q": "Flüchtlinge"},"utility": "common_facet_values","utility_parameters": {"n": 5},"force_refresh":"T"}'.encode('utf-8')
+    payload = '{"search_query": {"q": "Flüchtlinge"},"utility": "common_facet_values","utility_parameters": {"n": 5},"force_refresh":"T"}'.encode('utf-8')
 
     def setUp(self):
         self.headers, self.url = read_config(self.utype)

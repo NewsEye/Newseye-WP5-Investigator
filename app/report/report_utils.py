@@ -1,6 +1,6 @@
 import requests
 from app import db
-from app.models import Report, Task
+from app.models import Report, TaskInstance
 from config import Config
 from flask_login import current_user
 import json
@@ -16,7 +16,7 @@ def generate_report(task, report_language, report_format):
     report_content = response.json()
     task_report = Report(report_language=report_language,
                          report_format=report_format,
-                         task_uuid=task.uuid,
+                         result_id=task.task_result.id,
                          report_content=report_content)
     db.session.add(task_report)
     db.session.commit()
@@ -32,7 +32,7 @@ def get_formats():
 
 
 def get_history(make_tree=True):
-    tasks = Task.query.filter_by(user_id=current_user.id)
+    tasks = TaskInstance.query.filter_by(user_id=current_user.id)
     user_history = dict(zip([task.uuid for task in tasks], [task.dict(style='full') for task in tasks]))
     if not make_tree:
         return user_history
@@ -57,7 +57,7 @@ def get_parents(tasks):
     for task in tasks:
         current_task = task
         while current_task.source_uuid:
-            current_task = Task.query.filter_by(uuid=current_task.source_uuid).first()
+            current_task = TaskInstance.query.filter_by(uuid=current_task.source_uuid).first()
             if current_task.task_type == 'analysis':
                 required_tasks.add(current_task)
     return required_tasks
