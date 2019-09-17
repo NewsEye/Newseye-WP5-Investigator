@@ -12,8 +12,6 @@ def make_token():
 
 
 def get_url(utility):
-    if utility=="report":
-        return os.path.join(Config.REPORTER_API_URI)
     return os.path.join(Config.PA_API_URI, utility+"/")
 
 

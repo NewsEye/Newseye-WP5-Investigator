@@ -4,16 +4,33 @@ from app.models import Report, TaskInstance
 from config import Config
 from flask_login import current_user
 import json
-
+from flask import current_app
+from  pprint import pprint
 
 def generate_report(task, report_language, report_format):
+    data = [t.dict('reporter') for t in get_parents(task)]
+
+    
+    with open(str(task.uuid), 'w') as debug:
+        pprint(data,debug)
+    
     payload = {
         'language': report_language,
         'format': report_format,
-        'data': json.dumps({'root': [t.dict('reporter') for t in get_parents(task)]})
-    }
+        'data': json.dumps({'root': data})
+    }   
+
+    
+    
     response = requests.post(Config.REPORTER_URI + "/report", data=payload)
+
+    current_app.logger.debug("RESPONSE %s" %response.text)
+
+    
     report_content = response.json()
+
+    
+    
     task_report = Report(report_language=report_language,
                          report_format=report_format,
                          result_id=task.task_result.id,
@@ -57,6 +74,7 @@ def get_parents(tasks):
     for task in tasks:
         current_task = task
         while current_task.source_uuid:
+            current_app.logger.debug("SOURCE_UUID: %s" %current_task.source_uuid)
             current_task = TaskInstance.query.filter_by(uuid=current_task.source_uuid).first()
             if current_task.task_type == 'analysis':
                 required_tasks.add(current_task)

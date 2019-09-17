@@ -230,7 +230,7 @@ class TaskInstance(db.Model):
                 'task_type': self.task_type,
                 'task_parameters': self.task_parameters,
                 'task_status': self.task_status,
-                'task_result': self.task_result.result if self.task_result else None,
+                'task_result': self.result_with_interestingness if self.task_result else None,
                 'hist_parent_id': str(self.hist_parent_id),
                 'task_started': http_date(self.task_started),
                 'task_finished': http_date(self.task_finished),

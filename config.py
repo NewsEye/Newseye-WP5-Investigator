@@ -24,7 +24,7 @@ class Config(object):
 
     # The URI for the Reporter API
     REPORTER_URI = "http://newseye-wp5.cs.helsinki.fi:4218/api"
-
+    REPORTER_URI = "http://localhost:8080/api"
     # This should contain the URI for the topic modelling tools
     TOPIC_MODEL_URI = "https://newseye-wp4.cs.helsinki.fi"
 
@@ -77,6 +77,7 @@ class Config(object):
         'PUB_YEAR': 'year_isi',
     }
 
-
+    PA_API_URI="https://newseye-wp5.cs.helsinki.fi/api/"
     PA_API_URI="http://localhost:5000/api/"
-    REPORTER_API_URI="https://newseye-wp5.cs.helsinki.fi/api/"
+    #REPORTER_API_URI="https://newseye-wp5.cs.helsinki.fi/api/"
+    #REPORTER_API_URI="https://localhost:8080/api/"
