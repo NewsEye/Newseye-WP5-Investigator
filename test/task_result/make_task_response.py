@@ -22,13 +22,12 @@ def make_response(url, payload, headers, max_try):
 def make_report_response(payload, max_try):
     # max_try is not used
     # if task execution is too slow may need to do it in a sleeping loop
-    
+    headers, url = read_config()
+    response = requests.request("POST", url,
+                                data=payload, headers={'content-type': "application/json", **headers})
+    response = response.json()
     headers, url = read_config('report')
-
-    response = requests.request("POST", os.path.join(url, "analysis/"),
-                                data=payload, headers={'content-type': "application/json", **headers}).json()
-
-    return requests.request("GET", os.path.join(url, "report/", response["uuid"]), data="", headers=headers).json()
+    return requests.request("GET", os.path.join(url, response["uuid"]), data="", headers=headers).json()
     
 
 def make_analysis_response(payload, max_try):
