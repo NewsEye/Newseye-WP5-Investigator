@@ -50,7 +50,7 @@ async def query_solr(session, query, retrieve='all', max_return_value=100000):
 
     
             
-    current_app.logger.debug("QUERY_SOLR: %s" %parameters)
+#    current_app.logger.debug("QUERY_SOLR: %s" %parameters)
 
     async with session.get(Config.SOLR_URI, json={'params': parameters}) as response:
         if response.status == 401:
