@@ -135,6 +135,8 @@ class ComputeTfIdf(AnalysisUtility):
                                              'all_text_tde_siv', 'all_text_tse_siv'] if langf in qf]
        
         # FIND TOTAL
+        # TODO: facet fields
+        # not optimal
         total = await search_database({"rows":0,
                  "q":" ".join(["%s : [* TO *]" %langf for langf in lang_fields])})
         total = total['numFound']

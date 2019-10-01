@@ -46,8 +46,11 @@ async def query_solr(session, query, retrieve='all', max_return_value=100000):
     # Parameters specifically defined in the query override everything else
     for key, value in query.items():
             parameters[key] = value
+
+
+    
             
- #   current_app.logger.debug("QUERY_SOLR: %s" %parameters)
+    current_app.logger.debug("QUERY_SOLR: %s" %parameters)
 
     async with session.get(Config.SOLR_URI, json={'params': parameters}) as response:
         if response.status == 401:
