@@ -11,8 +11,8 @@ def generate_report(task, report_language, report_format):
     data = [t.dict('reporter') for t in get_parents(task)]
 
     
-    with open(str(task.uuid), 'w') as debug:
-        pprint(data,debug)
+#    with open(str(task.uuid), 'w') as debug:
+#        pprint(data,debug)
     
     payload = {
         'language': report_language,

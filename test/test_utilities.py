@@ -22,17 +22,21 @@ class TestUtility(unittest.TestCase):
     def test_task_result(self, max_try=10):
         url = self.url + self.response["uuid"]
         for t in range(max_try+1):
+            #print(t)
             response = requests.request("GET", url, data="", headers=self.headers).json()
+            #print("RESPONSE:", response)
+            #print(response.get("uuid", None))
+            #print(response.get("task_status", None))
             if response.get("task_status", None) == 'running':
+                print("sleep %d" %t**2)
                 sleep(t**2)
             else:
                 break
             
         returned_result = response.get('task_result', response)
-        
-        err = "Task takes too much time" if response.get("task_status", None)=="running" else "Unexpected task result"
         expected_result = self.expected_result()
         
+        err = "Task takes too much time" if response.get("task_status", None)=="running" else "Unexpected task result"
         self.assertEquals(returned_result, expected_result, err)
 
 
