@@ -183,14 +183,24 @@ class TaskInstance(db.Model):
     # different versions of the output
     def dict(self, style='status'):
         if style == 'status':
-            return {
-                'uuid': str(self.uuid),
-                'task_type': self.task_type,
-                'task_parameters': self.task_parameters,
-                'task_status': self.task_status,
-                'task_started': http_date(self.task_started),
-                'task_finished': http_date(self.task_finished),
-            }
+            if self.task_status == "running":
+                return {
+                    'uuid': str(self.uuid),
+                    'task_type': self.task_type,
+                    'task_parameters': self.task_parameters,
+                    'task_status': self.task_status,
+                    'task_started': http_date(self.task_started)
+                }
+            else:
+                return {
+                    'uuid': str(self.uuid),
+                    'task_type': self.task_type,
+                    'task_parameters': self.task_parameters,
+                    'task_status': self.task_status,
+                    'task_started': http_date(self.task_started),
+                    'task_finished': http_date(self.task_finished),
+                }
+            
         elif style == 'result':
             return {
                 'uuid': str(self.uuid),
