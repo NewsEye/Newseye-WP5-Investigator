@@ -87,7 +87,7 @@ class Config(object):
 
 
     # for TESTs
-    PA_API_URI="https://newseye-wp5.cs.helsinki.fi/api/"
+    #PA_API_URI="https://newseye-wp5.cs.helsinki.fi/api/"
     PA_API_URI="http://localhost:5000/api/"
-    #REPORTER_API_URI="https://newseye-wp5.cs.helsinki.fi/api/"
-    #REPORTER_API_URI="https://localhost:8080/api/"
+    # REPORTER_API_URI="https://newseye-wp5.cs.helsinki.fi/api/"
+    # REPORTER_API_URI="https://localhost:8080/api/"

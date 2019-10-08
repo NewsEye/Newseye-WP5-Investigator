@@ -1,8 +1,8 @@
-from app.main.db_utils import store_results
+from app.main.db_utils import store_results, generate_tasks
 import asyncio
 from flask import current_app
 from config import Config
-from app.investigator import ANALYSIS, LINKING
+from app.investigator import ANALYSIS, LINKING, ANALYSIS_LINKED_DOCS
 from app.analysis import UTILITY_MAP
 from app.analysis.assessment import max_interestingness
 from app.investigator.result_comparison import estimate_interestingness
@@ -43,7 +43,7 @@ class Investigator(object):
             for subtask in subtasks:
                 comparison_tasks.append(self.make_comparison_task(subtask))
        
-        await asyncio.gather(*comparison_tasks, return_exceptions=True)
+        await asyncio.gather(*comparison_tasks, return_exceptions==(not current_app.debug))
 
 
 
@@ -68,7 +68,7 @@ class Investigator(object):
 
         current_app.logger.debug("PATTERNS %s SEARCH_QUERY %s" %(patterns, search_query))
         # each pattern returns a list of subtasks hence patternset returns list of lists
-        subtasks = await asyncio.gather(*[pattern() for pattern in patterns], return_exceptions=True)
+        subtasks = await asyncio.gather(*[pattern() for pattern in patterns], return_exceptions=(not current_app.debug))
         subtasks = [s for s in subtasks if not isinstance(s, Exception)]
 
         return [s for sl in subtasks for s in sl]
