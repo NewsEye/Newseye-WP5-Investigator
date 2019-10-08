@@ -39,7 +39,7 @@ class SearchTaskList(Resource):
         try:
             task = controller.execute_tasks(query)[0].dict()
             if task['task_status'] == 'finished':
-                return task
+                return TaskInstance.query.filter_by(uuid=task['uuid']).first().dict(style='search_result')
             elif task['task_status'] == 'running':
                 return task, 202
             else:

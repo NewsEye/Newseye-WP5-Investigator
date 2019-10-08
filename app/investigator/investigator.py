@@ -43,7 +43,7 @@ class Investigator(object):
             for subtask in subtasks:
                 comparison_tasks.append(self.make_comparison_task(subtask))
        
-        await asyncio.gather(*comparison_tasks, return_exceptions==(not current_app.debug))
+        await asyncio.gather(*comparison_tasks, return_exceptions=(not current_app.debug))
 
 
 
