@@ -106,6 +106,7 @@ class TaskPlanner(object):
         # TODO: Fix the task history to work in the new way (original task is the parent and everything generated
         #  by the planner are under it)
         input_task_uuid = task.source_uuid
+        utility = UTILITY_MAP[task.utility] 
         if input_task_uuid:
             input_task = TaskInstance.query.filter_by(uuid=input_task_uuid).first()
             current_app.logger.debug("input_task_uuid %s" %input_task_uuid)
@@ -113,20 +114,26 @@ class TaskPlanner(object):
                 raise ValueError('Invalid source_uuid')
             task.search_query=input_task.search_query
             db.session.commit()
-            return input_task
+
+            # return only if it has a correct type
+            # e.g. search might be an input source but it doesn't have the right type and used only to cash search result
+            if utility.input_type == input_task.output_type:           
+                return input_task
 
 
         search_parameters = task.search_query
         if search_parameters is None:
             return None
-        utility = UTILITY_MAP[task.utility] 
+
         if utility.input_type == 'search_query':
             return None
 
         task_parameters = {'utility': self.get_source_utility(utility),
-                                   'utility_parameters': {},
-                                   'search_query': search_parameters,
-                                   'force_refresh' : task.force_refresh}
+                           'utility_parameters': {},
+                           'search_query': search_parameters,
+                           'force_refresh' : task.force_refresh,
+                           'source_uuid' : input_task_uuid
+                         }
         _, input_task = verify_analysis_parameters(('analysis', task_parameters))
         input_task = generate_tasks(user=task.user, queries=('analysis', task_parameters), parent_id=task.uuid,
                                             return_tasks=True)
