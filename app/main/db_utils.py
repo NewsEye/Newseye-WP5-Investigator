@@ -63,6 +63,14 @@ def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=Fals
         task_type, task_parameters = verify_analysis_parameters(query)                      
         utility_name = task_parameters.get('utility', None)
         search_query = task_parameters.get('search_query', task_parameters)
+        if not search_query:
+            # if search query is not given it should be specified by some previous search
+            source_uuid = task_parameters.get('source_uuid')
+            # not relevant for comparisons:
+            if source_uuid:
+                source_instance = TaskInstance.query.filter_by(uuid=source_uuid).one_or_none()
+                search_query = source_instance.search_query
+            
         utility_parameters = task_parameters.get('utility_parameters', {})
         task = Task.query.filter_by(task_type = task_type,
                                     utility_name = utility_name,

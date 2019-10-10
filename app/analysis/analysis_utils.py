@@ -122,9 +122,13 @@ class CommonFacetValues(AnalysisUtility):
     async def call(self, task):
         n = int(task.utility_parameters.get('n'))
         facet_name = task.utility_parameters['facet_name']
+  #     current_app.logger.debug("FACET_NAME: %s" %facet_name)
         facet_name = Config.AVAILABLE_FACETS.get(facet_name, facet_name)
+  #     current_app.logger.debug("FACET_NAME: %s" %facet_name)
+  #     current_app.logger.debug("INPUT_DATA: %s" %self.input_data)
+        
         facets = self.input_data[facet_name]
-
+        
         facet_list = [(facets[key], key) for key in facets.keys()]
         facet_list.sort(reverse=True)
 
@@ -200,6 +204,7 @@ class GenerateTimeSeries(AnalysisUtility):
                     break
             # TODO: count the number of items with no value defined for the desired facet
         df = pd.DataFrame(f_counts, columns=['year', facet_name, 'count', 'rel_count'])
+        current_app.logger.debug("DF: %s" %df)
         abs_counts = df.pivot(index=facet_name, columns='year', values='count').fillna(0)
         rel_counts = df.pivot(index=facet_name, columns='year', values='rel_count').fillna(0)
         analysis_results = {

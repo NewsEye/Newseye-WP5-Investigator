@@ -78,11 +78,16 @@ class Investigator(object):
         document_list = task.task_result.result.get('similar_docs', None)
         if document_list:
             current_app.logger.debug("main_task.search_query %s" %self.main_task.search_query)
-            return {'q' : ' '.join([docid for docid in document_list]),
-                    'mm':1,
-                    # qf (query field) preserves language fo the original search
-                    # TODO: general solution to manage languages across utils
-                    'qf':'id ' + self.main_task.search_query['qf']}
+            try:
+                return {'q' : ' '.join([docid for docid in document_list]),
+                        'mm':1,
+                        # qf (query field) preserves language fo the original search
+                        # TODO: general solution to manage languages across utils
+                        'qf':'id ' + self.main_task.search_query['qf']}
+            except KeyError:
+                return {'q' : ' '.join([docid for docid in document_list]),
+                        'mm':1}
+                        
 
 class SubtaskRunner(object):
     def __init__(self, planner, main_task, interestingness, task_result):
