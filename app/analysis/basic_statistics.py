@@ -44,8 +44,21 @@ class ExtractWords(AnalysisUtility):
             word2docid[word].append(docid)
         
     async def search(self, docids, word2docid):
-        qs = [{"q" : docid + '*'} for docid in docids]
+        # HACK: avoid articles to make it work as before
+        # TODO: make everything working with articles as the main unit
+        # needs more thinking and data analysis 
+        docids = [docid for docid in docids if "article" not in docid]
+        # get pages
+        q = {'q' : '*:*', 'fq' : 'id:(' + ' OR '.join(docids) + ')'}
+        #current_app.logger.debug("Q: %s" %q)
+        response = await search_database(q, retrieve='pages')
+        #current_app.logger.debug("RESPONSE: %s" %response)
+        pageids = [pageid for doc in response['docs'] for pageid in doc['member_ids_ssim']]
+        #current_app.logger.debug("PAGEIDS: %s" %pageids)
+        qs = [{'fq' : 'id:%s' %pageid} for pageid in pageids]
+        #current_app.logger.debug("QS: %s" %qs)
         responses = await search_database(qs, retrieve='words')
+        current_app.logger.debug("RESPONSES: %s" %responses)
         await asyncio.gather(*[self.count(response, word2docid) for response in responses])
         
     async def call(self, task):
@@ -113,18 +126,16 @@ class ComputeTfIdf(AnalysisUtility):
         df = pd.DataFrame.from_dict([{"word":w, "tf":tf[w], "df":df[w]} for w in df])
         df.set_index("word", inplace=True)
         df["tfidf"] = df.tf*np.log(N/df["df"])
-        # TODO: more sophosticated elbow-based method
+        # TODO: more sophisticated elbow-based method
         df["interest"] = assessment.find_large_numbers_from_lists(df["tfidf"], coefficient=thr)
         return df.sort_values(by=['tfidf'], ascending=False)
     
     async def query_data(self, task):
-        
-        # TODO: parallel
-        
+                
         counts = self.input_data['counts']
         relatives = self.input_data['relatives']
-        # qf means query field, the query field differes depending on a wanted language
 
+        # qf means query field, the query field differes depending on a wanted language
         qf = task.search_query.get("qf", None)
         languages = task.utility_parameters.get('languages')
         if languages:

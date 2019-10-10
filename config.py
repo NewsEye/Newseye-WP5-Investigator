@@ -53,11 +53,19 @@ class Config(object):
             'fl': 'id',
             'rows': 0,
         },
-        'words': {
-            'qf'  : 'id',
-            'fl'  : 'level_reading_order text_tfr_siv text_tse_siv text_tde_siv text_tfi_siv id',
-            'fq'  : 'level:4.pages.blocks.lines.words',
-            'rows': 0,
+#        'words': {
+#            'qf'  : 'id',
+#            'fl'  : 'level_reading_order text_tfr_siv text_tse_siv text_tde_siv text_tfi_siv id',
+#            'fq'  : 'level:4.pages.blocks.lines.words',
+#            'rows': 0,
+#            },
+        'words' : {
+            'q' : '*:*',
+            'fl': '*,[child parentFilter=level:1. childFilter=level:4. limit=100000]',
+            'qf': 'id'
+        },
+        'pages' : {
+            'fl' : 'member_ids_ssim'
             },
     }
 

@@ -55,6 +55,8 @@ async def query_solr(session, query, retrieve='all', max_return_value=100000):
         response = await response.json()   
     # For retrieving docids, retrieve all of them, unless the number of rows is specified in the query
     if retrieve in ['docids', 'words'] and 'rows' not in query.keys():
+        current_app.logger.debug("QUERY: %s" %query)
+        current_app.logger.debug("RESPONSE: %s" %response)
         num_results = response['response']['numFound']
         # Set a limit for the maximum number of documents to fetch at one go to 100000
         parameters['rows'] = min(num_results, max_return_value)
