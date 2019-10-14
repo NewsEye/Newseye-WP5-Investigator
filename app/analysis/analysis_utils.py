@@ -204,7 +204,6 @@ class GenerateTimeSeries(AnalysisUtility):
                     break
             # TODO: count the number of items with no value defined for the desired facet
         df = pd.DataFrame(f_counts, columns=['year', facet_name, 'count', 'rel_count'])
-        current_app.logger.debug("DF: %s" %df)
         abs_counts = df.pivot(index=facet_name, columns='year', values='count').fillna(0)
         rel_counts = df.pivot(index=facet_name, columns='year', values='rel_count').fillna(0)
         analysis_results = {
