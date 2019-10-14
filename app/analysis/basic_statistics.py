@@ -66,8 +66,21 @@ class ExtractWords(AnalysisUtility):
         min_count = int(task.utility_parameters.get('min_count'))
         word2docid = defaultdict(list)
 
+        # batches of batches
+        batch_count = 0
+        batches = []
         for (s,e) in make_batches(len(self.input_data)):
-            await self.search(self.input_data[s:e], word2docid)
+            batch_count += 1
+            batches.append((s,e))
+            if batch_count == 10:
+                await asyncio.gather(*[self.search(self.input_data[s:e], word2docid) for (s,e) in batches])         
+                batch_count = 0
+                batches = []
+        # the last batch
+        await asyncio.gather(*[self.search(self.input_data[s:e], word2docid) for (s,e) in batches])         
+        
+        #for (s,e) in make_batches(len(self.input_data)):
+        #    await self.search(self.input_data[s:e], word2docid)
             
         # parallel
         # doesn't work due to "too many connections error"
@@ -162,7 +175,19 @@ class ComputeTfIdf(AnalysisUtility):
         qf = ' '.join(lang_fields)
         word_list = list(counts.keys())
         df = {}
-        await asyncio.gather(*[self.search(word_list[s:e], df, total, qf) for (s,e) in make_batches(len(word_list), batch_size=1000)])
+
+        # batches of batches
+        batch_count = 0
+        batches = []
+        for (s,e) in make_batches(len(word_list), batch_size=1000):
+            batch_count += 1
+            batches.append((s,e))
+            if batch_count == 10:               
+                await asyncio.gather(*[self.search(word_list[s:e], df, total, qf) for (s,e) in batches])
+                batch_count = 0
+                batches = []
+        # the last batch
+        await asyncio.gather(*[self.search(word_list[s:e], df, total, qf) for (s,e) in batches])
 
         return counts, relatives, df, total
 
