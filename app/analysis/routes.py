@@ -85,5 +85,5 @@ class UtilityList(Resource):
         """
         Retrieve information on the available analysis utilities
         """
-        response = [utility.get_description() for utility in UTILITY_MAP.values() if utility.utility_name != 'comparison']
+        response = [utility.get_description() for utility in UTILITY_MAP.values()]
         return response
