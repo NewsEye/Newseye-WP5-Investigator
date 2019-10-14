@@ -66,11 +66,17 @@ class ExtractWords(AnalysisUtility):
         min_count = int(task.utility_parameters.get('min_count'))
         word2docid = defaultdict(list)
 
-        await asyncio.gather(*[self.search(self.input_data[s:e], word2docid) for (s,e) in make_batches(len(self.input_data))])
+        for (s,e) in make_batches(len(self.input_data)):
+            await self.search(self.input_data[s:e], word2docid)
+            
+        # parallel
+        # doesn't work due to "too many connections error"
+        # await asyncio.gather(*[self.search(self.input_data[s:e], word2docid) for (s,e) in make_batches(len(self.input_data))])
 
-        current_app.logger.debug("docs %d, words %d" %(len(self.input_data), len(word2docid)))
+
+        current_app.logger.debug("DOCS %d, WORDS %d" %(len(self.input_data), len(word2docid)))
+
         counts = {w:len(d) for w,d in word2docid.items() if len(d) >= min_count}
-
         current_app.logger.debug("ExtractWords: frequent words %d" %len(counts))
         
         total = sum(counts.values())
