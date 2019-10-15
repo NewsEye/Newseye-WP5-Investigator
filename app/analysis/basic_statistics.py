@@ -27,7 +27,7 @@ class ExtractWords(AnalysisUtility):
                 'parameter_name': 'min_count',
                 'parameter_description': 'Minimal word count for word to be returned',
                 'parameter_type': 'integer',
-                'parameter_default': 20,
+                'parameter_default': 100,
                 'parameter_is_required': False
             },
             # TODO: language
@@ -59,7 +59,7 @@ class ExtractWords(AnalysisUtility):
         for (s,e) in make_batches(len(self.input_data)):
             batch_count += 1
             batches.append((s,e))
-            if batch_count == 10:
+            if batch_count == 20:
                 await asyncio.gather(*[self.search(self.input_data[s:e], word2docid) for (s,e) in batches])         
                 batch_count = 0
                 batches = []
@@ -171,7 +171,7 @@ class ComputeTfIdf(AnalysisUtility):
         for (s,e) in make_batches(len(word_list), batch_size=1000):
             batch_count += 1
             batches.append((s,e))
-            if batch_count == 10:               
+            if batch_count == 20:               
                 await asyncio.gather(*[self.search(word_list[s:e], df, total, qf) for (s,e) in batches])
                 batch_count = 0
                 batches = []
