@@ -29,8 +29,20 @@ class TopicModelDocumentLinking(AnalysisUtility):
         num_docs   = task.utility_parameters.get('num_docs')
         
                
-        payload = {"num_docs" : num_docs, "documents" : self.input_data}
-        response = requests.post('{}/doc-linking'.format(Config.TOPIC_MODEL_URI), json=payload).json()
+        payload = {"num_docs" : num_docs, "documents" : self.input_data}     
+        response = requests.post('{}/doc-linking'.format(Config.TOPIC_MODEL_URI), json=payload)
+        uuid = response.json().get('task_uuid')
+        
+        if not uuid:
+            raise ValueError('Invalid response from the Topic Model API')
+        delay = 4
+        while delay < 300:
+            await asyncio.sleep(delay)
+            delay *= 1.5
+            response = requests.post('{}/doc-linking-results'.format(Config.TOPIC_MODEL_URI), json={'task_uuid': uuid})
+            if response.status_code == 200:
+                break
+        response = response.json()
 
         interestingness = [1-dist for dist in response['distance']]
         
