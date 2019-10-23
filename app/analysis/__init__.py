@@ -17,7 +17,7 @@ UTILITY_MAP = {
     'extract_document_ids': ExtractDocumentIds(),
     'query_topic_model': QueryTopicModel(),
     'extract_words': ExtractWords(),
-    'make_basic_stats': MakeBasicStats(),
+    #'make_basic_stats': MakeBasicStats(),
     'compute_tf_idf': ComputeTfIdf(),
     'tm_document_linking': TopicModelDocumentLinking(),
     'comparison': ComparisonUtility()
