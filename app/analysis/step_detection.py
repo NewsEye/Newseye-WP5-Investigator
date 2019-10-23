@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from math import sqrt, isnan
-
+from flask import current_app
 from app.analysis.analysis_utils import AnalysisUtility
 
 
@@ -31,8 +31,13 @@ class FindStepsFromTimeSeries(AnalysisUtility):
         super(FindStepsFromTimeSeries, self).__init__()
 
     async def call(self, task):
+
+        current_app.logger.debug("PARAMETERS %s" %task.utility_parameters)
+        
         column_name = task.utility_parameters.get('column_name')
         step_threshold = task.utility_parameters.get('step_threshold')
+        if step_threshold == "":
+            step_threshold = None
         
         input_data, filled_in = self.prepare_timeseries(self.input_data['absolute_counts'])
         column_steps = []

@@ -128,7 +128,7 @@ class ComputeTfIdf(AnalysisUtility):
       
     @staticmethod
     def compute_td_idf(tf, df, N, thr):
-        # method might be useful later (e.g. for bigram tf-idf)
+        # method might be useful later (e.g. for bigram tf-idf)        
         df = pd.DataFrame.from_dict([{"word":w, "tf":tf[w], "df":df[w]} for w in df])
         df.set_index("word", inplace=True)
         df["tfidf"] = df.tf*np.log(N/df["df"])
@@ -146,13 +146,16 @@ class ComputeTfIdf(AnalysisUtility):
 
         qf = task.search_query.get("qf", None)
         languages = task.utility_parameters.get('languages')
+
         if languages:
-            lang_fields = ['all_text_t'+l+'_siv' for l in languages]
+            lang_fields = ['all_text_t'+l+'_siv' for l in languages.split()]
         elif qf:
             # for word search we don't need anything but language query field
             lang_fields = [langf for langf in ['all_text_tfr_siv', 'all_text_tfi_siv',
                                              'all_text_tde_siv', 'all_text_tse_siv'] if langf in qf]
-       
+        else:
+            lang_fields = ['all_text_tfr_siv', 'all_text_tfi_siv', 'all_text_tde_siv', 'all_text_tse_siv']
+            
         # FIND TOTAL
         # TODO: facet fields
         # not optimal
