@@ -13,6 +13,7 @@ class TestUtility(unittest.TestCase):
         self.response = requests.request("POST", self.url, data=self.payload, headers={'content-type': "application/json", **self.headers}).json()
     
     def test_query(self):
+        print("RESPONSE %s" %self.response)
         self.assertIn("uuid", self.response, "Response has no uuid")
 
     def expected_result(self):
@@ -23,8 +24,11 @@ class TestUtility(unittest.TestCase):
         url = self.url + self.response["uuid"]
         for t in range(max_try+1):
             #print(t)
-            response = requests.request("GET", url, data="", headers=self.headers).json()
+            response = requests.request("GET", url, data="", headers=self.headers)
+            
             #print("RESPONSE:", response)
+            response = response.json()
+            #print("JSON:", response)
             #print(response.get("uuid", None))
             #print(response.get("task_status", None))
             if response.get("task_status", None) == 'running':
