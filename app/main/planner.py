@@ -57,7 +57,9 @@ class TaskPlanner(object):
         
         if task.task_type == 'search':
             # runs searches on the external database
+            current_app.logger.debug("TASK_PARAMETERS: %s" %task.task_parameters)
             search_results = await search_database([task.task_parameters])
+            # current_app.logger.debug("SEARCH_RESULTS:", search_results)
             # stores results in the internal database
             store_results([task], search_results)
 

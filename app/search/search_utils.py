@@ -7,12 +7,14 @@ from werkzeug.exceptions import Unauthorized
 
 # Runs the query/queries using aiohttp. The return value is a list containing the results in the corresponding order.
 async def search_database(queries, **kwargs):
+    current_app.logger.debug("QUERIES: %s" %queries)
     return_list = isinstance(queries, list)
     if not isinstance(queries, list):
         queries = [queries]
     tasks = []
     async with aiohttp.ClientSession() as session:
         # if queries: current_app.logger.info("Log, appending searches: {}".format(queries))
+        current_app.logger.debug("SESSION %s" %session)
         for query in queries:
             tasks.append(query_solr(session, query, **kwargs))
         results = await asyncio.gather(*tasks, return_exceptions=(not current_app.debug))
@@ -43,18 +45,23 @@ async def query_solr(session, query, retrieve='all', max_return_value=100000):
     if retrieve in Config.SOLR_PARAMETERS.keys():
         for key, value in Config.SOLR_PARAMETERS[retrieve].items():
             parameters[key] = value
+ #   current_app.logger.debug("params I %s" %parameters)
     # Parameters specifically defined in the query override everything else
     for key, value in query.items():
             parameters[key] = value
-
+  #  current_app.logger.debug("params II %s" %parameters)
 
     
             
 #    current_app.logger.debug("QUERY_SOLR: %s" %parameters)
 
     async with session.get(Config.SOLR_URI, json={'params': parameters}) as response:
+        current_app.logger.debug("SOLR_URI %s" %Config.SOLR_URI)
+        current_app.logger.debug("params III %s" %parameters)
         if response.status == 401:
             raise Unauthorized
+#        current_app.logger.debug("RESPONSE in search_utils: %s" %response)
+
         response = await response.json()   
     # For retrieving docids, retrieve all of them, unless the number of rows is specified in the query
     if retrieve in ['docids', 'words'] and 'rows' not in query.keys():

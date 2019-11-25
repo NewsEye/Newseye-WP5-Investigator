@@ -31,7 +31,8 @@ class Config(object):
     HEADERS = {}
     COOKIES = {}
 
-    SOLR_URI = "http://localhost:9983/solr/hydra-development/select"
+    SOLR_URI = "http://localhost:9983/solr/newseye_collection/select"
+    # SOLR_URI = "http://localhost:9983/solr/hydra-development/select"
     # test DB:
     # SOLR_URI = "http://localhost:9984/solr/hydra-development/select"
     # SOLR_URI = "http://newseye.cs.helsinki.fi:9983/solr/hydra-development/select"
