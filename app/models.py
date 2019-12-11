@@ -1,6 +1,6 @@
 from datetime import datetime
 from werkzeug.http import http_date
-from sqlalchemy import UniqueConstraint
+from sqlalchemy import UniqueConstraint, Integer, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 import uuid
 import jwt
@@ -9,9 +9,13 @@ from flask import current_app
 from flask_login import UserMixin
 from app import db, login
 from config import Config
+from sqlalchemy.ext.declarative import declarative_base
 
+Base = declarative_base()
 
 class User(UserMixin, db.Model):
+    # currently user is always the same, th edemonstrator
+    # we might need smth more precise, in coordination w/ Axel
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), unique=True)
@@ -23,63 +27,67 @@ class User(UserMixin, db.Model):
         return '<User {}>'.format(self.username)
 
 
-class Result(db.Model):
-    __tablename__ = 'results'
-    id = db.Column(db.Integer, primary_key=True)
-    task_id = db.Column(db.Integer, db.ForeignKey('tasks.id'))
-    task = db.relationship('Task', back_populates='task_results', foreign_keys=[task_id])
-    result = db.Column(db.JSON)
-    interestingness = db.Column(db.JSON)
-    last_updated = db.Column(db.DateTime, default=datetime.utcnow)
-    # __table_args__ = (UniqueConstraint('task_type', 'task_parameters', name='uq_results_task_type_task_parameters'),)
 
-    result_reports = db.relationship('Report', back_populates='result', foreign_keys='Report.result_id')
+document_dataset_association = db.Table('doc_dataset', Base.metadata,
+                                        db.Column('dataset_id', Integer, ForeignKey('dataset.id')),
+                                        db.Column('document_id', Integer, ForeignKey('document.id'))
+                                        )
     
-    def __repr__(self):
-        return '<Result id: {} task: {} date: {}>'.format(self.id, self.task_id, self.last_updated)
 
-
-class Report(db.Model):
-    __tablename__ = 'reports'
+class Dataset(db.Model):
+    __tablename__ = 'dataset'
     id = db.Column(db.Integer, primary_key=True)
+    dataset_name = db.Column(db.String(255))
+    __table_args__ = (UniqueConstraint('dataset_name', name='uq_dataset_name'),)
+    creation_history = db.relationship('DatasetOperations', back_populates='dataset')
+    documents = db.relationship('Document',
+                                secondary = document_dataset_association,
+                                back_populates = 'datasets')
+    tasks = db.relationship("Task", back_populates="dataset")
 
-    result_id = db.Column(db.Integer, db.ForeignKey('results.id'))
-    result = db.relationship('Result', back_populates='result_reports', foreign_keys=[result_id])
+    
+class DatasetOperations(db.Model):
+    # this table could be used to reconstruct the dataset using all operations one by one
+    # later on we can also do some reasoning using these operations
+    __tablename__ = 'dataset_operations'
+    id = db.Column(db.Integer, primary_key=True)
+    operation = db.Column(db.String(255)) # create, add, remove, drop
+    search_query = db.Column(JSONB)
+    # these are documents that where explicitly added/deleted to/from the dataset, by user
+    documents = db.Column(db.String(255))
 
-    report_language = db.Column(db.String(255))
-    report_format = db.Column(db.String(255))
-    report_content = db.Column(db.JSON)
-    report_generated = db.Column(db.DateTime, default=datetime.utcnow)
+    dataset_id = db.Column(Integer, ForeignKey('dataset.id'))
+    dataset = db.relationship('Dataset', back_populates='creation_history')
 
-    def __repr__(self):
-        return '<Report>'
-
-
+    
+class Document(db.Model):
+    __tablename__ = 'documents'
+    id = db.Column(db.Integer, primary_key=True)
+    # name use in the main Solr database
+    solr_id = db.Column(db.String(255))
+    __table_args__ = (UniqueConstraint('solr_id', name='uq_solr_id'),)
+    datasets = db.relationship('Dataset',
+                                secondary = document_dataset_association,
+                                back_populates = 'datasets')        
+    
+    
 class Task(db.Model):
     __tablename__ = 'tasks'
     id = db.Column(db.Integer, primary_key=True)
-    # search/analysis
-    task_type = db.Column(db.String(255), nullable=False)
-    utility_name = db.Column(db.String(255))
-    search_query = db.Column(JSONB, nullable=False)
-    utility_parameters = db.Column(JSONB)
-    
-    __table_args__ = (UniqueConstraint('task_type', 'utility_name', 'search_query', 'utility_parameters', name='uq_task_type_task_parameters'),)
-    
-    # result_id = db.Column(db.Integer, db.ForeignKey('results.id', ondelete='CASCADE'))
+    processor = db.Column(db.String(255))
+    parameters = db.Column(JSONB)
+    dataset_id = db.Column(Integer, ForeignKey('dataset.id'))
+    dataset = db.relationship('Dataset', back_populates='tasks')
     task_results = db.relationship('Result', back_populates='task', foreign_keys="Result.task_id")
     task_instances = db.relationship('TaskInstance', back_populates='task', foreign_keys="TaskInstance.task_id")
-    
-    input_type = db.Column(db.String(255))
-    output_type = db.Column(db.String(255))
+    __table_args__ = (UniqueConstraint('processor', 'parameters', 'dataset_id',
+                                       name='uq_processor_parameters_dataset'),)
 
     @property
     def task_result(self):
         if self.task_results:
-            return sorted(self.task_results, key=lambda r: r.last_updated)[-1]        
-        
-    def __repr__(self):
-        return '<Task id: {} type: {} utlity: {} search: {} parameters: {}>'.format(self.id, self.task_type, self.utility_name, self.search_query, self.utility_parameters)
+            return sorted(self.task_results, key=lambda r: r.last_updated)[-1]
+    
 
 
 class TaskInstance(db.Model):
@@ -95,66 +103,19 @@ class TaskInstance(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     user = db.relationship('User', back_populates='all_tasks', foreign_keys=[user_id])
 
-    # search history of a user
-    # currently not used
-    # to make top-level relations between tasks
-    hist_parent_id = db.Column(UUID(as_uuid=True), db.ForeignKey('task_instances.uuid'))
-    # shortcuts for searching children given parents
-    hist_children = db.relationship('TaskInstance', primaryjoin="TaskInstance.uuid==TaskInstance.hist_parent_id")
-
     # force refresh: if True executes analysis utility once again, if False tries to find result from DB
     force_refresh = db.Column(db.Boolean)
 
-    # parent task
-    source_uuid = db.Column(UUID(as_uuid=True), db.ForeignKey('task_instances.uuid'))
     # created/running/finished/failed
     task_status = db.Column(db.String(255))
     
     # timestamps
     task_started  = db.Column(db.DateTime, default=datetime.utcnow)
     task_finished = db.Column(db.DateTime)
-    last_accessed = db.Column(db.DateTime, default=datetime.utcnow)
 
     # result: keeps result for a current user even if result in Task table already updated
-    result_id = db.Column(db.Integer, db.ForeignKey('results.id'))   
+    result_id = db.Column(db.Integer, db.ForeignKey('results.id'))
     
-    @property
-    def task_type(self):
-        return self.task.task_type
-
-    @property
-    def utility_parameters(self):
-        return self.task.utility_parameters
-
-    @property
-    def utility(self):
-        return self.task.utility_name
-
-    @property
-    def input_type(self):
-        return self.task.input_type
-    
-    @property
-    def output_type(self):
-        return self.task.output_type
-    
-    @property
-    def search_query(self):
-        return self.task.search_query
-
-    @search_query.setter
-    def search_query(self, query):
-        self.task.search_query = query
-    
-    @property
-    def task_parameters(self):
-        if self.task_type == "search":
-            return self.task.search_query
-        else:
-            return {"utility":self.task.utility_name,
-                    "search_query":self.task.search_query,
-                    "utility_parameters":self.task.utility_parameters}
-        
     @property
     def task_result(self):
         if self.result_id:
@@ -179,82 +140,39 @@ class TaskInstance(db.Model):
         if self.task_result:
             return {'result' : self.task_result.result,
                     'interestingness' : self.task_result.interestingness}
-        
-    # different versions of the output
-    def dict(self, style='status'):
-        if style == 'status':
-            if self.task_status == "running":
-                return {
-                    'uuid': str(self.uuid),
-                    'task_type': self.task_type,
-                    'task_parameters': self.task_parameters,
-                    'task_status': self.task_status,
-                    'task_started': http_date(self.task_started)
-                }
-            else:
-                return {
-                    'uuid': str(self.uuid),
-                    'task_type': self.task_type,
-                    'task_parameters': self.task_parameters,
-                    'task_status': self.task_status,
-                    'task_started': http_date(self.task_started),
-                    'task_finished': http_date(self.task_finished),
-                }
-            
-        elif style == 'result':
-            return {
-                'uuid': str(self.uuid),
-                'task_type': self.task_type,
-                'task_parameters': self.task_parameters,
-                'task_status': self.task_status,
-                'task_started': http_date(self.task_started),
-                'task_finished': http_date(self.task_finished),
-                'task_result': self.result_with_interestingness
-            }
-        elif style == 'search_result':
-            return {
-                'uuid': str(self.uuid),
-                'task_type': self.task_type,
-                'task_parameters': self.task_parameters,
-                'task_status': self.task_status,
-                'task_started': http_date(self.task_started),
-                'task_finished': http_date(self.task_finished),
-                'task_result': self.task_result.result
-            }
 
-        elif style == 'full':
-            return {
-                'uuid': str(self.uuid),
-                'task_type': self.task_type,
-                'task_parameters': self.task_parameters,
-                'task_status': self.task_status,
-                'task_result':  self.result_with_interestingness,
-                'hist_parent_id': self.hist_parent_id,
-                'task_started': http_date(self.task_started),
-                'task_finished': http_date(self.task_finished),
-                'last_accessed': http_date(self.last_accessed),
-            }
-        elif style == 'reporter':
-            return {
-                'uuid': str(self.uuid),
-                'task_type': self.task_type,
-                'task_parameters': self.task_parameters,
-                'task_status': self.task_status,
-                'task_result': self.result_with_interestingness if self.task_result else None,
-                'hist_parent_id': str(self.hist_parent_id),
-                'task_started': http_date(self.task_started),
-                'task_finished': http_date(self.task_finished),
-                'last_accessed': http_date(self.last_accessed),
-            }
-        else:
-            raise KeyError('''Unknown value for parameter 'style'! Valid options: status, result, full. ''')
+        
+class Result(db.Model):
+    __tablename__ = 'results'
+    id = db.Column(db.Integer, primary_key=True)
+    task_id = db.Column(db.Integer, db.ForeignKey('tasks.id'))
+    task = db.relationship('Task', back_populates='task_results', foreign_keys=[task_id])
+    result = db.Column(db.JSON)
+    interestingness = db.Column(db.JSON)
+    last_updated = db.Column(db.DateTime, default=datetime.utcnow)
+    result_reports = db.relationship('Report', back_populates='result', foreign_keys='Report.result_id')
+    
+    def __repr__(self):
+        return '<Result id: {} task: {} date: {}>'.format(self.id, self.task_id, self.last_updated)
+
+
+
+class Report(db.Model):
+    __tablename__ = 'reports'
+    id = db.Column(db.Integer, primary_key=True)
+
+    result_id = db.Column(db.Integer, db.ForeignKey('results.id'))
+    result = db.relationship('Result', back_populates='result_reports', foreign_keys=[result_id])
+
+    report_language = db.Column(db.String(255))
+    report_format = db.Column(db.String(255))
+    report_content = db.Column(db.JSON)
+    report_generated = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return '<Report>'
 
     
-        
-    def __repr__(self):
-        return '<TaskInstance {}: {}, {}>'.format(self.uuid, self.task_id, self.user_id)
-
-
 # Needed by flask_login
 @login.user_loader
 def load_user(id):

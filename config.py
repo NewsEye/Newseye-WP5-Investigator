@@ -10,7 +10,7 @@ class Config(object):
 
 
     # internal database for tasks and results
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'postgresql+psycopg2:///newseye_investigator'
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'postgresql+psycopg2:///newseye_investigator_dev'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # not used currently
@@ -19,7 +19,7 @@ class Config(object):
     MAIL_USE_TLS = os.environ.get('MAIL_USE_TLS') is not None
     MAIL_USERNAME = os.environ.get('MAIL_USERNAME')
     MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
-    ADMINS = ['jari.avikainen@helsinki.fi']
+    ADMINS = ['lidia.pivovarova@helsinki.fi']
 
 
     # The URI for the Reporter API
