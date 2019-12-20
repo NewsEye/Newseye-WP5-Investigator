@@ -10,15 +10,20 @@ Get Added to NewsEYE Group at UH
 Be sure that you can access NewsEYE servers, e.g.
 
     ssh username@melkki.cs.helsinki.fi
+
     username@melkki:~$ ssh username@newseye.cs.helsinki.fi
 
 Clone the Repository and Create Virtual Environment
 ---------------------------------------------------
 
     git clone https://version.helsinki.fi/newseye/wp5.git
+
     cd wp5
+
     python3.7 -m venv env
+
     source env/bin/activate
+
     pip install -r requirements.txt
 
 PyICU from the requirements may need some manual configuration to
