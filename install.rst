@@ -37,13 +37,17 @@ Install PostgreSQL
 Do the following terminal commands
 
     sudo apt-get install postgresql
+
     sudo -u postgres -i
+
     psql
 
 Then in psql shell:
 
     create user username;
+
     create database newseye_investigator;
+
     \q
 
 *OSX*
@@ -52,7 +56,9 @@ First install `Homebrew <https://brew.sh/>`_ and then do the following
 terminal commands:
 
     brew install postgresql
+
     createuser username
+
     createdb newseye_investigator
 
 The ``username`` is advised to be your UH user name.
@@ -64,6 +70,7 @@ Activate virtual environment and upgrade database tables (in the repo
 root).
 
     source env/bin/activate
+
     flask db upgrade
 
 
@@ -80,7 +87,9 @@ Remote Access to SOLR
 Add into ``~/.ssh/config``:
 
     Host solr
+
          HostName newseye.cs.helsinki.fi
+
          ProxyJump melkki.cs.helsinki.fi
 
 
@@ -104,9 +113,13 @@ Inside virtual environment run
 Then in the shell run
 
     from config import Config
+
     import jwt
+
     import datetime
+
     token=jwt.encode({"username":username, "exp":datetime.datetime.utcnow()+datetime.timedelta(days=1)},Config.SECRET_KEY,algorithm="HS256")
+
     token
 
 where ``username`` is the same name created to the Flask database.
@@ -133,9 +146,9 @@ You can test the server, e.g. by running the following command
 
 then try a query, e.g.:
 
-curl --request POST   --url http://localhost:5000/api/analysis/   --header 'authorization: FLASK_TOKEN' --header 'content-type: application/json' --data '{"search_query": {"q": "president"},"utility": "extract_facets","force_refresh": "T"}'
+    curl --request POST   --url http://localhost:5000/api/analysis/   --header 'authorization: FLASK_TOKEN' --header 'content-type: application/json' --data '{"search_query": {"q": "president"},"utility": "extract_facets","force_refresh": "T"}'
 
-The FLASK_TOKEN is the one you created.
+The ``FLASK_TOKEN`` is the one you created.
 
 If the request returns a sensible results, then everything should be
 configured correctly.
