@@ -7,6 +7,7 @@ from datetime import datetime
 from flask import current_app
 import asyncio
 from app.investigator.investigator import Investigator
+    
 
 class TaskPlanner(object):
     

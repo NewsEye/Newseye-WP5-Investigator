@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: d58379df9dd0
+Revision ID: 8ce031d78657
 Revises: 
-Create Date: 2019-12-13 10:09:00.245156
+Create Date: 2019-12-13 17:01:05.128424
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = 'd58379df9dd0'
+revision = '8ce031d78657'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -46,6 +46,13 @@ def upgrade():
     sa.Column('dataset_id', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['dataset_id'], ['dataset.id'], ),
     sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('document_dataset_relation',
+    sa.Column('dataset_id', sa.Integer(), nullable=False),
+    sa.Column('document_id', sa.Integer(), nullable=False),
+    sa.ForeignKeyConstraint(['dataset_id'], ['dataset.id'], ),
+    sa.ForeignKeyConstraint(['document_id'], ['document.id'], ),
+    sa.PrimaryKeyConstraint('dataset_id', 'document_id')
     )
     op.create_table('tasks',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -100,6 +107,7 @@ def downgrade():
     op.drop_table('reports')
     op.drop_table('results')
     op.drop_table('tasks')
+    op.drop_table('document_dataset_relation')
     op.drop_table('dataset_operations')
     op.drop_table('users')
     op.drop_table('document')

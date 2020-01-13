@@ -26,24 +26,38 @@ class User(UserMixin, db.Model):
     def __repr__(self):
         return '<User {}>'.format(self.username)
 
+   
+
+document_dataset_relation = db.Table('document_dataset_relation',
+                                     db.Column('dataset_id', db.Integer, db.ForeignKey('dataset.id'), primary_key=True),
+                                     db.Column('document_id', db.Integer, db.ForeignKey('document.id'), primary_key=True)
+                                     )
+
+    
+class Document(db.Model):
+    __tablename__ = 'document'
+    id = db.Column(db.Integer, primary_key=True)
+    # name used in the main Solr database
+    solr_id = db.Column(db.String(255))
+    __table_args__ = (UniqueConstraint('solr_id', name='uniq_solr_id'),)
+    datasets = db.relationship("Dataset", secondary=document_dataset_relation,
+                               back_populates = 'documents')
 
 
-document_dataset_association = db.Table('doc_dataset', Base.metadata,
-                                        db.Column('dataset_id', Integer, ForeignKey('dataset.id')),
-                                        db.Column('document_id', Integer, ForeignKey('document.id'))
-                                        )
     
 
+    
 class Dataset(db.Model):
     __tablename__ = 'dataset'
     id = db.Column(db.Integer, primary_key=True)
     dataset_name = db.Column(db.String(255))
     __table_args__ = (UniqueConstraint('dataset_name', name='uq_dataset_name'),)
     creation_history = db.relationship('DatasetOperations', back_populates='dataset')
-    documents = db.relationship('Document',
-                                secondary = document_dataset_association,
-                                back_populates = 'datasets')
     tasks = db.relationship("Task", back_populates="dataset")
+    documents = db.relationship("Document", secondary=document_dataset_relation,
+                                back_populates = 'datasets')
+
+
 
     
 class DatasetOperations(db.Model):
@@ -53,23 +67,13 @@ class DatasetOperations(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     operation = db.Column(db.String(255)) # create, add, remove, drop
     search_query = db.Column(JSONB)
-    # these are documents that where explicitly added/deleted to/from the dataset, by user
+    # these are documents that where explicitly added/deleted to/from the dataset
+    # the dataset contains other documents, defined via search queries, but they are stored in document table
     documents = db.Column(db.String(255))
 
     dataset_id = db.Column(Integer, ForeignKey('dataset.id'))
     dataset = db.relationship('Dataset', back_populates='creation_history')
 
-    
-class Document(db.Model):
-    __tablename__ = 'documents'
-    id = db.Column(db.Integer, primary_key=True)
-    # name use in the main Solr database
-    solr_id = db.Column(db.String(255))
-    __table_args__ = (UniqueConstraint('solr_id', name='uq_solr_id'),)
-    datasets = db.relationship('Dataset',
-                                secondary = document_dataset_association,
-                                back_populates = 'datasets')        
-    
     
 class Task(db.Model):
     __tablename__ = 'tasks'

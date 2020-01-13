@@ -36,4 +36,6 @@ def task_thread(app, user_id, task_uuid):
     with app.app_context():      
         planner = TaskPlanner(User.query.get(user_id))
         asyncio.run(planner.execute_user_task(task_uuid))
-            
+
+        
+
