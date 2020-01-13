@@ -146,7 +146,7 @@ You can test the server, e.g. by running the following command
 
 then try a query, e.g.:
 
-    curl --request POST   --url http://localhost:5000/api/analysis/   --header 'authorization: FLASK_TOKEN' --header 'content-type: application/json' --data '{"search_query": {"q": "president"},"utility": "extract_facets","force_refresh": "T"}'
+    curl --request POST   --url http://localhost:5000/api/analysis/   --header 'authorization: JWT FLASK_TOKEN' --header 'content-type: application/json' --data '{"search_query": {"q": "president"},"utility": "extract_facets","force_refresh": "T"}'
 
 The ``FLASK_TOKEN`` is the one you created.
 
