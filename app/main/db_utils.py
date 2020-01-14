@@ -3,7 +3,7 @@ from flask import current_app
 from sqlalchemy.exc import IntegrityError
 from flask_login import current_user
 from app import db
-from app.models import Task, TaskInstance, Result
+from app.models import Task, Result
 from datetime import datetime
 from werkzeug.exceptions import BadRequest
 from app.analysis import UTILITY_MAP
@@ -68,7 +68,7 @@ def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=Fals
             source_uuid = task_parameters.get('source_uuid')
             # not relevant for comparisons:
             if source_uuid:
-                source_instance = TaskInstance.query.filter_by(uuid=source_uuid).one_or_none()
+                source_instance = Task.query.filter_by(uuid=source_uuid).one_or_none()
                 search_query = source_instance.search_query
             
         utility_parameters = task_parameters.get('utility_parameters', {})
@@ -97,7 +97,7 @@ def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=Fals
             db.session.commit()
             current_app.logger.debug("Created a new task: %s" %task)
             
-        task_instance = TaskInstance(task_id =  task.id,
+        task_instance = Task(task_id =  task.id,
                                      force_refresh   = bool(task_parameters.get('force_refresh', False)),
                                      source_uuid     = task_parameters.get('source_uuid', None),
                                      hist_parent_id=parent_id,

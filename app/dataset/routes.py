@@ -5,7 +5,7 @@ from app.auth import AuthParser
 from app.dataset import manipulator
 from app.dataset import ns
 from werkzeug.exceptions import BadRequest, InternalServerError, NotFound
-from app.models import Dataset, TaskInstance, Result, Report, Document
+from app.models import Dataset, Task, Result, Report, Document
 
 @ns.route('/')
 class DatasetX(Resource):
@@ -37,7 +37,7 @@ class DatasetX(Resource):
         args = self.post_parser.parse_args()    
         args.pop('Authorization')
 
-        current_app.logger.debug("TaskInstance %s" %type(TaskInstance))
+        current_app.logger.debug("Task %s" %type(Task))
         current_app.logger.debug("Dataset %s" %type(Dataset))
         current_app.logger.debug("Result %s" %type(Result))
         current_app.logger.debug("Report %s" %type(Report))

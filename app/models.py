@@ -16,12 +16,12 @@ Base = declarative_base()
 class User(UserMixin, db.Model):
     # currently user is always the same, th edemonstrator
     # we might need smth more precise, in coordination w/ Axel
-    __tablename__ = 'users'
+    __tablename__ = 'user'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), unique=True)
     created_on = db.Column(db.DateTime, default=datetime.utcnow)
     last_seen = db.Column(db.DateTime, default=datetime.utcnow)
-    all_tasks = db.relationship('TaskInstance', back_populates='user', lazy='dynamic', foreign_keys="TaskInstance.user_id")
+    all_tasks = db.relationship('Task', back_populates='user', lazy='dynamic', foreign_keys="Task.user_id")
 
     def __repr__(self):
         return '<User {}>'.format(self.username)
@@ -74,39 +74,38 @@ class DatasetOperations(db.Model):
     dataset_id = db.Column(Integer, ForeignKey('dataset.id'))
     dataset = db.relationship('Dataset', back_populates='creation_history')
 
+ 
+class Processor(db.Model):
+     __tablename__ = 'processor'
+     id = db.Column(db.Integer, primary_key=True)
+     name = db.Column(db.String(255))
+     parameters = db.Column(JSONB)
+     input_type = db.Column(db.String(255))
+     output_type = db.Column(db.String(255))
+     description = db.Column(db.String(10000))
+     import_path = db.Column(db.String(1024))
+     tasks = db.relationship('Task', back_populates='processor')
+     __table_args__ = (UniqueConstraint('name', 'import_path', name='uq_processor_name_and_path'),)
+     
     
 class Task(db.Model):
-    __tablename__ = 'tasks'
+    __tablename__ = 'task'
     id = db.Column(db.Integer, primary_key=True)
-    processor = db.Column(db.String(255))
+    processor_id = db.Column(Integer, ForeignKey('processor.id'))
+    processor = db.relationship('Processor', foreign_keys='processor.id', back_populates='tasks')
     parameters = db.Column(JSONB)
     dataset_id = db.Column(Integer, ForeignKey('dataset.id'))
     dataset = db.relationship('Dataset', back_populates='tasks')
-    task_results = db.relationship('Result', back_populates='task', foreign_keys="Result.task_id")
-    task_instances = db.relationship('TaskInstance', back_populates='task', foreign_keys="TaskInstance.task_id")
-    __table_args__ = (UniqueConstraint('processor', 'parameters', 'dataset_id',
+
+    __table_args__ = (UniqueConstraint('processor_id', 'parameters', 'dataset_id',
+                                       'user_id',  # TODO: reuse results from other users
                                        name='uq_processor_parameters_dataset'),)
 
-    @property
-    def task_result(self):
-        if self.task_results:
-            return sorted(self.task_results, key=lambda r: r.last_updated)[-1]
-    
-
-
-class TaskInstance(db.Model):
-    __tablename__ = "task_instances"
-    id = db.Column(db.Integer, primary_key=True)
-    
-    # external id
     uuid = db.Column(UUID(as_uuid=True), unique=True, nullable=False, default=uuid.uuid4)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-    task_id = db.Column(db.Integer, db.ForeignKey('tasks.id'))
-    task = db.relationship('Task', back_populates='task_instances', foreign_keys=[task_id])
     
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-    user = db.relationship('User', back_populates='all_tasks', foreign_keys=[user_id])
-
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    user = db.relationship('User', back_populates='all_tasks', foreign_keys='user.id')
+    
     # force refresh: if True executes analysis utility once again, if False tries to find result from DB
     force_refresh = db.Column(db.Boolean)
 
@@ -117,18 +116,27 @@ class TaskInstance(db.Model):
     task_started  = db.Column(db.DateTime, default=datetime.utcnow)
     task_finished = db.Column(db.DateTime)
 
-    # result: keeps result for a current user even if result in Task table already updated
-    result_id = db.Column(db.Integer, db.ForeignKey('results.id'))
+    task_results = db.relationship('Result', back_populates='task', foreign_keys="result.task_id")
+    result_id = db.Column(db.Integer, db.ForeignKey('result.id'))
+
+    @property
+    def task_result(self):
+        if self.task_results:
+            return sorted(self.task_results, key=lambda r: r.last_updated)[-1]
+    
+
     
     @property
     def task_result(self):
         if self.result_id:
+            # ??? is there a way to query result directly by id?
             return next((result for result in self.task.task_results if result.id == self.result_id), None)
         else:
-            the_most_recent_result = self.task.task_result
-            if the_most_recent_result:
-                if not self.force_refresh:
-                    self.result_id = the_most_recent_result.id
+            if self.task_results:
+                the_most_recent_result = sorted(self.task_results, key=lambda r: r.last_updated)[-1]
+                if the_most_recent_result:
+                    if not self.force_refresh:
+                        self.result_id = the_most_recent_result.id
                 return the_most_recent_result
 
     @property
@@ -145,28 +153,13 @@ class TaskInstance(db.Model):
             return {'result' : self.task_result.result,
                     'interestingness' : self.task_result.interestingness}
 
-        
-class Result(db.Model):
-    __tablename__ = 'results'
-    id = db.Column(db.Integer, primary_key=True)
-    task_id = db.Column(db.Integer, db.ForeignKey('tasks.id'))
-    task = db.relationship('Task', back_populates='task_results', foreign_keys=[task_id])
-    result = db.Column(db.JSON)
-    interestingness = db.Column(db.JSON)
-    last_updated = db.Column(db.DateTime, default=datetime.utcnow)
-    result_reports = db.relationship('Report', back_populates='result', foreign_keys='Report.result_id')
-    
-    def __repr__(self):
-        return '<Result id: {} task: {} date: {}>'.format(self.id, self.task_id, self.last_updated)
-
-
 
 class Report(db.Model):
-    __tablename__ = 'reports'
+    __tablename__ = 'report'
     id = db.Column(db.Integer, primary_key=True)
 
-    result_id = db.Column(db.Integer, db.ForeignKey('results.id'))
-    result = db.relationship('Result', back_populates='result_reports', foreign_keys=[result_id])
+    result_id = db.Column(db.Integer, db.ForeignKey('result.id'))
+    result = db.relationship('Result', back_populates='result_reports') #, foreign_keys=[result_id])
 
     report_language = db.Column(db.String(255))
     report_format = db.Column(db.String(255))
@@ -175,6 +168,22 @@ class Report(db.Model):
 
     def __repr__(self):
         return '<Report>'
+        
+
+
+class Result(db.Model):
+    __tablename__ = 'result'
+    id = db.Column(db.Integer, primary_key=True)
+    task_id = db.Column(db.Integer, db.ForeignKey('task.id'))
+    task = db.relationship('Task', back_populates='task_results', foreign_keys=[task_id])
+    result = db.Column(db.JSON)
+    interestingness = db.Column(db.JSON)
+    last_updated = db.Column(db.DateTime, default=datetime.utcnow)
+    result_reports = db.relationship('Report', back_populates='result', foreign_keys='report.result_id')
+    
+    def __repr__(self):
+        return '<Result id: {} task: {} date: {}>'.format(self.id, self.task_id, self.last_updated)
+
 
     
 # Needed by flask_login

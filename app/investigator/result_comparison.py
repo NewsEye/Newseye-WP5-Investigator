@@ -1,6 +1,6 @@
 from app.analysis.analysis_utils import AnalysisUtility
 from flask import current_app
-from app.models import Task, TaskInstance
+from app.models import Task
 import asyncio
 from app.analysis import assessment
 
@@ -40,7 +40,7 @@ class ComparisonUtility(AnalysisUtility):
             tasks = Task.query.filter(Task.id.in_(task.utility_parameters['task_ids'])).all()
         elif task.utility_parameters['task_uuids']:
             # calling directly from api
-            tasks = TaskInstance.query.filter(TaskInstance.uuid.in_(task.utility_parameters['task_uuids'])).all()
+            tasks = Task.query.filter(Task.uuid.in_(task.utility_parameters['task_uuids'])).all()
             
             wait_time = 0
             while any([task.task_status != 'finished' for task in tasks]) and wait_time < 100:

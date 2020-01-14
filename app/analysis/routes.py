@@ -4,7 +4,7 @@ from flask_restplus import Resource
 from app.auth import AuthParser
 from app.main import controller
 from app.analysis import ns
-from app.models import TaskInstance
+from app.models import Task
 from app.analysis import UTILITY_MAP
 from uuid import UUID
 from werkzeug.exceptions import BadRequest, InternalServerError, NotFound
@@ -19,7 +19,7 @@ class AnalysisTaskList(Resource):
         Retrieve all analysis tasks started by the user
         """
         tasks = [task.dict(style='result') for task in
-                 TaskInstance.query.filter_by(user_id=current_user.id, task_type='analysis').all()]
+                 Task.query.filter_by(user_id=current_user.id, task_type='analysis').all()]
         if len(tasks) == 1:
             tasks = tasks[0]
         return tasks
@@ -46,7 +46,7 @@ class AnalysisTaskList(Resource):
         try:
             task = controller.execute_tasks(query)[0].dict()
             if task['task_status'] == 'finished':
-                return TaskInstance.query.filter_by(uuid=task['uuid']).first().dict(style='result')
+                return Task.query.filter_by(uuid=task['uuid']).first().dict(style='result')
             elif task['task_status'] == 'running':
                 return task, 202
             else:
@@ -71,7 +71,7 @@ class AnalysisTask(Resource):
             task_uuid = UUID(task_uuid)
         except ValueError:
             raise NotFound
-        task = TaskInstance.query.filter_by(uuid=task_uuid).first()
+        task = Task.query.filter_by(uuid=task_uuid).first()
         if task is None:
             raise NotFound('Task {} not found for user {}'.format(task_uuid, current_user.username))
         return task.dict(style='result')

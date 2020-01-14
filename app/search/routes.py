@@ -3,7 +3,7 @@ from flask_login import login_required, current_user
 from flask_restplus import Resource
 from app.auth import AuthParser
 from app.main import controller
-from app.models import TaskInstance
+from app.models import Task
 from app.search import ns
 from uuid import UUID
 from werkzeug.exceptions import InternalServerError, NotFound
@@ -17,7 +17,7 @@ class SearchTaskList(Resource):
         """
         Retrieve all search tasks started by the user
         """
-        tasks = [task.dict(style='result') for task in TaskInstance.query.filter_by(user_id=current_user.id, task_type='search').all()]
+        tasks = [task.dict(style='result') for task in Task.query.filter_by(user_id=current_user.id, task_type='search').all()]
         if len(tasks) == 1:
             tasks = tasks[0]
         return tasks
@@ -39,7 +39,7 @@ class SearchTaskList(Resource):
         try:
             task = controller.execute_tasks(query)[0].dict()
             if task['task_status'] == 'finished':
-                return TaskInstance.query.filter_by(uuid=task['uuid']).first().dict(style='search_result')
+                return Task.query.filter_by(uuid=task['uuid']).first().dict(style='search_result')
             elif task['task_status'] == 'running':
                 return task, 202
             else:
@@ -64,7 +64,7 @@ class SearchTask(Resource):
             task_uuid = UUID(task_uuid)
         except ValueError:
             raise NotFound
-        task = TaskInstance.query.filter_by(uuid=task_uuid).first()
+        task = Task.query.filter_by(uuid=task_uuid).first()
         if task is None:
             raise NotFound('Task {} not found for user {}'.format(task_uuid, current_user.username))
         return task.dict(style='search_result')

@@ -2,7 +2,7 @@ from flask_login import login_required, current_user
 from flask_restplus import Resource
 from app.auth import AuthParser
 from app.report import ns
-from app.models import TaskInstance, Report
+from app.models import Task, Report
 from app.report.report_utils import generate_report, get_formats, get_languages
 from uuid import UUID
 from werkzeug.exceptions import NotFound, BadRequest
@@ -28,7 +28,7 @@ class ReportTask(Resource):
         args = self.parser.parse_args()
         report_language = args['language']
         report_format = args['format']
-        task = TaskInstance.query.filter_by(uuid=task_uuid, user_id=current_user.id).first()
+        task = Task.query.filter_by(uuid=task_uuid, user_id=current_user.id).first()
         if task is None:
             raise NotFound('Task {} not found for user {}'.format(task_uuid, current_user.username))
         if task.task_type == 'search':

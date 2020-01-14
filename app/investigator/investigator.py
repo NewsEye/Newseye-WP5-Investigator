@@ -6,7 +6,7 @@ from app.investigator import ANALYSIS, LINKING, ANALYSIS_LINKED_DOCS
 from app.analysis import UTILITY_MAP
 from app.analysis.assessment import max_interestingness
 from app.investigator.result_comparison import estimate_interestingness
-from app.models import TaskInstance
+from app.models import Task
 
 
 class Investigator(object):
@@ -54,7 +54,7 @@ class Investigator(object):
                                            if (res['utility_name'] == subtask_parameters['utility'] and
                                                res['search_query'] != subtask_parameters['search_query'] and
                                                res['utility_parameters'] == subtask_parameters['utility_parameters'])]
-        task_ids = [TaskInstance.query.filter_by(uuid=uuid).first().task_id for uuid in comparable_task_uuids]
+        task_ids = [Task.query.filter_by(uuid=uuid).first().task_id for uuid in comparable_task_uuids]
         comparison_task = self.runner.generate_investigation_tasks([('comparison', {'task_ids' : task_ids})])
         return asyncio.create_task(self.runner.run_subtasks_and_update_results(comparison_task, estimate_interestingness,
                                                                                reference={subtask.output_type:comparable_task_uuids}))

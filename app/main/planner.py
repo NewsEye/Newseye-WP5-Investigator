@@ -1,6 +1,6 @@
 from app import db
 from app.main.db_utils import generate_tasks, store_results, verify_analysis_parameters
-from app.models import TaskInstance
+from app.models import Task
 from app.search.search_utils import search_database
 from app.analysis import UTILITY_MAP, INPUT_TYPE_MAP
 from datetime import datetime
@@ -15,7 +15,7 @@ class TaskPlanner(object):
         self.user = user
         
     async def execute_user_task(self, task_uuids=None):
-        tasks = TaskInstance.query.filter(TaskInstance.uuid.in_(task_uuids)).all()
+        tasks = Task.query.filter(Task.uuid.in_(task_uuids)).all()
         await self.execute_and_store_tasks(tasks)
 
     async def async_analysis(self, tasks):
@@ -111,7 +111,7 @@ class TaskPlanner(object):
         input_task_uuid = task.source_uuid
         utility = UTILITY_MAP[task.utility] 
         if input_task_uuid:
-            input_task = TaskInstance.query.filter_by(uuid=input_task_uuid).first()
+            input_task = Task.query.filter_by(uuid=input_task_uuid).first()
             current_app.logger.debug("input_task_uuid %s" %input_task_uuid)
             if input_task is None:
                 raise ValueError('Invalid source_uuid')
