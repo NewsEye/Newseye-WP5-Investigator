@@ -21,7 +21,7 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(64), unique=True)
     created_on = db.Column(db.DateTime, default=datetime.utcnow)
     last_seen = db.Column(db.DateTime, default=datetime.utcnow)
-    all_tasks = db.relationship('Task', back_populates='user', lazy='dynamic', foreign_keys="Task.user_id")
+    all_tasks = db.relationship('Task', back_populates='user')
 
     def __repr__(self):
         return '<User {}>'.format(self.username)
@@ -30,8 +30,7 @@ class User(UserMixin, db.Model):
 
 document_dataset_relation = db.Table('document_dataset_relation',
                                      db.Column('dataset_id', db.Integer, db.ForeignKey('dataset.id'), primary_key=True),
-                                     db.Column('document_id', db.Integer, db.ForeignKey('document.id'), primary_key=True)
-                                     )
+                                     db.Column('document_id', db.Integer, db.ForeignKey('document.id'), primary_key=True))
 
     
 class Document(db.Model):
@@ -40,8 +39,7 @@ class Document(db.Model):
     # name used in the main Solr database
     solr_id = db.Column(db.String(255))
     __table_args__ = (UniqueConstraint('solr_id', name='uniq_solr_id'),)
-    datasets = db.relationship("Dataset", secondary=document_dataset_relation,
-                               back_populates = 'documents')
+    datasets = db.relationship("Dataset", secondary=document_dataset_relation, back_populates = 'documents')
 
 
     
@@ -52,12 +50,9 @@ class Dataset(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     dataset_name = db.Column(db.String(255))
     __table_args__ = (UniqueConstraint('dataset_name', name='uq_dataset_name'),)
+    documents = db.relationship("Document", secondary=document_dataset_relation, back_populates = 'datasets')
     creation_history = db.relationship('DatasetOperations', back_populates='dataset')
     tasks = db.relationship("Task", back_populates="dataset")
-    documents = db.relationship("Document", secondary=document_dataset_relation,
-                                back_populates = 'datasets')
-
-
 
     
 class DatasetOperations(db.Model):
@@ -70,7 +65,6 @@ class DatasetOperations(db.Model):
     # these are documents that where explicitly added/deleted to/from the dataset
     # the dataset contains other documents, defined via search queries, but they are stored in document table
     documents = db.Column(db.String(255))
-
     dataset_id = db.Column(Integer, ForeignKey('dataset.id'))
     dataset = db.relationship('Dataset', back_populates='creation_history')
 
@@ -91,8 +85,8 @@ class Processor(db.Model):
 class Task(db.Model):
     __tablename__ = 'task'
     id = db.Column(db.Integer, primary_key=True)
-    processor_id = db.Column(Integer, ForeignKey('processor.id'))
-    processor = db.relationship('Processor', foreign_keys='processor.id', back_populates='tasks')
+    processor_id = db.Column(Integer, ForeignKey('processor.id'), nullable=False)
+    processor = db.relationship('Processor', foreign_keys=[processor_id], back_populates='tasks')
     parameters = db.Column(JSONB)
     dataset_id = db.Column(Integer, ForeignKey('dataset.id'))
     dataset = db.relationship('Dataset', back_populates='tasks')
@@ -103,8 +97,8 @@ class Task(db.Model):
 
     uuid = db.Column(UUID(as_uuid=True), unique=True, nullable=False, default=uuid.uuid4)
     
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    user = db.relationship('User', back_populates='all_tasks', foreign_keys='user.id')
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user = db.relationship('User', back_populates='all_tasks', foreign_keys=[user_id])
     
     # force refresh: if True executes analysis utility once again, if False tries to find result from DB
     force_refresh = db.Column(db.Boolean)
@@ -116,15 +110,8 @@ class Task(db.Model):
     task_started  = db.Column(db.DateTime, default=datetime.utcnow)
     task_finished = db.Column(db.DateTime)
 
-    task_results = db.relationship('Result', back_populates='task', foreign_keys="result.task_id")
-    result_id = db.Column(db.Integer, db.ForeignKey('result.id'))
-
-    @property
-    def task_result(self):
-        if self.task_results:
-            return sorted(self.task_results, key=lambda r: r.last_updated)[-1]
-    
-
+    task_results = db.relationship('Result', back_populates='task')
+    result_id = db.Column(db.Integer) 
     
     @property
     def task_result(self):
@@ -154,21 +141,7 @@ class Task(db.Model):
                     'interestingness' : self.task_result.interestingness}
 
 
-class Report(db.Model):
-    __tablename__ = 'report'
-    id = db.Column(db.Integer, primary_key=True)
 
-    result_id = db.Column(db.Integer, db.ForeignKey('result.id'))
-    result = db.relationship('Result', back_populates='result_reports') #, foreign_keys=[result_id])
-
-    report_language = db.Column(db.String(255))
-    report_format = db.Column(db.String(255))
-    report_content = db.Column(db.JSON)
-    report_generated = db.Column(db.DateTime, default=datetime.utcnow)
-
-    def __repr__(self):
-        return '<Report>'
-        
 
 
 class Result(db.Model):
@@ -179,11 +152,27 @@ class Result(db.Model):
     result = db.Column(db.JSON)
     interestingness = db.Column(db.JSON)
     last_updated = db.Column(db.DateTime, default=datetime.utcnow)
-    result_reports = db.relationship('Report', back_populates='result', foreign_keys='report.result_id')
+    result_reports = db.relationship('Report', back_populates='result')
     
     def __repr__(self):
         return '<Result id: {} task: {} date: {}>'.format(self.id, self.task_id, self.last_updated)
 
+
+class Report(db.Model):
+    __tablename__ = 'report'
+    id = db.Column(db.Integer, primary_key=True)
+
+    result_id = db.Column(db.Integer, db.ForeignKey('result.id'))
+    result = db.relationship('Result', back_populates='result_reports', foreign_keys=[result_id])
+
+    report_language = db.Column(db.String(255))
+    report_format = db.Column(db.String(255))
+    report_content = db.Column(db.JSON)
+    report_generated = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return '<Report>'
+    
 
     
 # Needed by flask_login
@@ -204,7 +193,7 @@ def load_user_from_request(request):
             decoded = jwt.decode(token, Config.SECRET_KEY, algorithm='HS256')
         except (ExpiredSignatureError, InvalidSignatureError):
             return None
-        user = User.query.filter_by(username=decoded['username']).first()
+        user = User.query.filter_by(username=decoded['username']).one_or_none()
         if not user:
             user = User(username=decoded['username'])
             db.session.add(user)
