@@ -40,11 +40,7 @@ class Document(db.Model):
     solr_id = db.Column(db.String(255))
     __table_args__ = (UniqueConstraint('solr_id', name='uniq_solr_id'),)
     datasets = db.relationship("Dataset", secondary=document_dataset_relation, back_populates = 'documents')
-
-
-    
-
-    
+   
 class Dataset(db.Model):
     __tablename__ = 'dataset'
     id = db.Column(db.Integer, primary_key=True)
@@ -81,10 +77,21 @@ class Processor(db.Model):
      tasks = db.relationship('Task', back_populates='processor')
      __table_args__ = (UniqueConstraint('name', 'import_path', name='uq_processor_name_and_path'),)
      
-    
+
+parent_child_relation = db.Table('task_parent_child_relation',
+                                     db.Column('parent_id', db.Integer, db.ForeignKey('task.id'), primary_key=True),
+                                     db.Column('child_id', db.Integer, db.ForeignKey('task.id'), primary_key=True))
+
+     
 class Task(db.Model):
     __tablename__ = 'task'
     id = db.Column(db.Integer, primary_key=True)
+
+    parents = db.relationship("Task", secondary=parent_child_relation,
+                              primaryjoin=parent_child_relation.c.child_id==id,
+                              secondaryjoin=parent_child_relation.c.parent_id==id,
+                              backref="children")
+    
     processor_id = db.Column(Integer, ForeignKey('processor.id'), nullable=False)
     processor = db.relationship('Processor', foreign_keys=[processor_id], back_populates='tasks')
     parameters = db.Column(JSONB)
