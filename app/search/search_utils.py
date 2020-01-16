@@ -25,7 +25,7 @@ async def search_database(queries, **kwargs):
         return results[0]
 
 
-async def query_solr(session, query, retrieve='all', max_return_value=100000):
+async def query_solr(session, query, retrieve='all', max_return_value=Config.SOLR_MAX_RETURN_VALUES):
 
 #    current_app.logger.debug("============== QUERY: %s RETRIEVE: %s" %(query, retrieve))
     

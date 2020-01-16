@@ -48,22 +48,22 @@ class Dataset(db.Model):
     dataset_name = db.Column(db.String(255))
     __table_args__ = (UniqueConstraint('dataset_name', name='uq_dataset_name'),)
     documents = db.relationship("Document", secondary=document_dataset_relation, back_populates = 'datasets')
-    creation_history = db.relationship('DatasetOperations', back_populates='dataset')
+    creation_history = db.relationship('DatasetTransformation', back_populates='dataset')
     tasks = db.relationship("Task", back_populates="dataset")
 
     
-class DatasetOperations(db.Model):
-    # this table could be used to reconstruct the dataset using all operations one by one
-    # later on we can also do some reasoning using these operations
-    __tablename__ = 'dataset_operations'
+class DatasetTransformation(db.Model):
+    # this table could be used to reconstruct the dataset using all transformations one by one
+    # later on we can also do some reasoning using these transformations
+    __tablename__ = 'dataset_transformation'
     id = db.Column(db.Integer, primary_key=True)
-    operation = db.Column(db.String(255)) # create, add, remove, drop
+    transformation = db.Column(db.Enum("create", "add", "remove", "drop", name="transformation"), nullable=False)
     search_query = db.Column(JSONB)
     # these are documents that where explicitly added/deleted to/from the dataset
     # the dataset contains other documents, defined via search queries, but they are stored in document table
-    documents = db.Column(db.String(255))
+    document = db.Column(db.String(255))
     dataset_id = db.Column(Integer, ForeignKey('dataset.id'))
-    dataset = db.relationship('Dataset', back_populates='creation_history')
+    dataset = db.relationship('Dataset', foreign_keys=[dataset_id], back_populates='creation_history')
 
  
 class Processor(db.Model):

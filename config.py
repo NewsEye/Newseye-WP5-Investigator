@@ -31,6 +31,8 @@ class Config(object):
     HEADERS = {}
     COOKIES = {}
 
+    SOLR_MAX_RETURN_VALUES = 100
+    
     SOLR_URI = "http://localhost:9983/solr/newseye_collection/select"
     # SOLR_URI = "http://localhost:9983/solr/hydra-development/select"
     # test DB:
