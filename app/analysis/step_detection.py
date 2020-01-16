@@ -7,39 +7,41 @@ from app.analysis.analysis_utils import AnalysisUtility
 
 class FindStepsFromTimeSeries(AnalysisUtility):
     def __init__(self):
-        self.utility_name = 'find_steps_from_time_series'
-        self.utility_description = 'Finds steps from a time series data using a wavelet transform multiscale product'
+        self.utility_name = "find_steps_from_time_series"
+        self.utility_description = (
+            "Finds steps from a time series data using a wavelet transform multiscale product"
+        )
         self.utility_parameters = [
             {
-                'parameter_name': 'step_threshold',
-                'parameter_description': 'Threshold value that defines a step.',
-                'parameter_type': 'float',
-                'parameter_default': None,
-                'parameter_is_required': False
+                "parameter_name": "step_threshold",
+                "parameter_description": "Threshold value that defines a step.",
+                "parameter_type": "float",
+                "parameter_default": None,
+                "parameter_is_required": False,
             },
             {
                 # what 'column' means?
-                'parameter_name': 'column_name',
-                'parameter_description': 'Not yet written',
-                'parameter_type': 'string',
-                'parameter_default': None,
-                'parameter_is_required': False
-            }
+                "parameter_name": "column_name",
+                "parameter_description": "Not yet written",
+                "parameter_type": "string",
+                "parameter_default": None,
+                "parameter_is_required": False,
+            },
         ]
-        self.input_type = 'time_series'
-        self.output_type = 'step_list'
+        self.input_type = "time_series"
+        self.output_type = "step_list"
         super(FindStepsFromTimeSeries, self).__init__()
 
     async def call(self, task):
 
-        current_app.logger.debug("PARAMETERS %s" %task.utility_parameters)
-        
-        column_name = task.utility_parameters.get('column_name')
-        step_threshold = task.utility_parameters.get('step_threshold')
+        current_app.logger.debug("PARAMETERS %s" % task.utility_parameters)
+
+        column_name = task.utility_parameters.get("column_name")
+        step_threshold = task.utility_parameters.get("step_threshold")
         if step_threshold == "":
             step_threshold = None
-        
-        input_data, filled_in = self.prepare_timeseries(self.input_data['absolute_counts'])
+
+        input_data, filled_in = self.prepare_timeseries(self.input_data["absolute_counts"])
         column_steps = []
         interestingness = []
         if column_name:
@@ -52,21 +54,24 @@ class FindStepsFromTimeSeries(AnalysisUtility):
             step_indices = self.find_steps(prod, step_threshold)
             step_sizes, errors = self.get_step_sizes(input_data[column], step_indices)
             step_times = [input_data.index[idx].year for idx in step_indices]
-            step_keys = ['step_time', 'step_start', 'step_end', 'step_error']
-            column_steps.append({
-                'column': column,
-                'steps': [dict(zip(step_keys, [item[0], *item[1], item[2]])) for item in (zip(step_times, step_sizes, errors))]
-            })
-            interestingness.append({
-                'column': column,
-                'steps': [abs(prod[step_idx]) for step_idx in step_indices]
-            })
+            step_keys = ["step_time", "step_start", "step_end", "step_error"]
+            column_steps.append(
+                {
+                    "column": column,
+                    "steps": [
+                        dict(zip(step_keys, [item[0], *item[1], item[2]]))
+                        for item in (zip(step_times, step_sizes, errors))
+                    ],
+                }
+            )
+            interestingness.append(
+                {"column": column, "steps": [abs(prod[step_idx]) for step_idx in step_indices],}
+            )
         # TODO: Implement interestingness values
-        return {'result': column_steps,
-                'interestingness': interestingness}
+        return {"result": column_steps, "interestingness": interestingness}
 
     @staticmethod
-    def prepare_timeseries(ts, fill_na='interpolate'):
+    def prepare_timeseries(ts, fill_na="interpolate"):
         """
         Prepares a time series in  a dictionary format into a pandas timeframe, adding missing values where necessary.
         :param ts: a timeseries returned by Corpus.timeseries()
@@ -77,18 +82,22 @@ class FindStepsFromTimeSeries(AnalysisUtility):
                         valid values and interpolate('pad') outside valid values
         :return: two DataFrames. df contains the time series, filled_values shows which values were filled in
         """
-        if fill_na not in ['none', 'interpolate', 'zero']:
-            raise ValueError("Invalid value for parameter fill_na. Valid values are 'none', 'zero' and 'interpolate'")
+        if fill_na not in ["none", "interpolate", "zero"]:
+            raise ValueError(
+                "Invalid value for parameter fill_na. Valid values are 'none', 'zero' and 'interpolate'"
+            )
         df = pd.DataFrame(ts)
-        first_date = df.index[0].split('-')
+        first_date = df.index[0].split("-")
         if len(first_date) == 1:
-            freq = 'AS'
+            freq = "AS"
         elif len(first_date) == 2:
-            freq = 'MS'
+            freq = "MS"
         elif len(first_date) == 3:
-            freq = 'D'
+            freq = "D"
         else:
-            raise ValueError('Invalid date format in the time series! Use YYYY or YYYY-MM or YYYY-MM-DD!')
+            raise ValueError(
+                "Invalid date format in the time series! Use YYYY or YYYY-MM or YYYY-MM-DD!"
+            )
         df.index = pd.to_datetime(df.index)
         if len(df.index) < 2:
             return df
@@ -96,10 +105,10 @@ class FindStepsFromTimeSeries(AnalysisUtility):
         idx = pd.date_range(start=df.index.min(), end=df.index.max(), freq=freq)
         df = df.reindex(idx)
         filled_values = df.isna
-        if fill_na == 'zero':
+        if fill_na == "zero":
             df = df.fillna(0)
-        elif fill_na == 'interpolate':
-            df = df.interpolate(limit_direction='both')
+        elif fill_na == "interpolate":
+            df = df.interpolate(limit_direction="both")
 
         return df, filled_values
 
@@ -151,11 +160,11 @@ class FindStepsFromTimeSeries(AnalysisUtility):
             gz = self._insert_zeros(g, n_zeros)
             hz = self._insert_zeros(h, n_zeros)
             current = (1.0 / lambda_j[j]) * np.convolve(s, gz)
-            current = current[n_pnts + gn[j] - 1:2 * n_pnts + gn[j] - 1]
+            current = current[n_pnts + gn[j] - 1 : 2 * n_pnts + gn[j] - 1]
             prod *= current
             wavelets[j] *= current
             s_new = np.convolve(s, hz)
-            s = s_new[n_pnts + hn[j] - 1:2 * n_pnts + hn[j] - 1]
+            s = s_new[n_pnts + hn[j] - 1 : 2 * n_pnts + hn[j] - 1]
         prod /= np.abs(prod).max()
         return prod, wavelets
 
@@ -195,7 +204,7 @@ class FindStepsFromTimeSeries(AnalysisUtility):
             List of indices of the detected steps
         """
         if threshold is None:
-            threshold = sd_threshold**2 * np.var(array)
+            threshold = sd_threshold ** 2 * np.var(array)
         steps = []
         above_points = np.where(array > threshold, 1, 0)
         below_points = np.where(array < -threshold, 1, 0)
@@ -211,9 +220,9 @@ class FindStepsFromTimeSeries(AnalysisUtility):
         if len(neg_cross_ups) > len(neg_cross_dns):
             neg_cross_ups = neg_cross_ups[1:]
         for upi, dni in zip(pos_cross_ups, pos_cross_dns):
-            steps.append(np.argmax(array[upi: dni]) + upi + 1)
+            steps.append(np.argmax(array[upi:dni]) + upi + 1)
         for dni, upi in zip(neg_cross_dns, neg_cross_ups):
-            steps.append(np.argmin(array[dni: upi]) + dni + 1)
+            steps.append(np.argmin(array[dni:upi]) + dni + 1)
         return sorted(steps)
 
     @staticmethod
@@ -259,8 +268,8 @@ class FindStepsFromTimeSeries(AnalysisUtility):
                 q = min(window, index - indices[i - 1], len(array) - 1 - index)
             else:
                 q = min(window, index - indices[i - 1], indices[i + 1] - index)
-            a = array[index - q: index + 1]
-            b = array[index: index + q + 1]
+            a = array[index - q : index + 1]
+            b = array[index : index + q + 1]
             step_sizes.append((a.mean(), b.mean()))
             error = sqrt(a.var() + b.var())
             if isnan(error):

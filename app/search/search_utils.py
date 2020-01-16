@@ -7,14 +7,14 @@ from werkzeug.exceptions import Unauthorized
 
 # Runs the query/queries using aiohttp. The return value is a list containing the results in the corresponding order.
 async def search_database(queries, **kwargs):
-    current_app.logger.debug("QUERIES: %s" %queries)
+    current_app.logger.debug("QUERIES: %s" % queries)
     return_list = isinstance(queries, list)
     if not isinstance(queries, list):
         queries = [queries]
     tasks = []
     async with aiohttp.ClientSession() as session:
         # if queries: current_app.logger.info("Log, appending searches: {}".format(queries))
-        current_app.logger.debug("SESSION %s" %session)
+        current_app.logger.debug("SESSION %s" % session)
         for query in queries:
             tasks.append(query_solr(session, query, **kwargs))
         results = await asyncio.gather(*tasks, return_exceptions=(not current_app.debug))
@@ -25,10 +25,12 @@ async def search_database(queries, **kwargs):
         return results[0]
 
 
-async def query_solr(session, query, retrieve='all', max_return_value=Config.SOLR_MAX_RETURN_VALUES):
+async def query_solr(
+    session, query, retrieve="all", max_return_value=Config.SOLR_MAX_RETURN_VALUES
+):
 
-#    current_app.logger.debug("============== QUERY: %s RETRIEVE: %s" %(query, retrieve))
-    
+    #    current_app.logger.debug("============== QUERY: %s RETRIEVE: %s" %(query, retrieve))
+
     """
     :param session: an aiohttp ClientSession
     :param query: query to be run on the solR server
@@ -40,42 +42,44 @@ async def query_solr(session, query, retrieve='all', max_return_value=Config.SOL
     :return:
     """
     # First read the default parameters for the query
-    parameters = {key: value for key, value in Config.SOLR_PARAMETERS['default'].items()}
+    parameters = {key: value for key, value in Config.SOLR_PARAMETERS["default"].items()}
     # If parameters specific to the chosen retrieve value are found, they override the defaults
     if retrieve in Config.SOLR_PARAMETERS.keys():
         for key, value in Config.SOLR_PARAMETERS[retrieve].items():
             parameters[key] = value
- #   current_app.logger.debug("params I %s" %parameters)
+    #   current_app.logger.debug("params I %s" %parameters)
     # Parameters specifically defined in the query override everything else
     for key, value in query.items():
-            parameters[key] = value
-  #  current_app.logger.debug("params II %s" %parameters)
+        parameters[key] = value
+    #  current_app.logger.debug("params II %s" %parameters)
 
-    
-            
-#    current_app.logger.debug("QUERY_SOLR: %s" %parameters)
+    #    current_app.logger.debug("QUERY_SOLR: %s" %parameters)
 
-    async with session.get(Config.SOLR_URI, json={'params': parameters}) as response:
-        current_app.logger.debug("SOLR_URI %s" %Config.SOLR_URI)
-        current_app.logger.debug("params III %s" %parameters)
+    async with session.get(Config.SOLR_URI, json={"params": parameters}) as response:
+        current_app.logger.debug("SOLR_URI %s" % Config.SOLR_URI)
+        current_app.logger.debug("params III %s" % parameters)
         if response.status == 401:
             raise Unauthorized
-#        current_app.logger.debug("RESPONSE in search_utils: %s" %response)
+        #        current_app.logger.debug("RESPONSE in search_utils: %s" %response)
 
-        response = await response.json()   
+        response = await response.json()
     # For retrieving docids, retrieve all of them, unless the number of rows is specified in the query
-    if retrieve in ['docids', 'words'] and 'rows' not in query.keys():
-        num_results = response['response']['numFound']
+    if retrieve in ["docids", "words"] and "rows" not in query.keys():
+        num_results = response["response"]["numFound"]
         # Set a limit for the maximum number of documents to fetch at one go to 100000
-        parameters['rows'] = min(num_results, max_return_value)
+        parameters["rows"] = min(num_results, max_return_value)
         if num_results > max_return_value:
-            current_app.logger.debug("too many raws to return, returnung %d" %max_return_value)
-        async with session.get(Config.SOLR_URI, json={'params': parameters}) as response:
+            current_app.logger.debug("too many raws to return, returnung %d" % max_return_value)
+        async with session.get(Config.SOLR_URI, json={"params": parameters}) as response:
             if response.status == 401:
                 raise Unauthorized
             response = await response.json()
-            
-    result = {'numFound': response['response']['numFound'], 'docs': response['response']['docs'], 'facets': format_facets(response['facet_counts']['facet_fields'])}
+
+    result = {
+        "numFound": response["response"]["numFound"],
+        "docs": response["response"]["docs"],
+        "facets": format_facets(response["facet_counts"]["facet_fields"]),
+    }
     return result
 
 
@@ -91,17 +95,21 @@ def format_facets(facet_dict):
     ]
     """
     labels = {
-        'language_ssi': 'Language Ssi',
-        'member_of_collection_ids_ssim': 'Newspaper',
-        'year_isi': 'Year',
-        'has_model_ssim': 'Type',
-        'date_created_dtsi': 'Date',
+        "language_ssi": "Language Ssi",
+        "member_of_collection_ids_ssim": "Newspaper",
+        "year_isi": "Year",
+        "has_model_ssim": "Type",
+        "date_created_dtsi": "Date",
     }
-    facet_list = [{'name': name,
-                   'items': [{'value': value,
-                              'hits': hits,
-                              'label': value}
-                             for value, hits in zip(itemlist[::2], itemlist[1::2])],
-                   'label': labels[name]}
-                  for name, itemlist in facet_dict.items()]
+    facet_list = [
+        {
+            "name": name,
+            "items": [
+                {"value": value, "hits": hits, "label": value}
+                for value, hits in zip(itemlist[::2], itemlist[1::2])
+            ],
+            "label": labels[name],
+        }
+        for name, itemlist in facet_dict.items()
+    ]
     return facet_list

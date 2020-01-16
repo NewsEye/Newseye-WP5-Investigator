@@ -7,16 +7,15 @@ from app.investigator import ns as investigator_ns
 from app.dataset import ns as dataset_ns
 
 api = Api(
-    title='NewsEye Personal Research Assistant API',
-    version='1.0',
-    description='The API for the NewsEye PRA. Currently only accessible via NewsEye Demonstrator.',
-    doc='/docs',
+    title="NewsEye Personal Research Assistant API",
+    version="1.0",
+    description="The API for the NewsEye PRA. Currently only accessible via NewsEye Demonstrator.",
+    doc="/docs",
     # All API metadatas
 )
 
-api.add_namespace(search_ns, path='/api/search')
-api.add_namespace(analysis_ns, path='/api/analysis')
-api.add_namespace(report_ns, path='/api/report')
-api.add_namespace(investigator_ns, path='/api/investigator')
-api.add_namespace(dataset_ns, path='/api/dataset')
-
+api.add_namespace(search_ns, path="/api/search")
+api.add_namespace(analysis_ns, path="/api/analysis")
+api.add_namespace(report_ns, path="/api/report")
+api.add_namespace(investigator_ns, path="/api/investigator")
+api.add_namespace(dataset_ns, path="/api/dataset")
