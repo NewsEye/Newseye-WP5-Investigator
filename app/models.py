@@ -10,6 +10,7 @@ from flask_login import UserMixin
 from app import db, login
 from config import Config
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.dialects import postgresql
 
 Base = declarative_base()
 
@@ -78,7 +79,7 @@ class Processor(db.Model):
      __table_args__ = (UniqueConstraint('name', 'import_path', name='uq_processor_name_and_path'),)
      
 
-parent_child_relation = db.Table('task_parent_child_relation',
+task_parent_child_relation = db.Table('task_parent_child_relation',
                                      db.Column('parent_id', db.Integer, db.ForeignKey('task.id'), primary_key=True),
                                      db.Column('child_id', db.Integer, db.ForeignKey('task.id'), primary_key=True))
 
@@ -87,9 +88,9 @@ class Task(db.Model):
     __tablename__ = 'task'
     id = db.Column(db.Integer, primary_key=True)
 
-    parents = db.relationship("Task", secondary=parent_child_relation,
-                              primaryjoin=parent_child_relation.c.child_id==id,
-                              secondaryjoin=parent_child_relation.c.parent_id==id,
+    parents = db.relationship("Task", secondary=task_parent_child_relation,
+                              primaryjoin=task_parent_child_relation.c.child_id==id,
+                              secondaryjoin=task_parent_child_relation.c.parent_id==id,
                               backref="children")
     
     processor_id = db.Column(Integer, ForeignKey('processor.id'), nullable=False)
@@ -108,10 +109,11 @@ class Task(db.Model):
     user = db.relationship('User', back_populates='all_tasks', foreign_keys=[user_id])
     
     # force refresh: if True executes analysis utility once again, if False tries to find result from DB
+    # mostly for debugging
     force_refresh = db.Column(db.Boolean)
 
     # created/running/finished/failed
-    task_status = db.Column(db.String(255))
+    task_status = db.Column(db.Enum("created", "running", "finished", "failed", name="task_status"))
     
     # timestamps
     task_started  = db.Column(db.DateTime, default=datetime.utcnow)
@@ -179,8 +181,44 @@ class Report(db.Model):
 
     def __repr__(self):
         return '<Report>'
-    
 
+    
+class InvestigatorRun(db.Model):
+    # TODO: make explicit relations w other tables
+    __tablename__ = 'investigator_run'
+    id = db.Column(db.Integer, primary_key=True)
+    root_dataset_id = db.Column(db.Integer, db.ForeignKey('dataset.id'))
+    user_parameters = db.Column(db.JSON)
+    run_status = db.Column(db.String(255))
+    final_result = db.Column(db.JSON)
+    
+    # ??? done_tasks = None # relation to tasks; might be redundant with action information
+
+    root_action_id = db.Column(db.Integer, db.ForeignKey('investigator_action.id')) 
+
+
+    
+class InvestigatorAction(db.Model):
+    __tablename__ = 'investigator_action'
+    id = db.Column(db.Integer, primary_key=True)
+    run_id = db.Column(db.Integer, db.ForeignKey('investigator_run.id'))
+    action_id = db.Column(db.Integer) # step number inside run
+    __table_args__ = (UniqueConstraint('run_id', 'action_id', name='uq_run_and_action'),)
+
+    action_type = db.Column(db.Enum("initialize", "select", "execute", "update", "stop", name="action_type"))
+
+    input_queue = db.Column(postgresql.ARRAY(db.Integer)) # task ids
+    
+    why = db.Column(db.JSON)
+
+    action = db.Column(db.JSON) # might be assosiated with some tasks
+    # INITIALIZE: list of initial tasks
+    # SELECT: action contains list of selected tasks and their place in the input, output_queue
+    # EXECUTE: list of tasks that should be executed
+    # UPDATE: all the modifications: add/remove/insert/permute
+    
+    output_queue = db.Column(postgresql.ARRAY(db.Integer)) 
+    
     
 # Needed by flask_login
 @login.user_loader
