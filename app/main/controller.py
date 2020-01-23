@@ -14,7 +14,9 @@ def execute_tasks(queries):
     :param queries: a single query or a list of queries
     :return: A list of task_objects or task_ids corresponding to the queries.
     """
+
     task_uuids = generate_tasks(queries)
+
     # TODO: allow user to cancel task
     # currently each user query starts  a new thred (why?) and it's impossible to call tasks that are already running
     t = threading.Thread(

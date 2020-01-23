@@ -4,8 +4,7 @@ from flask_restplus import Resource
 from app.auth import AuthParser
 from app.main import controller
 from app.analysis import ns
-from app.models import Task
-from app.analysis import UTILITY_MAP
+from app.models import Task, Dataset
 from uuid import UUID
 from werkzeug.exceptions import BadRequest, InternalServerError, NotFound
 
@@ -29,24 +28,25 @@ class AnalysisTaskList(Resource):
     # Define parser for the POST endpoint
     post_parser = AuthParser()
     post_parser.add_argument(
-        "utility",
+        "processor",
         location="json",
         required=True,
-        help="The name of the analysis utility to execute",
+        help="The name of the analysis processor to execute",
     )
     post_parser.add_argument(
-        "search_query",
-        type=dict,
+        "dataset",
         location="json",
-        help="A JSON object containing a search query that defines the input data for the analysis task",
+        required=True,
+        help="The name of the dataset to apply processor",
     )
     post_parser.add_argument(
         "source_uuid",
         location="json",
         help="A task_uuid that defines the input data for the analysis task",
-    )
+     )
+
     post_parser.add_argument(
-        "utility_parameters",
+        "parameters",
         type=dict,
         default={},
         location="json",
@@ -69,7 +69,7 @@ class AnalysisTaskList(Resource):
         Start a new analysis task, and return its basic information to the user. Source data should be defined using either the search_query OR the source_uuid parameter.
         """
         args = self.post_parser.parse_args()
-        args.pop("Authorization")
+        args.pop("Authorization")        
         query = ("analysis", args)
         try:
             task = controller.execute_tasks(query)[0].dict()

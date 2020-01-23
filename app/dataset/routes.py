@@ -50,7 +50,7 @@ class DatasetX(Resource):
                 return {"error": "Dataset %s already exists" % args["dataset_name"]}
         else:
             if not Dataset.query.filter_by(dataset_name=args["dataset_name"]):
-                raise NotFound("Dataset %s does not exist" % args["dataset_name"])
+                return {"error" : "Dataset %s does not exist" % args["dataset_name"]}
 
         transformation = manipulator.execute_transformation(args)
 

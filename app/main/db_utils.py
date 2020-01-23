@@ -3,10 +3,9 @@ from flask import current_app
 from sqlalchemy.exc import IntegrityError
 from flask_login import current_user
 from app import db
-from app.models import Task, Result
+from app.models import Task, Result, Dataset, Processor
 from datetime import datetime
 from werkzeug.exceptions import BadRequest
-from app.analysis import UTILITY_MAP
 
 
 def verify_analysis_parameters(query):
@@ -17,16 +16,27 @@ def verify_analysis_parameters(query):
     if query[0] != "analysis":
         return query
     args = query[1]
-    if args["utility"] is None:
-        raise BadRequest("Required parameter 'utility' missing for query:\n{}".format(query))
-    if args["utility"] not in UTILITY_MAP.keys():
-        raise BadRequest("Utility '{}' is currently not supported.".format(args["utility"]))
-    utility_info = UTILITY_MAP[args["utility"]].get_description()
+    
+    if args["processor"] is None:
+        raise BadRequest("Required parameter 'processor' missing for query:\n{}".format(query))
+    if args["dataset"] is None and args["source_uuid"] is None:
+        raise BadRequest("A 'dataset' or 'source_uuid' is missing for query:\n{}".format(query))
 
-    query_parameters = args.get("utility_parameters", {})
+    if args["dataset"]:
+        dataset = Dataset.query.filter_by(dataset_name=args["dataset"]).one_or_none()
+        if not dataset:
+            raise BadRequest("Dataset {} does not exist".format(args["dataset"]))    
 
+    processor = Processor.query.filter_by(name=args["processor"]).one_or_none()   
+    
+    # more than one should have raised an exception already in init   
+    
+    query_parameters = args.get("parameters", {})
+    
+    parameter_info = processor.parameter_info
+                                
     new_parameters = {}
-    for parameter in utility_info["utility_parameters"]:
+    for parameter in parameter_info:
         parameter_name = parameter["parameter_name"]
         if parameter_name in query_parameters.keys():
             new_parameters[parameter_name] = query_parameters[parameter_name]
@@ -39,9 +49,11 @@ def verify_analysis_parameters(query):
                 )
             else:
                 new_parameters[parameter_name] = parameter["parameter_default"]
-    new_args = {key: value for key, value in args.items() if key != "utility_parameters"}
-    new_args["utility_parameters"] = new_parameters
-    return "analysis", new_args
+                
+    new_args = {key: value for key, value in args.items() if key != "parameters"}
+    new_args["parameters"] = new_parameters
+    
+    return "analysis", new_args, processor, dataset
 
 
 def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=False):
@@ -57,85 +69,54 @@ def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=Fals
     if not queries:
         return []
 
-    instances = []
+    tasks = []
 
     for query in queries:
         if not isinstance(query, tuple):
             raise ValueError("query should be of the type tuple")
 
-        task_type, task_parameters = verify_analysis_parameters(query)
-        utility_name = task_parameters.get("utility", None)
-        search_query = task_parameters.get("search_query", task_parameters)
-        if not search_query:
+        # TODO: can we get rid of task types? 
+        task_type, task_parameters, processor, dataset = verify_analysis_parameters(query)
+
+        if not dataset:
             # if search query is not given it should be specified by some previous search
             source_uuid = task_parameters.get("source_uuid")
-            # not relevant for comparisons:
-            if source_uuid:
-                source_instance = Task.query.filter_by(uuid=source_uuid).one_or_none()
-                search_query = source_instance.search_query
+            raise NotImplementedError("Taking a source_uuid as an input is not ready yet")
+            # if source_uuid:
+            #     source_instance = Task.query.filter_by(uuid=source_uuid).one_or_none()
+            #     search_query = source_instance.search_query
 
-        utility_parameters = task_parameters.get("utility_parameters", {})
-        task = (
-            Task.query.filter_by(
-                task_type=task_type,
-                utility_name=utility_name,
-                search_query=search_query,
-                utility_parameters=utility_parameters,
-            ).one_or_none()
-            if utility_name != "comparison"
-            else Task.query.filter_by(
-                task_type=task_type,
-                utility_name=utility_name,
-                utility_parameters=utility_parameters,
-            ).one_or_none()
-        )
-
-        input_type = UTILITY_MAP[utility_name].input_type if utility_name else None
-        output_type = UTILITY_MAP[utility_name].output_type if utility_name else None
-        if not task:
-
-            task = Task(
-                task_type=task_type,
-                utility_name=utility_name,
-                search_query=search_query,
-                utility_parameters=utility_parameters,
-                input_type=input_type,
-                output_type=output_type,
-            )
-
-            # crucial to commit immediately, otherwise task won't have an id
-            db.session.add(task)
-            db.session.commit()
-            current_app.logger.debug("Created a new task: %s" % task)
-
-        task_instance = Task(
-            task_id=task.id,
-            force_refresh=bool(task_parameters.get("force_refresh", False)),
-            source_uuid=task_parameters.get("source_uuid", None),
-            hist_parent_id=parent_id,
-            user_id=user.id,
-            task_status="created",
-        )
-
-        instances.append(task_instance)
-
-    while True:
+        current_app.logger.debug("DATASET: %s" %dataset)
+        tasks.append(Task(processor_id=processor.id,
+                          force_refresh=bool(task_parameters.get("force_refresh", False)),
+                          user_id=user.id,
+                          task_status="created",
+                          parameters=task_parameters.get("parameters", {}),
+                          dataset_id=dataset.id))
+                    
+    for i in range(5):
         try:
-            db.session.add_all(instances)
+            db.session.add_all(tasks)
             db.session.commit()
             break
         except IntegrityError as e:
+            error = e
             current_app.logger.error(
                 "Got a UUID collision? Trying with different UUIDs. Exception: {}".format(e)
             )
             db.session.rollback()
-            for instance in instances:
-                instance.uuid = uuid.uuid4()
+            for task in tasks:
+                task.uuid = uuid.uuid4()
+            
+    else:
+        current_app.logger.error("Noo, this is some other kind of bug")
+        raise error
+        
 
     if return_tasks:
-        return instances
+        return tasks
     else:
-        return [instance.uuid for instance in instances]
+        return [task.uuid for task in tasks]
 
 
 def store_results(tasks, task_results, set_to_finished=True, interestingness=0.0):

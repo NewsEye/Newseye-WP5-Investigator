@@ -3,7 +3,6 @@ import asyncio
 from flask import current_app
 from config import Config
 from app.investigator import ANALYSIS, LINKING, ANALYSIS_LINKED_DOCS
-from app.analysis import UTILITY_MAP
 from app.analysis.assessment import max_interestingness
 from app.investigator.result_comparison import estimate_interestingness
 from app.models import Task

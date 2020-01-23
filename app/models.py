@@ -57,6 +57,9 @@ class Dataset(db.Model):
     creation_history = db.relationship("DatasetTransformation", back_populates="dataset")
     tasks = db.relationship("Task", back_populates="dataset")
 
+    def __repr__(self):
+        return "<Dataset {}, dataset_name: {}, {} documents, {} tasks>".format(self.id, self.dataset_name,
+                                                                              len(self.documents), len(self.tasks))
 
 class DatasetTransformation(db.Model):
     # this table could be used to reconstruct the dataset using all transformations one by one
@@ -79,15 +82,31 @@ class DatasetTransformation(db.Model):
 class Processor(db.Model):
     __tablename__ = "processor"
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(255))
-    parameters = db.Column(JSONB)
-    input_type = db.Column(db.String(255))
-    output_type = db.Column(db.String(255))
+    name = db.Column(db.String(255), nullable=False)
+    parameter_info = db.Column(JSONB)  # list of dicts: [
+ #           {
+ #               "parameter_name": "",
+ #               "parameter_description": "",
+ #               "parameter_type": "",
+ #               "parameter_default": val,
+ #               "parameter_is_required": Bool,
+ #           },
+
+    # TODO: enum for input/output types, to have more control
+    # TODO: prerequisite processors
+    input_type = db.Column(db.String(255), nullable=False)
+    # dataset
+    output_type = db.Column(db.String(255), nullable=False)
+    # facetlist
+    
     description = db.Column(db.String(10000))
     import_path = db.Column(db.String(1024))
     tasks = db.relationship("Task", back_populates="processor")
     __table_args__ = (UniqueConstraint("name", "import_path", name="uq_processor_name_and_path"),)
 
+    def __repr__(self):
+        return '<Processor id: {}, name: {}, import_path: {}>'.format(self.id, self.name, self.import_path)
+    
 
 task_parent_child_relation = db.Table(
     "task_parent_child_relation",
@@ -95,6 +114,14 @@ task_parent_child_relation = db.Table(
     db.Column("child_id", db.Integer, db.ForeignKey("task.id"), primary_key=True),
 )
 
+task_result_relation = db.Table(
+    # many-to-many relation
+    # a task may output more than one result
+    # if task is rerun (e.g. as a part of another investigator's run) then we add a link into result table instead pf copying result, which could be quite heavy
+    "task_result_relation",
+    db.Column("task_id", db.Integer, db.ForeignKey("task.id"), primary_key=True),
+    db.Column("result_id", db.Integer, db.ForeignKey("result.id"), primary_key=True),
+)
 
 class Task(db.Model):
     __tablename__ = "task"
@@ -114,15 +141,17 @@ class Task(db.Model):
     dataset_id = db.Column(Integer, ForeignKey("dataset.id"))
     dataset = db.relationship("Dataset", back_populates="tasks")
 
-    __table_args__ = (
-        UniqueConstraint(
-            "processor_id",
-            "parameters",
-            "dataset_id",
-            "user_id",  # TODO: reuse results from other users
-            name="uq_processor_parameters_dataset",
-        ),
-    )
+    # no unique constraints
+    # if user calls the same task once again, we make a new task
+#    __table_args__ = (
+#        UniqueConstraint(
+#            "processor_id",
+#            "parameters",
+#            "dataset_id",
+#            "user_id",  
+#            name="uq_processor_parameters_dataset",
+#        ),
+#    )
 
     uuid = db.Column(UUID(as_uuid=True), unique=True, nullable=False, default=uuid.uuid4)
 
@@ -140,8 +169,10 @@ class Task(db.Model):
     task_started = db.Column(db.DateTime, default=datetime.utcnow)
     task_finished = db.Column(db.DateTime)
 
-    task_results = db.relationship("Result", back_populates="task")
-    result_id = db.Column(db.Integer)
+    # if we need to run a task once again we make a copy of task
+    # and add an additional relation to Result table
+    # results contain data and can be heavy while tasks contain only parameters and should be light
+    task_results = db.relationship("Result", secondary=task_result_relation, back_populates="tasks")       
 
     @property
     def task_result(self):
@@ -178,8 +209,7 @@ class Task(db.Model):
 class Result(db.Model):
     __tablename__ = "result"
     id = db.Column(db.Integer, primary_key=True)
-    task_id = db.Column(db.Integer, db.ForeignKey("task.id"))
-    task = db.relationship("Task", back_populates="task_results", foreign_keys=[task_id])
+    tasks = db.relationship("Task", secondary=task_result_relation, back_populates="task_results")
     result = db.Column(db.JSON)
     interestingness = db.Column(db.JSON)
     last_updated = db.Column(db.DateTime, default=datetime.utcnow)
@@ -222,7 +252,10 @@ class InvestigatorRun(db.Model):
 class InvestigatorAction(db.Model):
     __tablename__ = "investigator_action"
     id = db.Column(db.Integer, primary_key=True)
+
+    
     run_id = db.Column(db.Integer, db.ForeignKey("investigator_run.id"))
+
     action_id = db.Column(db.Integer)  # step number inside run
     __table_args__ = (UniqueConstraint("run_id", "action_id", name="uq_run_and_action"),)
 
