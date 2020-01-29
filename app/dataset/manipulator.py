@@ -71,18 +71,28 @@ class Manipulator(object):
         await self.add_to_dataset(dataset, searches, articles)
 
     async def add_to_dataset(self, dataset, searches, articles):
-        searches = eval(searches)
-        articles = eval(articles)
+
+        current_app.logger.debug("searches: %s" %searches)
+        current_app.logger.debug("articles: %s" %articles)
+        
+        searches = eval(searches) if searches else []
+        articles = eval(articles) if articles else []
         current_app.logger.debug("Adding searches into %s" % dataset.dataset_name)
 
         # 1. add documents to document table
-        search_results = await search_database(searches, retrieve="docids")
-        doc_ids = [doc["id"] for result in search_results for doc in result["docs"]]
+        if searches:
+            search_results = await search_database(searches, retrieve="docids")
+            doc_ids = [doc["id"] for result in search_results for doc in result["docs"]]
+        else:
+            doc_ids = []
+
         # here articles are solr_ids, nothing to query from solr
         doc_ids += articles
 
-        await self.add_documents_to_dataset(dataset, doc_ids)
+        current_app.logger.debug("DOC_IDS: %s" %doc_ids)
 
+        await self.add_documents_to_dataset(dataset, doc_ids)
+        
         # 2. record operations in dataset transformation table
         operations = [
             DatasetTransformation(transformation="add", dataset_id=dataset.id, search_query=search)

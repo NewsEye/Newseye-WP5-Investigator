@@ -50,7 +50,25 @@ class TaskPlanner(object):
 
         await asyncio.gather(*[self.execute_and_store(task) for task in tasks])
 
-    async def result_exist(self, task):
+    async def result_exists(self, task):
+        # ToDo: Add timeouts for the results: timestamps are already stored, simply rerun the query if the timestamp
+        ##  is too old.
+        related_tasks = Task.query.filter(Task.processor_id == task.processor_id,
+                                          Task.dataset_id == task.dataset_id,
+                                          Task.solr_query_id == task.solr_query_id,
+                                          Task.task_status == "finished",
+                                          Task.task_results is not None).all()
+        if not related_tasks:
+            return 
+
+        related_task = sorted(related_tasks, key=lambda t: t.task_finished)[-1]
+        result = related_task.task_result
+
+        task.task_results.append(result)
+        return True
+
+        
+
         # TODO:
         # 1. search for identical tasks
         # 2. get result
@@ -61,16 +79,18 @@ class TaskPlanner(object):
         """this function executes one task and its prerequisites"""
 
         # Todo: delay estimates: based on old runtime history for similar tasks?
-        # ToDo: Add timeouts for the results: timestamps are already stored, simply rerun the query if the timestamp
-        #  is too old.
-
+        
         task.task_started = datetime.utcnow()
         # to update data obtained in previous searches
         # TODO: force_refresh
+
+        current_app.logger.debug("FORCE_REFRESH %s" %task.force_refresh)
+
+        
         if not task.force_refresh:
             # search for similar tasks, reuse results
             if await self.result_exists(task):
-                current_app.logger.debug("NOT RUNNING %s, result exists" % task.utility)
+                current_app.logger.debug("NOT RUNNING %s, result exists" % task.processor.name)
                 task.task_status = "finished"
                 task.task_finished = datetime.utcnow()
         else:
@@ -92,27 +112,6 @@ class TaskPlanner(object):
         analysis_results = await self.async_analysis([task])
         # store in the database
         store_results([task], analysis_results)
-
-        #        if task.task_type == "search":
-        #            # TODO: get rid of searches
-        #            # runs searches on the external database
-        #            current_app.logger.debug("TASK_PARAMETERS: %s" % task.task_parameters)
-        #            search_results = await search_database([task.task_parameters])
-        #            # current_app.logger.debug("SEARCH_RESULTS:", search_results)
-        #            # stores results in the internal database
-        #            store_results([task], search_results)
-        #
-        #
-        #
-        #        if task.task_type == "investigator":
-        #            # TODO:
-        #            # get read of it, investigator is not a task, its now make RUN object in the database
-        #
-        #            investigator = Investigator(self, task)
-        #            await investigator.investigate()
-        #            task.task_status = "finished"
-        #            db.session.commit()
-
         return task
 
     @staticmethod

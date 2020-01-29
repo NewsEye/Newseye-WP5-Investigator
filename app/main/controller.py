@@ -14,7 +14,7 @@ def execute_task(args):
     :param queries: a single query or a list of queries
     :return: A list of task_objects or task_ids corresponding to the queries.
     """
-
+    
     task_uuid = generate_task(args)
 
     # TODO: allow user to cancel task

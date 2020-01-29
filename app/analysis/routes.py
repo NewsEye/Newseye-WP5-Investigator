@@ -80,11 +80,14 @@ class AnalysisTaskList(Resource):
         """
         args = self.post_parser.parse_args()
         args.pop("Authorization")
+
+        current_app.logger.debug("args: %s" %args)
+        
         try:
             task = controller.execute_task(args)
 
             if task.task_status == "finished":
-                return Task.query.filter_by(uuid=task["uuid"]).first().dict(style="result")
+                return Task.query.filter_by(uuid=task.uuid).first().dict(style="result")
             elif task.task_status == "running":
                 return task.dict(), 202
             else:

@@ -79,12 +79,21 @@ class ExtractFacets(AnalysisUtility):
 
     async def call(self, task):
         """ Extract all facet values found in the input data and the number of occurrences for each."""
+        # too complicated
+        # seems nobody is using these Config.constants
+        # except for this processor --- get read of them???
         facets = {}
         for feature in self.input_data[Config.FACETS_KEY]:
             values = {}
             for item in feature[Config.FACET_ITEMS_KEY]:
                 values[item[Config.FACET_VALUE_LABEL_KEY]] = item[Config.FACET_VALUE_HITS_KEY]
-            facets[feature[Config.FACET_ID_KEY]] = values
+
+            current_app.logger.debug("Config.AVAILABLE_FACETS: %s" %Config.AVAILABLE_FACETS)
+            current_app.logger.debug("Config.FACET_ID_KEY: %s" %Config.FACET_ID_KEY)
+            current_app.logger.debug("feature[Config.FACET_ID_KEY]: %s" %feature[Config.FACET_ID_KEY])
+            if feature[Config.FACET_ID_KEY] in Config.AVAILABLE_FACETS.values():
+                facets[feature[Config.FACET_ID_KEY]] = values
+           
         return {
             "result": facets,
             # interestingness as distribution

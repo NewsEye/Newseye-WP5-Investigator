@@ -27,7 +27,6 @@ def verify_analysis_parameters(args):
         if not Dataset.query.filter_by(dataset_name=args["dataset"]).one_or_none():
             # TODO: check dataset from AXel's api and insert it into the local db
             raise NotImplementedError("Dataset {} does not exist".format(args["dataset"]))
-
     processor = Processor.query.filter_by(name=args["processor"]).one_or_none()
 
     # more than one should have raised an exception already in init
@@ -35,7 +34,7 @@ def verify_analysis_parameters(args):
     query_parameters = args.get("parameters", {})
 
     parameter_info = processor.parameter_info
-
+    
     new_parameters = {}
     for parameter in parameter_info:
         parameter_name = parameter["parameter_name"]
@@ -90,12 +89,13 @@ def generate_task(query, user=current_user, parent_id=None, return_task=False):
     stores them in the database
     returns task objects or task ids
     """
-
+    
     task_parameters, processor = verify_analysis_parameters(query)
-
+    
     if task_parameters["dataset"]:
         dataset = Dataset.query.filter_by(dataset_name=task_parameters["dataset"]).first()
 
+        
         task = Task(
             processor_id=processor.id,
             force_refresh=bool(task_parameters.get("force_refresh", False)),
@@ -165,7 +165,6 @@ def store_results(tasks, task_results, set_to_finished=True, interestingness=0.0
                 last_updated=datetime.utcnow(),
                 tasks=[task],
             )
-            current_app.logger.debug("RRRRRRRRRRRRRRRRrRESULT: %s" % res)
             db.session.add(res)
             db.session.commit()
 
@@ -178,5 +177,4 @@ def make_query_from_dataset(dataset):
         "q": "*:*",
         "fq": "{!terms f=id}" + ",".join([doc.solr_id for doc in dataset.documents]),
     }
-    current_app.logger.debug(query)
     return query
