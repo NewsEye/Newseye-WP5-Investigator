@@ -1,50 +1,53 @@
 from app import db
-from app.main.db_utils import generate_tasks, store_results, verify_analysis_parameters
+from app.main.db_utils import generate_task, store_results, verify_analysis_parameters
 from app.models import Task
 from app.search.search_utils import search_database
-#from app.analysis import UTILITY_MAP, INPUT_TYPE_MAP
+
+# from app.analysis import UTILITY_MAP, INPUT_TYPE_MAP
 from datetime import datetime
 from flask import current_app
 import asyncio
 from app.investigator.investigator import Investigator
 import warnings
 
+
 class TaskPlanner(object):
     def __init__(self, user):
         self.user = user
 
-    async def execute_user_task(self, task_uuids=None):
-        tasks = Task.query.filter(Task.uuid.in_(task_uuids)).all()
-        await self.execute_and_store_tasks(tasks)
+    async def execute_user_task(self, task_uuid=None):
+        task = Task.query.filter(Task.uuid == task_uuid).all()
+        # .all() returns a list
+        await self.execute_and_store_tasks(task)
 
     async def async_analysis(self, tasks):
-        """ Generate asyncio tasks and run them, returning when all tasks are done"""        
+        """ Generate asyncio tasks and run them, returning when all tasks are done"""
         # generates coroutines out of task objects
 
         async_tasks = []
         for task in tasks:
-            current_app.logger.debug("Processor: %s, type: %s" %(task.processor, type(task.processor)))
-            Processor = getattr(__import__(task.processor.import_path, fromlist=[task.processor.name]),
-                                task.processor.name)
-            current_app.logger.debug("Processor: %s" %Processor)
+            Processor = getattr(
+                __import__(task.processor.import_path, fromlist=[task.processor.name]),
+                task.processor.name,
+            )
             processor = Processor()
-                                
-                                
+
             async_tasks.append(processor(task))
 
         current_app.logger.debug(async_tasks)
-            
-#        async_tasks = [task.processor(task) for task in tasks]
+
+        #        async_tasks = [task.processor(task) for task in tasks]
 
         # here tasks are actually executed asynchronously
         # returns list of results *or* exceptions if a task fail
         results = await asyncio.gather(*async_tasks, return_exceptions=(not current_app.debug))
         for t in tasks:
-            current_app.logger.info("%s:%s finished, returning results" % (t.utility, t.uuid))
+            current_app.logger.info("%s:%s finished, returning results" % (t.processor, t.uuid))
         return results
 
     async def execute_and_store_tasks(self, tasks):
         """ this function ensures parallelization task execution"""
+
         await asyncio.gather(*[self.execute_and_store(task) for task in tasks])
 
     async def result_exist(self, task):
@@ -53,7 +56,7 @@ class TaskPlanner(object):
         # 2. get result
         # 3. update Task-Result relation
         return None
-        
+
     async def execute_and_store(self, task):
         """this function executes one task and its prerequisites"""
 
@@ -90,26 +93,25 @@ class TaskPlanner(object):
         # store in the database
         store_results([task], analysis_results)
 
-
-#        if task.task_type == "search":
-#            # TODO: get rid of searches
-#            # runs searches on the external database
-#            current_app.logger.debug("TASK_PARAMETERS: %s" % task.task_parameters)
-#            search_results = await search_database([task.task_parameters])
-#            # current_app.logger.debug("SEARCH_RESULTS:", search_results)
-#            # stores results in the internal database
-#            store_results([task], search_results)
-#
-#
-#            
-#        if task.task_type == "investigator":
-#            # TODO:
-#            # get read of it, investigator is not a task, its now make RUN object in the database
-#            
-#            investigator = Investigator(self, task)
-#            await investigator.investigate()
-#            task.task_status = "finished"
-#            db.session.commit()
+        #        if task.task_type == "search":
+        #            # TODO: get rid of searches
+        #            # runs searches on the external database
+        #            current_app.logger.debug("TASK_PARAMETERS: %s" % task.task_parameters)
+        #            search_results = await search_database([task.task_parameters])
+        #            # current_app.logger.debug("SEARCH_RESULTS:", search_results)
+        #            # stores results in the internal database
+        #            store_results([task], search_results)
+        #
+        #
+        #
+        #        if task.task_type == "investigator":
+        #            # TODO:
+        #            # get read of it, investigator is not a task, its now make RUN object in the database
+        #
+        #            investigator = Investigator(self, task)
+        #            await investigator.investigate()
+        #            task.task_status = "finished"
+        #            db.session.commit()
 
         return task
 
@@ -137,6 +139,3 @@ class TaskPlanner(object):
         # TODO:
         current_app.logger.debug("TODO: get prerequisite tasks")
         return None
-        
-
-    

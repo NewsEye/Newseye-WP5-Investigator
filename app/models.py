@@ -1,6 +1,8 @@
 from datetime import datetime
+from werkzeug.http import http_date
 from sqlalchemy import UniqueConstraint, Integer, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.dialects.postgresql import UUID, JSONB, ARRAY
+from sqlalchemy.ext.declarative import declarative_base
 import uuid
 import jwt
 from jwt.exceptions import ExpiredSignatureError, InvalidSignatureError
@@ -8,8 +10,6 @@ from flask import current_app
 from flask_login import UserMixin
 from app import db, login
 from config import Config
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.dialects import postgresql
 
 Base = declarative_base()
 
@@ -46,6 +46,26 @@ class Document(db.Model):
     )
 
 
+class SolrQuery(db.Model):
+    __tablename__ = "solr_query"
+    id = db.Column(db.Integer, primary_key=True)
+    query = db.Column(JSONB)
+    # we expect one output, but there could be more due to database versions
+    solr_outputs = db.relationship("SolrOutput", back_populates="solr_query")
+    tasks = db.relationship("Task", back_populates="solr_query")
+
+
+class SolrOutput(db.Model):
+    __tablename__ = "solr_output"
+    # some queries might be too heavy, better to store localy
+    id = db.Column(db.Integer, primary_key=True)
+    output = db.Column(JSONB, nullable=False)
+    solr_query_id = db.Column(Integer, ForeignKey("solr_query.id"), nullable=False)
+    solr_query = db.relationship(
+        "SolrQuery", foreign_keys=[solr_query_id], back_populates="solr_outputs"
+    )
+
+
 class Dataset(db.Model):
     __tablename__ = "dataset"
     id = db.Column(db.Integer, primary_key=True)
@@ -58,8 +78,10 @@ class Dataset(db.Model):
     tasks = db.relationship("Task", back_populates="dataset")
 
     def __repr__(self):
-        return "<Dataset {}, dataset_name: {}, {} documents, {} tasks>".format(self.id, self.dataset_name,
-                                                                              len(self.documents), len(self.tasks))
+        return "<Dataset {}, dataset_name: {}, {} documents, {} tasks>".format(
+            self.id, self.dataset_name, len(self.documents), len(self.tasks)
+        )
+
 
 class DatasetTransformation(db.Model):
     # this table could be used to reconstruct the dataset using all transformations one by one
@@ -84,13 +106,13 @@ class Processor(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False)
     parameter_info = db.Column(JSONB)  # list of dicts: [
- #           {
- #               "parameter_name": "",
- #               "parameter_description": "",
- #               "parameter_type": "",
- #               "parameter_default": val,
- #               "parameter_is_required": Bool,
- #           },
+    #           {
+    #               "parameter_name": "",
+    #               "parameter_description": "",
+    #               "parameter_type": "",
+    #               "parameter_default": val,
+    #               "parameter_is_required": Bool,
+    #           },
 
     # TODO: enum for input/output types, to have more control
     # TODO: prerequisite processors
@@ -98,15 +120,17 @@ class Processor(db.Model):
     # dataset
     output_type = db.Column(db.String(255), nullable=False)
     # facetlist
-    
+
     description = db.Column(db.String(10000))
     import_path = db.Column(db.String(1024))
     tasks = db.relationship("Task", back_populates="processor")
     __table_args__ = (UniqueConstraint("name", "import_path", name="uq_processor_name_and_path"),)
 
     def __repr__(self):
-        return '<Processor id: {}, name: {}, import_path: {}>'.format(self.id, self.name, self.import_path)
-    
+        return "<Processor id: {}, name: {}, import_path: {}>".format(
+            self.id, self.name, self.import_path
+        )
+
 
 task_parent_child_relation = db.Table(
     "task_parent_child_relation",
@@ -123,6 +147,7 @@ task_result_relation = db.Table(
     db.Column("result_id", db.Integer, db.ForeignKey("result.id"), primary_key=True),
 )
 
+
 class Task(db.Model):
     __tablename__ = "task"
     id = db.Column(db.Integer, primary_key=True)
@@ -138,21 +163,17 @@ class Task(db.Model):
     processor_id = db.Column(Integer, ForeignKey("processor.id"), nullable=False)
     processor = db.relationship("Processor", foreign_keys=[processor_id], back_populates="tasks")
     parameters = db.Column(JSONB)
+
+    # a task takes as an input a dataset or a solr query, never both
     dataset_id = db.Column(Integer, ForeignKey("dataset.id"))
-    dataset = db.relationship("Dataset", back_populates="tasks")
+    dataset = db.relationship("Dataset", back_populates="tasks", foreign_keys=[dataset_id])
 
-    # no unique constraints
-    # if user calls the same task once again, we make a new task
-#    __table_args__ = (
-#        UniqueConstraint(
-#            "processor_id",
-#            "parameters",
-#            "dataset_id",
-#            "user_id",  
-#            name="uq_processor_parameters_dataset",
-#        ),
-#    )
+    solr_query_id = db.Column(Integer, ForeignKey("solr_query.id"))
+    solr_query = db.relationship("SolrQuery", foreign_keys=[solr_query_id], back_populates="tasks")
 
+    input_type = db.Column(
+        db.Enum("solr_query", "dataset", name="input_type"), nullable=False
+    )  # later on something else?
     uuid = db.Column(UUID(as_uuid=True), unique=True, nullable=False, default=uuid.uuid4)
 
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
@@ -163,7 +184,11 @@ class Task(db.Model):
     force_refresh = db.Column(db.Boolean)
 
     # created/running/finished/failed
-    task_status = db.Column(db.Enum("created", "running", "finished", "failed", name="task_status"))
+    task_status = db.Column(
+        db.Enum("created", "running", "finished", "failed", name="task_status"), nullable=False
+    )
+    # error message for failed tasks, might be something else for other types
+    status_message = db.Column(db.String(255))
 
     # timestamps
     task_started = db.Column(db.DateTime, default=datetime.utcnow)
@@ -172,22 +197,56 @@ class Task(db.Model):
     # if we need to run a task once again we make a copy of task
     # and add an additional relation to Result table
     # results contain data and can be heavy while tasks contain only parameters and should be light
-    task_results = db.relationship("Result", secondary=task_result_relation, back_populates="tasks")       
+    task_results = db.relationship("Result", secondary=task_result_relation, back_populates="tasks")
+
+    def __repr__(self):
+        return "<Task id: {}, processor: {}, dataset: {} ({}), solr_query: {}, status: {}>".format(
+            self.id,
+            self.processor,
+            self.dataset_id,
+            self.dataset.dataset_name,
+            self.solr_query,
+            self.task_status,
+        )
+
+    def dict(self, style="status"):
+        if style == "status":
+            if self.task_status == "running":
+                return {
+                    "uuid": str(self.uuid),
+                    "processor": self.processor.name,
+                    "parameters": self.parameters,
+                    "task_status": self.task_status,
+                    "task_started": http_date(self.task_started),
+                }
+            else:
+                return {
+                    "uuid": str(self.uuid),
+                    "processor": self.processor.name,
+                    "parameters": self.parameters,
+                    "task_status": self.task_status,
+                    "task_started": http_date(self.task_started),
+                    "task_finished": http_date(self.task_finished),
+                }
+
+        elif style == "result":
+            return {
+                "uuid": str(self.uuid),
+                "processor": self.processor.name,
+                "parameters": self.parameters,
+                "task_status": self.task_status,
+                "task_started": http_date(self.task_started),
+                "task_finished": http_date(self.task_finished),
+                "task_result": self.result_with_interestingness,
+            }
 
     @property
     def task_result(self):
-        if self.result_id:
-            # ??? is there a way to query result directly by id?
-            return next(
-                (result for result in self.task.task_results if result.id == self.result_id), None,
-            )
-        else:
-            if self.task_results:
-                the_most_recent_result = sorted(self.task_results, key=lambda r: r.last_updated)[-1]
-                if the_most_recent_result:
-                    if not self.force_refresh:
-                        self.result_id = the_most_recent_result.id
-                return the_most_recent_result
+        if self.task_results:
+            if len(self.task_results) > 1:
+                raise NotImplementedError("Don't know what to do with more than one report")
+            else:
+                return self.task_results[0]
 
     @property
     def task_report(self):
@@ -207,6 +266,7 @@ class Task(db.Model):
 
 
 class Result(db.Model):
+    # ??? do we need uuids for results (separately from task uuids)
     __tablename__ = "result"
     id = db.Column(db.Integer, primary_key=True)
     tasks = db.relationship("Task", secondary=task_result_relation, back_populates="task_results")
@@ -216,7 +276,7 @@ class Result(db.Model):
     result_reports = db.relationship("Report", back_populates="result")
 
     def __repr__(self):
-        return "<Result id: {} task: {} date: {}>".format(self.id, self.task_id, self.last_updated)
+        return "<Result id: {} date: {} tasks: {} >".format(self.id, self.last_updated, self.tasks)
 
 
 class Report(db.Model):
@@ -253,7 +313,6 @@ class InvestigatorAction(db.Model):
     __tablename__ = "investigator_action"
     id = db.Column(db.Integer, primary_key=True)
 
-    
     run_id = db.Column(db.Integer, db.ForeignKey("investigator_run.id"))
 
     action_id = db.Column(db.Integer)  # step number inside run
@@ -263,7 +322,7 @@ class InvestigatorAction(db.Model):
         db.Enum("initialize", "select", "execute", "update", "stop", name="action_type")
     )
 
-    input_queue = db.Column(postgresql.ARRAY(db.Integer))  # task ids
+    input_queue = db.Column(ARRAY(db.Integer))  # task ids
 
     why = db.Column(db.JSON)
 
@@ -273,7 +332,7 @@ class InvestigatorAction(db.Model):
     # EXECUTE: list of tasks that should be executed
     # UPDATE: all the modifications: add/remove/insert/permute
 
-    output_queue = db.Column(postgresql.ARRAY(db.Integer))
+    output_queue = db.Column(ARRAY(db.Integer))
 
 
 # Needed by flask_login

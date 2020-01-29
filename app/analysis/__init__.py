@@ -7,32 +7,31 @@ from app.analysis import routes
 
 from app.analysis.processors import ExtractFacets
 
+
 def initialize_processors(app):
     with app.app_context():
         ExtractFacets(initialize=True).make_processor()
-        
 
-#from app.analysis.analysis_utils import (
+
+# from app.analysis.analysis_utils import (
 #    ExtractFacets,
 #    CommonFacetValues,
 #    GenerateTimeSeries,
 #    ExtractDocumentIds,
-#)
+# )
 #
-#from app.analysis.analysis_utils import LemmaFrequencyTimeseries, AnalyseLemmaFrequency
-#from app.analysis.topic_models import QueryTopicModel, TopicModelDocumentLinking
-#from app.analysis.step_detection import FindStepsFromTimeSeries
-#from app.analysis.basic_statistics import ExtractWords, ComputeTfIdf  # MakeBasicStats,
-#from app.investigator.result_comparison import ComparisonUtility
-
-    
+# from app.analysis.analysis_utils import LemmaFrequencyTimeseries, AnalyseLemmaFrequency
+# from app.analysis.topic_models import QueryTopicModel, TopicModelDocumentLinking
+# from app.analysis.step_detection import FindStepsFromTimeSeries
+# from app.analysis.basic_statistics import ExtractWords, ComputeTfIdf  # MakeBasicStats,
+# from app.investigator.result_comparison import ComparisonUtility
 
 
 #
 #
 #
 #
-#UTILITY_MAP = {
+# UTILITY_MAP = {
 #    "extract_facets": ExtractFacets(),
 #    "common_facet_values": CommonFacetValues(),
 #    "generate_time_series": GenerateTimeSeries(),
@@ -47,13 +46,11 @@ def initialize_processors(app):
 #    # These don't work yet without the pickled indexes
 #    # 'lemma_frequency_timeseries': LemmaFrequencyTimeseries(),
 #    # 'analyse_lemma_frequency': AnalyseLemmaFrequency(),
-#}
+# }
 #
-#INPUT_TYPE_MAP = {
+# INPUT_TYPE_MAP = {
 #    # there are more than one utility that outputs 'id_list'
 #    # this map specifies default utility to be used
 #    "id_list": "extract_document_ids"
-#}
+# }
 #
-
-

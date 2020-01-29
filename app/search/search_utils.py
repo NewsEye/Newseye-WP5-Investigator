@@ -58,11 +58,15 @@ async def query_solr(
     async with session.get(Config.SOLR_URI, json={"params": parameters}) as response:
         current_app.logger.debug("SOLR_URI %s" % Config.SOLR_URI)
         current_app.logger.debug("params III %s" % parameters)
+        current_app.logger.debug("response.status: %s" % response.status)
+
         if response.status == 401:
             raise Unauthorized
         #        current_app.logger.debug("RESPONSE in search_utils: %s" %response)
 
         response = await response.json()
+        current_app.logger.debug("response.json() %s" % response)
+
     # For retrieving docids, retrieve all of them, unless the number of rows is specified in the query
     if retrieve in ["docids", "words"] and "rows" not in query.keys():
         num_results = response["response"]["numFound"]

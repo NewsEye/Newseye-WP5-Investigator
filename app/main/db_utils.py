@@ -3,38 +3,39 @@ from flask import current_app
 from sqlalchemy.exc import IntegrityError
 from flask_login import current_user
 from app import db
-from app.models import Task, Result, Dataset, Processor
+from app.models import Task, Result, Dataset, Processor, SolrQuery
 from datetime import datetime
 from werkzeug.exceptions import BadRequest
 
 
-def verify_analysis_parameters(query):
+def verify_analysis_parameters(args):
     """ 
     checks the correctness 
     and updates missed parameters with defaults
     """
-    if query[0] != "analysis":
-        return query
-    args = query[1]
-    
+
     if args["processor"] is None:
         raise BadRequest("Required parameter 'processor' missing for query:\n{}".format(query))
-    if args["dataset"] is None and args["source_uuid"] is None:
+
+    if args["dataset"] is None and args["search_query"] is None and args["source_uuid"] is None:
         raise BadRequest("A 'dataset' or 'source_uuid' is missing for query:\n{}".format(query))
 
-    if args["dataset"]:
-        dataset = Dataset.query.filter_by(dataset_name=args["dataset"]).one_or_none()
-        if not dataset:
-            raise BadRequest("Dataset {} does not exist".format(args["dataset"]))    
+    if args["dataset"] and args["search_query"]:
+        raise BadREquest("You cannot specify 'dataset' and 'search query' in the same time")
 
-    processor = Processor.query.filter_by(name=args["processor"]).one_or_none()   
-    
-    # more than one should have raised an exception already in init   
-    
+    if args["dataset"]:
+        if not Dataset.query.filter_by(dataset_name=args["dataset"]).one_or_none():
+            # TODO: check dataset from AXel's api and insert it into the local db
+            raise NotImplementedError("Dataset {} does not exist".format(args["dataset"]))
+
+    processor = Processor.query.filter_by(name=args["processor"]).one_or_none()
+
+    # more than one should have raised an exception already in init
+
     query_parameters = args.get("parameters", {})
-    
+
     parameter_info = processor.parameter_info
-                                
+
     new_parameters = {}
     for parameter in parameter_info:
         parameter_name = parameter["parameter_name"]
@@ -49,54 +50,26 @@ def verify_analysis_parameters(query):
                 )
             else:
                 new_parameters[parameter_name] = parameter["parameter_default"]
-                
+
     new_args = {key: value for key, value in args.items() if key != "parameters"}
     new_args["parameters"] = new_parameters
-    
-    return "analysis", new_args, processor, dataset
+
+    return new_args, processor
 
 
-def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=False):
-    """
-    turns queries into Task objects
-    stores them in the database
-    returns task objects or task ids
-    """
+def get_solr_query_id(search_query):
+    solr_query = SolrQuery.query.filter_by(query=search_query).one_or_none()
+    if not solr_query:
+        solr_query = SolrQuery(query=search_query)
+        db.session.add(solr_query)
+        db.session.commit()
+    return solr_query.id
 
-    if not isinstance(queries, list):
-        queries = [queries]
 
-    if not queries:
-        return []
-
-    tasks = []
-
-    for query in queries:
-        if not isinstance(query, tuple):
-            raise ValueError("query should be of the type tuple")
-
-        # TODO: can we get rid of task types? 
-        task_type, task_parameters, processor, dataset = verify_analysis_parameters(query)
-
-        if not dataset:
-            # if search query is not given it should be specified by some previous search
-            source_uuid = task_parameters.get("source_uuid")
-            raise NotImplementedError("Taking a source_uuid as an input is not ready yet")
-            # if source_uuid:
-            #     source_instance = Task.query.filter_by(uuid=source_uuid).one_or_none()
-            #     search_query = source_instance.search_query
-
-        current_app.logger.debug("DATASET: %s" %dataset)
-        tasks.append(Task(processor_id=processor.id,
-                          force_refresh=bool(task_parameters.get("force_refresh", False)),
-                          user_id=user.id,
-                          task_status="created",
-                          parameters=task_parameters.get("parameters", {}),
-                          dataset_id=dataset.id))
-                    
-    for i in range(5):
+def commit_task(task, max_try=5):
+    for i in range(max_try):
         try:
-            db.session.add_all(tasks)
+            db.session.add(task)
             db.session.commit()
             break
         except IntegrityError as e:
@@ -105,18 +78,57 @@ def generate_tasks(queries, user=current_user, parent_id=None, return_tasks=Fals
                 "Got a UUID collision? Trying with different UUIDs. Exception: {}".format(e)
             )
             db.session.rollback()
-            for task in tasks:
-                task.uuid = uuid.uuid4()
-            
+            task.uuid = uuid.uuid4()
     else:
-        current_app.logger.error("Noo, this is some other kind of bug")
+        current_app.logger.error("Cannot store to the database Task %s" % Task)
         raise error
-        
 
-    if return_tasks:
-        return tasks
+
+def generate_task(query, user=current_user, parent_id=None, return_task=False):
+    """
+    turns queries into Task objects
+    stores them in the database
+    returns task objects or task ids
+    """
+
+    task_parameters, processor = verify_analysis_parameters(query)
+
+    if task_parameters["dataset"]:
+        dataset = Dataset.query.filter_by(dataset_name=task_parameters["dataset"]).first()
+
+        task = Task(
+            processor_id=processor.id,
+            force_refresh=bool(task_parameters.get("force_refresh", False)),
+            user_id=user.id,
+            input_type="dataset",
+            task_status="created",
+            parameters=task_parameters.get("parameters", {}),
+            dataset_id=dataset.id,
+        )
+
+    elif task_parameters["search_query"]:
+
+        task = Task(
+            processor_id=processor.id,
+            force_refresh=bool(task_parameters.get("force_refresh", False)),
+            user_id=user.id,
+            input_type="solr_query",
+            task_status="created",
+            parameters=task_parameters.get("parameters", {}),
+            solr_query=get_solr_query_id(task_parameters["search_query"]),
+        )
     else:
-        return [task.uuid for task in tasks]
+        raise NotImplementedError("Taking a source_uuid as an input is not ready yet")
+    # if source_uuid:
+    #     source_instance = Task.query.filter_by(uuid=source_uuid).one_or_none()
+    #     search_query = source_instance.search_query
+
+    commit_task(task)
+
+    if return_task:
+        return task
+    else:
+        return task.uuid
 
 
 def store_results(tasks, task_results, set_to_finished=True, interestingness=0.0):
@@ -127,49 +139,44 @@ def store_results(tasks, task_results, set_to_finished=True, interestingness=0.0
     # doubt this would be the case here.
 
     for task, result in zip(tasks, task_results):
+
+        current_app.logger.debug("IN STORE_RESULTS: task: %s result: %s" % (task, result))
         if set_to_finished:
             task.task_finished = datetime.utcnow()
+
         if isinstance(result, ValueError):
             current_app.logger.error("ValueError: {}".format(result))
-            task.task_status = "failed: {}".format(result)[:255]
+            task.task_status = "failed"
+            task.status_message = "{}".format(result)[:255]
         elif isinstance(result, Exception):
             current_app.logger.error("Unexpected exception: {}".format(result))
-            task.task_status = "failed: Unexpected exception: {}".format(result)[:255]
+            task.task_status = "failed"
+            task.status_message = "Unexpected exception: {}".format(result)[:255]
         else:
             if set_to_finished:
                 task.task_status = "finished"
-            # else update result but keep task running (for investigator)
+            # else update result but keep task running (for investigator)  --- TODO: check if we still need that
 
-            res = Result.query.filter_by(id=task.result_id).one_or_none()
+            ## TODO: check for existing results
 
-            if not res:
-                db.session.commit()
-                try:
-                    res = Result(id=task.result_id)
-                    db.session.add(res)
-                    db.session.commit()
-
-                # If another thread created the query in the meanwhile, this should recover from that, and simply overwrite the result with the newest one.
-                # If the filter still returns None after IntegrityError, we log the event, ignore the result and continue
-                except IntegrityError:
-                    db.session.rollback()
-                    res = Result.query.filter_by(id=task.result_id).one_or_none()
-                    if not res:
-                        current_app.logger.error(
-                            "Unable to create or retrieve Result for {}. Store results failed!".format(
-                                task
-                            )
-                        )
-                        continue
-
-            # analysis utilities return {'result': ..., 'interestingness': ...}
-            # search return just result
-            res.result = result.get("result", result)
-            res.interestingness = result.get("interestingness", interestingness)
-            res.last_updated = datetime.utcnow()
-            res.task_id = task.task_id
-            task.result_id = res.id
-            task.task.result_id = res.id
+            res = Result(
+                result=result["result"],
+                interestingness=result["interestingness"],
+                last_updated=datetime.utcnow(),
+                tasks=[task],
+            )
+            current_app.logger.debug("RRRRRRRRRRRRRRRRrRESULT: %s" % res)
+            db.session.add(res)
+            db.session.commit()
 
     current_app.logger.info("Storing results into database %s" % [str(task.uuid) for task in tasks])
     db.session.commit()
+
+
+def make_query_from_dataset(dataset):
+    query = {
+        "q": "*:*",
+        "fq": "{!terms f=id}" + ",".join([doc.solr_id for doc in dataset.documents]),
+    }
+    current_app.logger.debug(query)
+    return query

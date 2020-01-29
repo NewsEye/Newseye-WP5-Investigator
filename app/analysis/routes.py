@@ -4,9 +4,10 @@ from flask_restplus import Resource
 from app.auth import AuthParser
 from app.main import controller
 from app.analysis import ns
-from app.models import Task, Dataset
+from app.models import Task
 from uuid import UUID
 from werkzeug.exceptions import BadRequest, InternalServerError, NotFound
+from flask import current_app
 
 
 @ns.route("/")
@@ -33,17 +34,26 @@ class AnalysisTaskList(Resource):
         required=True,
         help="The name of the analysis processor to execute",
     )
+
     post_parser.add_argument(
         "dataset",
         location="json",
         required=True,
         help="The name of the dataset to apply processor",
     )
+
+    post_parser.add_argument(
+        "search_query",
+        type=dict,
+        location="json",
+        help="A JSON object containing a search query that defines the input data for the analysis task",
+    )
+
     post_parser.add_argument(
         "source_uuid",
         location="json",
         help="A task_uuid that defines the input data for the analysis task",
-     )
+    )
 
     post_parser.add_argument(
         "parameters",
@@ -69,20 +79,19 @@ class AnalysisTaskList(Resource):
         Start a new analysis task, and return its basic information to the user. Source data should be defined using either the search_query OR the source_uuid parameter.
         """
         args = self.post_parser.parse_args()
-        args.pop("Authorization")        
-        query = ("analysis", args)
+        args.pop("Authorization")
         try:
-            task = controller.execute_tasks(query)[0].dict()
-            if task["task_status"] == "finished":
+            task = controller.execute_task(args)
+
+            if task.task_status == "finished":
                 return Task.query.filter_by(uuid=task["uuid"]).first().dict(style="result")
-            elif task["task_status"] == "running":
-                return task, 202
+            elif task.task_status == "running":
+                return task.dict(), 202
             else:
                 raise InternalServerError
         except BadRequest:
             raise
         except Exception as e:
-            current_app.logger.exception(e)
             raise InternalServerError
 
 

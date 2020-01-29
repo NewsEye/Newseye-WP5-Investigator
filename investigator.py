@@ -4,14 +4,15 @@ from app.models import User, Result, Task, Report
 app = create_app()
 
 from app.analysis import initialize_processors
+
 initialize_processors(app)
 
 
-#from app.analysis.processors import ExtractFacets
+# from app.analysis.processors import ExtractFacets
 
-#with app.app_context():
+# with app.app_context():
 #    # initialize processors
-#    ExtractFacets()  
+#    ExtractFacets()
 
 
 @app.shell_context_processor
