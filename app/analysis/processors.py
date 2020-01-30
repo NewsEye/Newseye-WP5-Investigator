@@ -54,7 +54,7 @@ class AnalysisUtility(Processor):
             raise NotImplementedError("cannot get data for task %s" % task)
 
     async def get_input_data(self, solr_query, retrieve="facets"):
-        return await search_database(solr_query, retrieve=retrieve)
+        return await search_database(solr_query.search_query, retrieve=retrieve)
 
     def get_description(self):
         return self.processor.dict()
@@ -98,3 +98,8 @@ class ExtractFacets(AnalysisUtility):
 
  
         
+
+
+#def ExtractWords(AnalysisUtility):
+#    @classmethod
+    

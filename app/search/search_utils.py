@@ -26,7 +26,7 @@ async def search_database(queries, **kwargs):
 
 
 async def query_solr(
-    session, query, retrieve="all", max_return_value=Config.SOLR_MAX_RETURN_VALUES
+        session, query, retrieve="all", max_return_value=Config.SOLR_MAX_RETURN_VALUES, solr_index=Config.SOLR_INDEX
 ):
 
     #    current_app.logger.debug("============== QUERY: %s RETRIEVE: %s" %(query, retrieve))
@@ -41,6 +41,10 @@ async def query_solr(
                    By default this retrieves only the first 10 matches, but this can be changed by specifying a desired value using the 'rows' parameter
     :return:
     """
+
+    solr_uri = Config.SOLR_URI+solr_index       
+
+    
     # First read the default parameters for the query
     parameters = {key: value for key, value in Config.SOLR_PARAMETERS["default"].items()}
     # If parameters specific to the chosen retrieve value are found, they override the defaults
@@ -55,8 +59,11 @@ async def query_solr(
 
     #    current_app.logger.debug("QUERY_SOLR: %s" %parameters)
 
-    async with session.get(Config.SOLR_URI, json={"params": parameters}) as response:
-        current_app.logger.debug("SOLR_URI %s" % Config.SOLR_URI)
+
+    
+    
+    async with session.get(solr_uri, json={"params": parameters}) as response:
+        current_app.logger.debug("SOLR_URI %s" % solr_uri)
         current_app.logger.debug("params III %s" % parameters)
         current_app.logger.debug("response.status: %s" % response.status)
 
@@ -74,7 +81,8 @@ async def query_solr(
         parameters["rows"] = min(num_results, max_return_value)
         if num_results > max_return_value:
             current_app.logger.debug("too many raws to return, returnung %d" % max_return_value)
-        async with session.get(Config.SOLR_URI, json={"params": parameters}) as response:
+            
+        async with session.get(solr_uri, json={"params": parameters}) as response:
             if response.status == 401:
                 raise Unauthorized
             response = await response.json()

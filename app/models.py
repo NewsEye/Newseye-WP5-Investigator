@@ -49,11 +49,14 @@ class Document(db.Model):
 class SolrQuery(db.Model):
     __tablename__ = "solr_query"
     id = db.Column(db.Integer, primary_key=True)
-    query = db.Column(JSONB)
+    search_query = db.Column(JSONB)
     # we expect one output, but there could be more due to database versions
     solr_outputs = db.relationship("SolrOutput", back_populates="solr_query")
     tasks = db.relationship("Task", back_populates="solr_query")
 
+    def __repr__(self):
+        return "<SolrQuery {}, search_query {}>".format(self.id, self.search_query)
+    
 
 class SolrOutput(db.Model):
     __tablename__ = "solr_output"
@@ -137,7 +140,7 @@ class Processor(db.Model):
             "description": self.description,
             "parameters": self.parameter_info,
             "input_type": self.input_type,
-            "output_type": self..output_type,
+            "output_type": self.output_type,
         }
 
 
@@ -209,14 +212,22 @@ class Task(db.Model):
     task_results = db.relationship("Result", secondary=task_result_relation, back_populates="tasks")
 
     def __repr__(self):
-        return "<Task id: {}, processor: {}, dataset: {} ({}), solr_query: {}, status: {}>".format(
-            self.id,
-            self.processor,
-            self.dataset_id,
-            self.dataset.dataset_name,
-            self.solr_query,
-            self.task_status,
-        )
+        if self.dataset:
+            return "<Task id: {}, processor: {}, dataset: {} ({}), status: {}>".format(
+                self.id,
+                self.processor,
+                self.dataset_id,
+                self.dataset.dataset_name,
+                self.task_status,
+            )
+        elif self.solr_query:
+            return "<Task id: {}, processor: {}, solr_query: {} ({}), status: {}>".format(
+                self.id,
+                self.processor,
+                self.solr_query_id,
+                self.solr_query.search_query,
+                self.task_status,
+            )
 
     def dict(self, style="status"):
         if style == "status":

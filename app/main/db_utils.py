@@ -56,13 +56,15 @@ def verify_analysis_parameters(args):
     return new_args, processor
 
 
-def get_solr_query_id(search_query):
-    solr_query = SolrQuery.query.filter_by(query=search_query).one_or_none()
+def get_solr_query(search_query):
+    current_app.logger.debug("SEARCH_QUERY %s" %search_query)
+    solr_query = SolrQuery.query.filter_by(search_query=search_query).one_or_none()
+    current_app.logger.debug("SOLR_QUERY %s" %solr_query)
     if not solr_query:
-        solr_query = SolrQuery(query=search_query)
+        solr_query = SolrQuery(search_query=search_query)
         db.session.add(solr_query)
         db.session.commit()
-    return solr_query.id
+    return solr_query
 
 
 def commit_task(task, max_try=5):
@@ -115,14 +117,17 @@ def generate_task(query, user=current_user, parent_id=None, return_task=False):
             input_type="solr_query",
             task_status="created",
             parameters=task_parameters.get("parameters", {}),
-            solr_query=get_solr_query_id(task_parameters["search_query"]),
+            solr_query=get_solr_query(task_parameters["search_query"]),
         )
+        
     else:
         raise NotImplementedError("Taking a source_uuid as an input is not ready yet")
     # if source_uuid:
     #     source_instance = Task.query.filter_by(uuid=source_uuid).one_or_none()
     #     search_query = source_instance.search_query
 
+    current_app.logger.debug("TASK %s" %task)
+    
     commit_task(task)
 
     if return_task:

@@ -172,7 +172,6 @@ def recoursive_distribution(data):
     '''
     Loop through data, converts numerical lists into distributions
     '''
-    current_app.logger.debug("DATA %s TYPE %s" %(data, type(data)))
     if not data:
         return 0.0
     if isinstance(data, str):
