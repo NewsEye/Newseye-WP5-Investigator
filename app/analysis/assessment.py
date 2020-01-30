@@ -8,7 +8,7 @@ EPSILON = sys.float_info.epsilon  # smallest possible number
 
 class Distribution(object):
     def __init__(self, data, smoothing=None):
-        self.smoothing = smoothing
+        self.smoothing = smoothing if smoothing else EPSILON
         self.dist = self.make_distribution(data)
         self.entropy = -np.sum((self.dist * np.log2(self.dist)))
         self.number_of_outcomes = len(self.dist)
@@ -19,7 +19,7 @@ class Distribution(object):
         arr = np.array(list(counts))
 
         # TODO: smoothing factor depending on number of outcomes
-        smoothing_factor = self.smoothing if self.smoothing else EPSILON
+        smoothing_factor = self.smoothing
         return (arr + smoothing_factor) / (np.sum(arr) + len(arr) * smoothing_factor)
 
     @property
@@ -165,3 +165,24 @@ def max_interestingness(interestingness):
     if not interestingness:
         return 0.0
     return recoursive_max(interestingness)
+
+
+
+def recoursive_distribution(data):
+    '''
+    Loop through data, converts numerical lists into distributions
+    '''
+    current_app.logger.debug("DATA %s TYPE %s" %(data, type(data)))
+    if not data:
+        return 0.0
+    if isinstance(data, str):
+        return 0.0
+    if type(data) in [float, int]:
+        return 0 if data == 0 else 1
+    if isinstance(data, dict):
+        return {k : v for (k,v) in zip(data.keys(), recoursive_distribution(list(data.values())))}
+    if type(data) in [list, tuple, set]:
+        if all([type(i) in [float, int] for i in data]):
+            return Distribution(data).dist
+        return [recoursive_distribution(i) for i in data]
+            

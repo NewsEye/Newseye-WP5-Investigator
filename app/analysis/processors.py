@@ -36,18 +36,19 @@ class AnalysisUtility(Processor):
             self.processor = processor
 
     async def __call__(self, task):
-        self.input_data = await self._get_input_data(task)
-        return await self.call(task)
+        self.task = task
+        self.input_data = await self._get_input_data()
+        self.result = await self.make_result()
+        self.interestingness = await self.estimate_interestingness()
+        return { "result" : self.result,
+                 "interestingness" : self.interestingness}
 
-    async def call(self, task):
-        return {"error": "This utility has not yet been implemented"}
-
-    async def _get_input_data(self, task):
+    async def _get_input_data(self):
         # TODO: check input type; in many cases we just need to get result form the internal db
-        if task.dataset:
-            return await self.get_input_data(make_query_from_dataset(task.dataset))
-        elif task.solr_query:
-            return await self.get_input_data(task.solr_query)
+        if self.task.dataset:
+            return await self.get_input_data(make_query_from_dataset(self.task.dataset))
+        elif self.task.solr_query:
+            return await self.get_input_data(self.task.solr_query)
         else:
             # source_uuid
             raise NotImplementedError("cannot get data for task %s" % task)
@@ -56,14 +57,16 @@ class AnalysisUtility(Processor):
         return await search_database(solr_query, retrieve=retrieve)
 
     def get_description(self):
-        return {
-            "name": self.processor.name,
-            "description": self.processor.description,
-            "parameters": self.processor.parameter_info,
-            "input_type": self.processor.input_type,
-            "output_type": self.processor.output_type,
-        }
+        return self.processor.dict()
 
+    async def make_result(self, task):
+        return {"error": "This utility has not yet been implemented"}
+
+    async def estimate_interestingness(self):
+        # convert all numerical lists and dict values into distributions (0-1)
+        return assessment.recoursive_distribution(self.result)
+        
+    
 
 class ExtractFacets(AnalysisUtility):
     @classmethod
@@ -77,7 +80,7 @@ class ExtractFacets(AnalysisUtility):
             output_type="facet_list",
         )
 
-    async def call(self, task):
+    async def make_result(self):
         """ Extract all facet values found in the input data and the number of occurrences for each."""
         # too complicated
         # seems nobody is using these Config.constants
@@ -88,23 +91,10 @@ class ExtractFacets(AnalysisUtility):
             for item in feature[Config.FACET_ITEMS_KEY]:
                 values[item[Config.FACET_VALUE_LABEL_KEY]] = item[Config.FACET_VALUE_HITS_KEY]
 
-            current_app.logger.debug("Config.AVAILABLE_FACETS: %s" %Config.AVAILABLE_FACETS)
-            current_app.logger.debug("Config.FACET_ID_KEY: %s" %Config.FACET_ID_KEY)
-            current_app.logger.debug("feature[Config.FACET_ID_KEY]: %s" %feature[Config.FACET_ID_KEY])
             if feature[Config.FACET_ID_KEY] in Config.AVAILABLE_FACETS.values():
                 facets[feature[Config.FACET_ID_KEY]] = values
-           
-        return {
-            "result": facets,
-            # interestingness as distribution
-            # before it was just facet values, now it's normalized to [0,1]
-            "interestingness": {
-                f: {
-                    k: v
-                    for (k, v) in zip(
-                        facets[f].keys(), list(assessment.Distribution(facets[f].values()).dist),
-                    )
-                }
-                for f in facets
-            },
-        }
+
+        return facets
+
+ 
+        

@@ -157,8 +157,6 @@ def store_results(tasks, task_results, set_to_finished=True, interestingness=0.0
                 task.task_status = "finished"
             # else update result but keep task running (for investigator)  --- TODO: check if we still need that
 
-            ## TODO: check for existing results
-
             res = Result(
                 result=result["result"],
                 interestingness=result["interestingness"],

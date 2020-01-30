@@ -131,6 +131,15 @@ class Processor(db.Model):
             self.id, self.name, self.import_path
         )
 
+    def dict(self):
+        return {
+            "name": self.name,
+            "description": self.description,
+            "parameters": self.parameter_info,
+            "input_type": self.input_type,
+            "output_type": self..output_type,
+        }
+
 
 task_parent_child_relation = db.Table(
     "task_parent_child_relation",
