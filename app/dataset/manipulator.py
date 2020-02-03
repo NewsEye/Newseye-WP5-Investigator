@@ -5,7 +5,7 @@ from app.models import User, Document, Dataset, DatasetTransformation
 from app import db
 import threading
 import asyncio
-from app.search.search_utils import search_database
+from app.utils.search_utils import search_database
 
 
 def execute_transformation(api_args):

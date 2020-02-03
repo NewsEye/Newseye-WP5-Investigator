@@ -1,7 +1,7 @@
 from app import db
-from app.main.db_utils import generate_task, store_results, verify_analysis_parameters
+from app.utils.db_utils import generate_task, store_results, verify_analysis_parameters
 from app.models import Task
-from app.search.search_utils import search_database
+from app.utils.search_utils import search_database
 
 # from app.analysis import UTILITY_MAP, INPUT_TYPE_MAP
 from datetime import datetime

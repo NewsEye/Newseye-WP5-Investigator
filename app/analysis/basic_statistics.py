@@ -1,6 +1,6 @@
 from app.analysis.analysis_utils import AnalysisUtility
 from flask import current_app
-from app.search.search_utils import search_database
+from app.utils.search_utils import search_database
 from collections import defaultdict
 import pandas as pd
 import numpy as np

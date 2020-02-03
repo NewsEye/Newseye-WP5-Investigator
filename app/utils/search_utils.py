@@ -42,6 +42,8 @@ async def query_solr(
     :return:
     """
 
+    # TODO: might need to store query outputs if queries become too heavy
+
     
     if retrieve in ["tokens", "stems"]:
         solr_index="tvrh"

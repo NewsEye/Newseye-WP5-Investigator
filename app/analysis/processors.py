@@ -1,6 +1,6 @@
 from app import db
 from app.models import Task, Processor
-from app.search.search_utils import search_database
+from app.utils.search_utils import search_database
 from config import Config
 from flask import current_app
 import numpy as np
@@ -9,7 +9,7 @@ from app.analysis import assessment  # , timeseries
 from operator import itemgetter
 from werkzeug.exceptions import BadRequest
 import asyncio
-from app.main.db_utils import make_query_from_dataset
+from app.utils.db_utils import make_query_from_dataset
 
 
 class AnalysisUtility(Processor):
@@ -116,7 +116,6 @@ class ExtractWords(AnalysisUtility):
 
    
     async def get_input_data(self, solr_query):
-        current_app.logger.debug("TASK_PARAMETERS: %s" %self.task.parameters)
         if self.task.parameters["unit"] == "stem":
             return await search_database(solr_query, retrieve="stems")
         elif self.task.parameters["unit"] == "token":
@@ -127,5 +126,6 @@ class ExtractWords(AnalysisUtility):
         Builds word dictionary for the dataset
         """
 
-        current_app.logger.debug("INPUT_DATA: %s" %self.input_data)
+        
+        
         raise NotImplementedError("That's enough that I've made the query work, don't ask for too much")

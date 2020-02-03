@@ -15,7 +15,7 @@ from pytrie import StringTrie as Trie
 import string
 from progress import ProgressBar
 import warnings
-from app.search.search_utils import search_database
+from app.utils.search_utils import search_database
 
 warnings.filterwarnings("ignore")
 

@@ -1,4 +1,4 @@
-from app.main.db_utils import store_results, generate_task
+from app.utils.db_utils import store_results, generate_task
 import asyncio
 from flask import current_app
 from config import Config

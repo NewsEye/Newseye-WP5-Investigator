@@ -1,6 +1,6 @@
 from app import db
 from app.models import Task
-from app.search.search_utils import search_database
+from app.utils.search_utils import search_database
 from config import Config
 from flask import current_app
 import numpy as np

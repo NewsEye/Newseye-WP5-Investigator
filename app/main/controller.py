@@ -1,7 +1,7 @@
 from flask import current_app
 from flask_login import current_user
 from app.main.planner import TaskPlanner
-from app.main.db_utils import generate_task
+from app.utils.db_utils import generate_task
 from app.models import Task, User
 import threading
 import time
