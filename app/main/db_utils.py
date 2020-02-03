@@ -25,30 +25,32 @@ def verify_analysis_parameters(args):
 
     if args["dataset"]:
         if not Dataset.query.filter_by(dataset_name=args["dataset"]).one_or_none():
-            # TODO: check dataset from AXel's api and insert it into the local db
+            # TODO: check dataset from Axel's api and insert it into the local db
             raise NotImplementedError("Dataset {} does not exist".format(args["dataset"]))
+
+
     processor = Processor.query.filter_by(name=args["processor"]).one_or_none()
 
+    current_app.logger.debug("PROCESSOR: %s" %processor)
+    
     # more than one should have raised an exception already in init
-
-    query_parameters = args.get("parameters", {})
-
     parameter_info = processor.parameter_info
+    query_parameters = args["parameters"]
     
     new_parameters = {}
     for parameter in parameter_info:
-        parameter_name = parameter["parameter_name"]
+        parameter_name = parameter["name"]
         if parameter_name in query_parameters.keys():
             new_parameters[parameter_name] = query_parameters[parameter_name]
         else:
-            if parameter["parameter_is_required"]:
+            if parameter["required"]:
                 raise BadRequest(
                     "Required utility parameter '{}' is not defined in the query:\n{}".format(
                         parameter["parameter_name"], query
                     )
                 )
             else:
-                new_parameters[parameter_name] = parameter["parameter_default"]
+                new_parameters[parameter_name] = parameter["default"]
 
     new_args = {key: value for key, value in args.items() if key != "parameters"}
     new_args["parameters"] = new_parameters
@@ -102,7 +104,7 @@ def generate_task(query, user=current_user, parent_id=None, return_task=False):
             processor_id=processor.id,
             force_refresh=bool(task_parameters.get("force_refresh", False)),
             user_id=user.id,
-            input_type="dataset",
+            input_data="dataset",
             task_status="created",
             parameters=task_parameters.get("parameters", {}),
             dataset_id=dataset.id,
@@ -114,7 +116,7 @@ def generate_task(query, user=current_user, parent_id=None, return_task=False):
             processor_id=processor.id,
             force_refresh=bool(task_parameters.get("force_refresh", False)),
             user_id=user.id,
-            input_type="solr_query",
+            input_data="solr_query",
             task_status="created",
             parameters=task_parameters.get("parameters", {}),
             solr_query=get_solr_query(task_parameters["search_query"]),
@@ -126,10 +128,10 @@ def generate_task(query, user=current_user, parent_id=None, return_task=False):
     #     source_instance = Task.query.filter_by(uuid=source_uuid).one_or_none()
     #     search_query = source_instance.search_query
 
-    current_app.logger.debug("TASK %s" %task)
-    
     commit_task(task)
+    current_app.logger.debug("TASK %s" %task)
 
+    
     if return_task:
         return task
     else:

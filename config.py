@@ -34,7 +34,6 @@ class Config(object):
     SOLR_MAX_RETURN_VALUES = 100
 
     SOLR_URI = "http://localhost:9983/solr/newseye_collection/"
-    SOLR_INDEX = "select"
     
     # SOLR_URI = "http://localhost:9983/solr/hydra-development/select"
     # test DB:
@@ -65,12 +64,19 @@ class Config(object):
             "rows": 0,
         },
         "docids": {"fl": "id", "rows": 0,},
-        "words": {
-            "qf": "id",
-            "fl": "level_reading_order text_tfr_siv text_tse_siv text_tde_siv text_tfi_siv id",
-            "fq": "level:4.pages.blocks.lines.words",
-            "rows": 0,
-        },
+        "stems":
+        {"tv.all":True,
+         "tv.fl" : "all_text_tfr_siv all_text_tfi_siv all_text_tde_siv all_text_tse_siv",
+         "fl" : "nothing", # non-existing field to retrun nothing; otherwise all text will be returned
+         "defType" : "edismax"
+         },
+        "tokens":
+        {"tv.all":True,
+         "tv.fl" : "all_text_unstemmed_tfr_siv all_text_unstemmed_tfi_siv all_text_unstemmed_tde_siv all_text_unstemmed_tse_siv",
+         "fl" : "nothing", # non-existing field to retrun nothing; otherwise all text will be returned
+         "defType" : "edismax"
+         },
+        
     }
 
     SUPPORTED_LANGUAGES = ["fi", "de", "fr"]

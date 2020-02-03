@@ -108,21 +108,14 @@ class Processor(db.Model):
     __tablename__ = "processor"
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False)
-    parameter_info = db.Column(JSONB)  # list of dicts: [
-    #           {
-    #               "parameter_name": "",
-    #               "parameter_description": "",
-    #               "parameter_type": "",
-    #               "parameter_default": val,
-    #               "parameter_is_required": Bool,
-    #           },
+    parameter_info = db.Column(JSONB) 
 
     # TODO: enum for input/output types, to have more control
     # TODO: prerequisite processors
     input_type = db.Column(db.String(255), nullable=False)
     # dataset
     output_type = db.Column(db.String(255), nullable=False)
-    # facetlist
+    # facet_list, word_list
 
     description = db.Column(db.String(10000))
     import_path = db.Column(db.String(1024))
@@ -183,8 +176,9 @@ class Task(db.Model):
     solr_query_id = db.Column(Integer, ForeignKey("solr_query.id"))
     solr_query = db.relationship("SolrQuery", foreign_keys=[solr_query_id], back_populates="tasks")
 
-    input_type = db.Column(
-        db.Enum("solr_query", "dataset", name="input_type"), nullable=False
+    input_data = db.Column(
+#        db.Enum("solr_query", "dataset", name="input_data"), nullable=False
+        db.String(255)
     )  # later on something else?
     uuid = db.Column(UUID(as_uuid=True), unique=True, nullable=False, default=uuid.uuid4)
 
@@ -213,18 +207,16 @@ class Task(db.Model):
 
     def __repr__(self):
         if self.dataset:
-            return "<Task id: {}, processor: {}, dataset: {} ({}), status: {}>".format(
+            return "<Task id: {}, processor: {}, dataset: {}, status: {}>".format(
                 self.id,
-                self.processor,
-                self.dataset_id,
+                self.processor.name,
                 self.dataset.dataset_name,
                 self.task_status,
             )
         elif self.solr_query:
-            return "<Task id: {}, processor: {}, solr_query: {} ({}), status: {}>".format(
+            return "<Task id: {}, processor: {}, solr_query: {}, status: {}>".format(
                 self.id,
-                self.processor,
-                self.solr_query_id,
+                self.processor.name,
                 self.solr_query.search_query,
                 self.task_status,
             )

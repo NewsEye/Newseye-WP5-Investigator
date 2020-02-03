@@ -5,13 +5,13 @@ ns = Namespace("analysis", description="Analysis operations")
 
 from app.analysis import routes
 
-from app.analysis.processors import ExtractFacets
+from app.analysis.processors import ExtractFacets, ExtractWords
 
 
 def initialize_processors(app):
     with app.app_context():
         ExtractFacets(initialize=True).make_processor()
-
+        ExtractWords(initialize=True).make_processor()
 
 # from app.analysis.analysis_utils import (
 #    ExtractFacets,

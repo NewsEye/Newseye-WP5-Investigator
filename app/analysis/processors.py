@@ -48,13 +48,13 @@ class AnalysisUtility(Processor):
         if self.task.dataset:
             return await self.get_input_data(make_query_from_dataset(self.task.dataset))
         elif self.task.solr_query:
-            return await self.get_input_data(self.task.solr_query)
+            return await self.get_input_data(self.task.solr_query.search_query)
         else:
             # source_uuid
             raise NotImplementedError("cannot get data for task %s" % task)
 
-    async def get_input_data(self, solr_query, retrieve="facets"):
-        return await search_database(solr_query.search_query, retrieve=retrieve)
+    async def get_input_data(self, solr_query):
+        return await search_database(solr_query, retrieve="all")
 
     def get_description(self):
         return self.processor.dict()
@@ -94,12 +94,38 @@ class ExtractFacets(AnalysisUtility):
             if feature[Config.FACET_ID_KEY] in Config.AVAILABLE_FACETS.values():
                 facets[feature[Config.FACET_ID_KEY]] = values
 
-        return facets
-
- 
-        
+        return facets        
 
 
-#def ExtractWords(AnalysisUtility):
-#    @classmethod
-    
+class ExtractWords(AnalysisUtility):
+    @classmethod
+    def _make_processor(cls):
+        return Processor(
+            name=cls.__name__,
+            import_path=cls.__module__,
+            description="Finds all the different words in the input document set, their counts and weights.",
+            parameter_info=[{"name":"unit",
+                             "description":"which unit --- token or stem --- should be used for analysis",
+                             "type":"string",
+                             "default":"stem",
+                             "required":False}
+            ],
+            input_type="dataset",
+            output_type="word_list",
+        )
+
+   
+    async def get_input_data(self, solr_query):
+        current_app.logger.debug("TASK_PARAMETERS: %s" %self.task.parameters)
+        if self.task.parameters["unit"] == "stem":
+            return await search_database(solr_query, retrieve="stems")
+        elif self.task.parameters["unit"] == "token":
+            return await search_database(solr_query, retrieve="tokens")
+            
+    async def make_result(self):
+        """
+        Builds word dictionary for the dataset
+        """
+
+        current_app.logger.debug("INPUT_DATA: %s" %self.input_data)
+        raise NotImplementedError("That's enough that I've made the query work, don't ask for too much")
