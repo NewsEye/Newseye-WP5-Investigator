@@ -36,9 +36,7 @@ class AnalysisTaskList(Resource):
     )
 
     post_parser.add_argument(
-        "dataset",
-        location="json",
-        help="The name of the dataset to apply processor",
+        "dataset", location="json", help="The name of the dataset to apply processor",
     )
 
     post_parser.add_argument(
@@ -80,8 +78,8 @@ class AnalysisTaskList(Resource):
         args = self.post_parser.parse_args()
         args.pop("Authorization")
 
-        current_app.logger.debug("args: %s" %args)
-        
+        current_app.logger.debug("args: %s" % args)
+
         try:
             task = controller.execute_task(args)
 

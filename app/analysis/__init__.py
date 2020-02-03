@@ -13,6 +13,7 @@ def initialize_processors(app):
         ExtractFacets(initialize=True).make_processor()
         ExtractWords(initialize=True).make_processor()
 
+
 # from app.analysis.analysis_utils import (
 #    ExtractFacets,
 #    CommonFacetValues,

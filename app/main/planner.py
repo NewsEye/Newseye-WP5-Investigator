@@ -53,21 +53,21 @@ class TaskPlanner(object):
     async def result_exists(self, task):
         # ToDo: Add timeouts for the results: timestamps are already stored, simply rerun the query if the timestamp
         ##  is too old.
-        related_tasks = Task.query.filter(Task.processor_id == task.processor_id,
-                                          Task.dataset_id == task.dataset_id,
-                                          Task.solr_query_id == task.solr_query_id,
-                                          Task.task_status == "finished",
-                                          Task.task_results is not None).all()
+        related_tasks = Task.query.filter(
+            Task.processor_id == task.processor_id,
+            Task.dataset_id == task.dataset_id,
+            Task.solr_query_id == task.solr_query_id,
+            Task.task_status == "finished",
+            Task.task_results is not None,
+        ).all()
         if not related_tasks:
-            return 
+            return
 
         related_task = sorted(related_tasks, key=lambda t: t.task_finished)[-1]
         result = related_task.task_result
 
         task.task_results.append(result)
         return True
-
-        
 
         # TODO:
         # 1. search for identical tasks
@@ -79,14 +79,13 @@ class TaskPlanner(object):
         """this function executes one task and its prerequisites"""
 
         # Todo: delay estimates: based on old runtime history for similar tasks?
-        
+
         task.task_started = datetime.utcnow()
         # to update data obtained in previous searches
         # TODO: force_refresh
 
-        current_app.logger.debug("FORCE_REFRESH %s" %task.force_refresh)
+        current_app.logger.debug("FORCE_REFRESH %s" % task.force_refresh)
 
-        
         if not task.force_refresh:
             # search for similar tasks, reuse results
             if await self.result_exists(task):

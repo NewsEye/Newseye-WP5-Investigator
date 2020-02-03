@@ -56,7 +56,7 @@ class SolrQuery(db.Model):
 
     def __repr__(self):
         return "<SolrQuery {}, search_query {}>".format(self.id, self.search_query)
-    
+
 
 class SolrOutput(db.Model):
     __tablename__ = "solr_output"
@@ -108,7 +108,7 @@ class Processor(db.Model):
     __tablename__ = "processor"
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False)
-    parameter_info = db.Column(JSONB) 
+    parameter_info = db.Column(JSONB)
 
     # TODO: enum for input/output types, to have more control
     # TODO: prerequisite processors
@@ -177,7 +177,7 @@ class Task(db.Model):
     solr_query = db.relationship("SolrQuery", foreign_keys=[solr_query_id], back_populates="tasks")
 
     input_data = db.Column(
-#        db.Enum("solr_query", "dataset", name="input_data"), nullable=False
+        #        db.Enum("solr_query", "dataset", name="input_data"), nullable=False
         db.String(255)
     )  # later on something else?
     uuid = db.Column(UUID(as_uuid=True), unique=True, nullable=False, default=uuid.uuid4)
@@ -208,17 +208,11 @@ class Task(db.Model):
     def __repr__(self):
         if self.dataset:
             return "<Task id: {}, processor: {}, dataset: {}, status: {}>".format(
-                self.id,
-                self.processor.name,
-                self.dataset.dataset_name,
-                self.task_status,
+                self.id, self.processor.name, self.dataset.dataset_name, self.task_status,
             )
         elif self.solr_query:
             return "<Task id: {}, processor: {}, solr_query: {}, status: {}>".format(
-                self.id,
-                self.processor.name,
-                self.solr_query.search_query,
-                self.task_status,
+                self.id, self.processor.name, self.solr_query.search_query, self.task_status,
             )
 
     def dict(self, style="status"):

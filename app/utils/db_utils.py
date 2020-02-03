@@ -28,15 +28,14 @@ def verify_analysis_parameters(args):
             # TODO: check dataset from Axel's api and insert it into the local db
             raise NotImplementedError("Dataset {} does not exist".format(args["dataset"]))
 
-
     processor = Processor.query.filter_by(name=args["processor"]).one_or_none()
 
-    current_app.logger.debug("PROCESSOR: %s" %processor)
-    
+    current_app.logger.debug("PROCESSOR: %s" % processor)
+
     # more than one should have raised an exception already in init
     parameter_info = processor.parameter_info
     query_parameters = args["parameters"]
-    
+
     new_parameters = {}
     for parameter in parameter_info:
         parameter_name = parameter["name"]
@@ -59,9 +58,9 @@ def verify_analysis_parameters(args):
 
 
 def get_solr_query(search_query):
-    current_app.logger.debug("SEARCH_QUERY %s" %search_query)
+    current_app.logger.debug("SEARCH_QUERY %s" % search_query)
     solr_query = SolrQuery.query.filter_by(search_query=search_query).one_or_none()
-    current_app.logger.debug("SOLR_QUERY %s" %solr_query)
+    current_app.logger.debug("SOLR_QUERY %s" % solr_query)
     if not solr_query:
         solr_query = SolrQuery(search_query=search_query)
         db.session.add(solr_query)
@@ -93,13 +92,12 @@ def generate_task(query, user=current_user, parent_id=None, return_task=False):
     stores them in the database
     returns task objects or task ids
     """
-    
+
     task_parameters, processor = verify_analysis_parameters(query)
-    
+
     if task_parameters["dataset"]:
         dataset = Dataset.query.filter_by(dataset_name=task_parameters["dataset"]).first()
 
-        
         task = Task(
             processor_id=processor.id,
             force_refresh=bool(task_parameters.get("force_refresh", False)),
@@ -121,7 +119,7 @@ def generate_task(query, user=current_user, parent_id=None, return_task=False):
             parameters=task_parameters.get("parameters", {}),
             solr_query=get_solr_query(task_parameters["search_query"]),
         )
-        
+
     else:
         raise NotImplementedError("Taking a source_uuid as an input is not ready yet")
     # if source_uuid:
@@ -129,9 +127,8 @@ def generate_task(query, user=current_user, parent_id=None, return_task=False):
     #     search_query = source_instance.search_query
 
     commit_task(task)
-    current_app.logger.debug("TASK %s" %task)
+    current_app.logger.debug("TASK %s" % task)
 
-    
     if return_task:
         return task
     else:
@@ -147,7 +144,7 @@ def store_results(tasks, task_results, set_to_finished=True, interestingness=0.0
 
     for task, result in zip(tasks, task_results):
 
-        current_app.logger.debug("IN STORE_RESULTS: task: %s result: %s" % (task, result))
+        # current_app.logger.debug("IN STORE_RESULTS: task: %s result: %s" % (task, result))
         if set_to_finished:
             task.task_finished = datetime.utcnow()
 

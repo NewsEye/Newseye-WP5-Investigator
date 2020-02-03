@@ -26,7 +26,7 @@ async def search_database(queries, **kwargs):
 
 
 async def query_solr(
-        session, query, retrieve="all", max_return_value=Config.SOLR_MAX_RETURN_VALUES, 
+    session, query, retrieve="all", max_return_value=Config.SOLR_MAX_RETURN_VALUES,
 ):
 
     #    current_app.logger.debug("============== QUERY: %s RETRIEVE: %s" %(query, retrieve))
@@ -44,15 +44,13 @@ async def query_solr(
 
     # TODO: might need to store query outputs if queries become too heavy
 
-    
     if retrieve in ["tokens", "stems"]:
-        solr_index="tvrh"
+        solr_index = "tvrh"
     else:
-        solr_index="select"
-    
-    solr_uri = Config.SOLR_URI+solr_index       
+        solr_index = "select"
 
-    
+    solr_uri = Config.SOLR_URI + solr_index
+
     # First read the default parameters for the query
     parameters = {key: value for key, value in Config.SOLR_PARAMETERS["default"].items()}
     # If parameters specific to the chosen retrieve value are found, they override the defaults
@@ -62,20 +60,20 @@ async def query_solr(
     # Parameters specifically defined in the query override everything else
     for key, value in query.items():
         parameters[key] = value
-    
+
     async with session.get(solr_uri, json={"params": parameters}) as response:
         current_app.logger.debug("SOLR_URI %s" % solr_uri)
         current_app.logger.debug("parameters %s" % parameters)
         current_app.logger.debug("response.status: %s" % response.status)
-        
+
         if response.status == 401:
             raise Unauthorized
         response = await response.json()
-        #current_app.logger.debug("RESPONSE in search_utils: %s" %response)
+        # current_app.logger.debug("RESPONSE in search_utils: %s" %response)
 
     if retrieve in ["tokens", "stems"]:
-        return convert_vector_response_to_dictionary(response['termVectors'])
-        
+        return convert_vector_response_to_dictionary(response["termVectors"])
+
     # For retrieving docids, retrieve all of them, unless the number of rows is specified in the query
     if retrieve in ["docids"] and "rows" not in query.keys():
         num_results = response["response"]["numFound"]
@@ -83,7 +81,7 @@ async def query_solr(
         parameters["rows"] = min(num_results, max_return_value)
         if num_results > max_return_value:
             current_app.logger.debug("TOO MANY RAWS TO RETURN, returnung %d" % max_return_value)
-            
+
         async with session.get(solr_uri, json={"params": parameters}) as response:
             if response.status == 401:
                 raise Unauthorized
@@ -101,30 +99,30 @@ def convert_vector_response_to_dictionary(term_vectors):
     # bunch of hacks
     result_dict = {}
     for article in term_vectors:
-        if article[0] == 'uniqueKey':
+        if article[0] == "uniqueKey":
             article_id = article[1]
             word_list = article[3]
             article_dict = {}
-            for i in range(0,len(word_list),2):
+            for i in range(0, len(word_list), 2):
                 word = word_list[i]
-                info = word_list[i+1]
+                info = word_list[i + 1]
                 word_dict = {}
-                for j in range(0,len(info),2):
+                for j in range(0, len(info), 2):
                     field = info[j]
-                    value = info[j+1]
+                    value = info[j + 1]
                     if field == "positions":
                         word_dict[field] = value[1::2]
                     elif field == "offsets":
-                        word_dict[field] = [(value[k],value[k+2]) for k in range(1,len(value),4)]
+                        word_dict[field] = [
+                            (value[k], value[k + 2]) for k in range(1, len(value), 4)
+                        ]
                     else:
                         word_dict[field] = value
                 article_dict[word] = word_dict
             result_dict[article_id] = article_dict
-    #current_app.logger.debug("RESULT_DICT %s" %result_dict)
+    # current_app.logger.debug("RESULT_DICT %s" %result_dict)
     return result_dict
-            
-            
-            
+
 
 def format_facets(facet_dict):
     """

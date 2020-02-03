@@ -13,10 +13,14 @@ class Distribution(object):
         self.entropy = -np.sum((self.dist * np.log2(self.dist)))
         self.number_of_outcomes = len(self.dist)
 
-    def make_distribution(self, counts):
+    def make_distribution(self, numbers):
         # Normalize a non-negative discrete distribution onto the
         # range [0-1], ensuring no zero value.
-        arr = np.array(list(counts))
+        arr = np.array(list(numbers))
+        minimum = np.amin(arr)
+        if minimum < 0:
+            # shift to zero:
+            arr = arr - minimum
 
         # TODO: smoothing factor depending on number of outcomes
         smoothing_factor = self.smoothing
@@ -167,11 +171,10 @@ def max_interestingness(interestingness):
     return recoursive_max(interestingness)
 
 
-
 def recoursive_distribution(data):
-    '''
+    """
     Loop through data, converts numerical lists into distributions
-    '''
+    """
     if not data:
         return 0.0
     if isinstance(data, str):
@@ -179,9 +182,11 @@ def recoursive_distribution(data):
     if type(data) in [float, int]:
         return 0 if data == 0 else 1
     if isinstance(data, dict):
-        return {k : v for (k,v) in zip(data.keys(), recoursive_distribution(list(data.values())))}
+        return {k: v for (k, v) in zip(data.keys(), recoursive_distribution(list(data.values())))}
     if type(data) in [list, tuple, set]:
         if all([type(i) in [float, int] for i in data]):
             return Distribution(data).dist
         return [recoursive_distribution(i) for i in data]
-            
+
+
+

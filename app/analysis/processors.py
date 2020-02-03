@@ -10,6 +10,8 @@ from operator import itemgetter
 from werkzeug.exceptions import BadRequest
 import asyncio
 from app.utils.db_utils import make_query_from_dataset
+from collections import defaultdict
+from math import log, exp
 
 
 class AnalysisUtility(Processor):
@@ -40,8 +42,7 @@ class AnalysisUtility(Processor):
         self.input_data = await self._get_input_data()
         self.result = await self.make_result()
         self.interestingness = await self.estimate_interestingness()
-        return { "result" : self.result,
-                 "interestingness" : self.interestingness}
+        return {"result": self.result, "interestingness": self.interestingness}
 
     async def _get_input_data(self):
         # TODO: check input type; in many cases we just need to get result form the internal db
@@ -65,8 +66,7 @@ class AnalysisUtility(Processor):
     async def estimate_interestingness(self):
         # convert all numerical lists and dict values into distributions (0-1)
         return assessment.recoursive_distribution(self.result)
-        
-    
+
 
 class ExtractFacets(AnalysisUtility):
     @classmethod
@@ -94,7 +94,7 @@ class ExtractFacets(AnalysisUtility):
             if feature[Config.FACET_ID_KEY] in Config.AVAILABLE_FACETS.values():
                 facets[feature[Config.FACET_ID_KEY]] = values
 
-        return facets        
+        return facets
 
 
 class ExtractWords(AnalysisUtility):
@@ -104,28 +104,53 @@ class ExtractWords(AnalysisUtility):
             name=cls.__name__,
             import_path=cls.__module__,
             description="Finds all the different words in the input document set, their counts and weights.",
-            parameter_info=[{"name":"unit",
-                             "description":"which unit --- token or stem --- should be used for analysis",
-                             "type":"string",
-                             "default":"stem",
-                             "required":False}
+            parameter_info=[
+                {
+                    "name": "unit",
+                    "description": "which unit --- token or stem --- should be used for analysis",
+                    "type": "string",
+                    "default": "stem",
+                    "required": False,
+                }
             ],
             input_type="dataset",
             output_type="word_list",
         )
 
-   
     async def get_input_data(self, solr_query):
         if self.task.parameters["unit"] == "stem":
             return await search_database(solr_query, retrieve="stems")
         elif self.task.parameters["unit"] == "token":
             return await search_database(solr_query, retrieve="tokens")
-            
+
     async def make_result(self):
         """
         Builds word dictionary for the dataset
+        Takes as an input document-wise dictionaries and compiles them into a single dictionary for the dataset.
         """
+        # TODO: might need to save an initial dictionary for reuse
 
-        
-        
-        raise NotImplementedError("That's enough that I've made the query work, don't ask for too much")
+        df = {}
+        tf = defaultdict(int)
+        total = 0.0
+        # Note: df that came from SOLR are computing using the whole
+        # (multilingual) collection. Might need to do it language-wise
+        # (slower?)
+        for word_dict in list(self.input_data.values()):
+            for word, info in word_dict.items():
+                df[word] = info["df"]
+                tf[word] += info["tf"]
+                total += info["tf"]
+        result = {word: (tf[word], tf[word] * log(total / df[word])) for word in tf}
+        return {
+            "total": int(total),
+            "vocabulary": {  # sort by tf-idf:
+                k: result[k] for k in sorted(result, key=lambda x: (result[x][1], x), reverse=True)
+            },
+        }
+
+    async def estimate_interestingness(self):
+        vocab = self.result["vocabulary"]
+        return assessment.recoursive_distribution(
+            {word: exp(vocab[word][1]) for word in vocab}
+        )  # interestingness based on tf-idf
