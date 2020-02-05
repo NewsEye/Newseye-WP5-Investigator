@@ -1,17 +1,11 @@
 from app import db
-from app.models import Task, Processor
+from app.models import Processor
 from app.utils.search_utils import search_database
-from config import Config
-from flask import current_app
-import numpy as np
-import pandas as pd
 from app.analysis import assessment  # , timeseries
-from operator import itemgetter
-from werkzeug.exceptions import BadRequest
 import asyncio
 from app.utils.db_utils import make_query_from_dataset
-from collections import defaultdict
-from math import log, exp
+
+
 
 
 class AnalysisUtility(Processor):
@@ -68,115 +62,6 @@ class AnalysisUtility(Processor):
         return assessment.recoursive_distribution(self.result)
 
 
-class ExtractFacets(AnalysisUtility):
-    @classmethod
-    def _make_processor(cls):
-        return Processor(
-            name=cls.__name__,
-            import_path=cls.__module__,
-            description="Examines the document set given as input, and finds all the different facets for which values have been set in at least some of the documents.",
-            parameter_info=[],
-            input_type="dataset",
-            output_type="facet_list",
-        )
-
-    async def make_result(self):
-        """ Extract all facet values found in the input data and the number of occurrences for each."""
-        # too complicated
-        # seems nobody is using these Config.constants
-        # except for this processor --- get read of them???
-        facets = {}
-        for feature in self.input_data[Config.FACETS_KEY]:
-            values = {}
-            for item in feature[Config.FACET_ITEMS_KEY]:
-                values[item[Config.FACET_VALUE_LABEL_KEY]] = item[Config.FACET_VALUE_HITS_KEY]
-
-            if feature[Config.FACET_ID_KEY] in Config.AVAILABLE_FACETS.values():
-                facets[feature[Config.FACET_ID_KEY]] = values
-
-        return facets
 
 
 
-
-class ExtractWords(AnalysisUtility):
-    @classmethod
-    def _make_processor(cls):
-        return Processor(
-            name=cls.__name__,
-            import_path=cls.__module__,
-            description="Finds all the different words in the input document set, their counts and weights.",
-            parameter_info=[
-                {
-                    "name": "unit",
-                    "description": "which unit --- token or stem --- should be used for analysis",
-                    "type": "string",
-                    "default": "stems",
-                    "required": False,
-                }
-            ],
-            input_type="dataset",
-            output_type="word_list",
-        )
-
-    async def get_input_data(self, solr_query):
-            return await search_database(solr_query, retrieve=self.task.parameters["unit"])
-        
-
-    async def make_result(self):
-        """
-        Builds word dictionary for the dataset
-        Takes as an input document-wise dictionaries and compiles them into a single dictionary for the dataset.
-        """
-        # TODO: might need to save an initial dictionary for reuse
-
-        df = {}
-        tf = defaultdict(int)
-        total = 0.0
-        # Note: df that came from SOLR are computing using the whole
-        # (multilingual) collection. Might need to do it language-wise
-        # (slower?)
-        for word_dict in list(self.input_data.values()):
-            for word, info in word_dict.items():
-                df[word] = info["df"]
-                tf[word] += info["tf"]
-                total += info["tf"]
-        result = {word: (tf[word], tf[word] * log(total / df[word])) for word in tf}
-        return {
-            "total": int(total),
-            "vocabulary": {  # sort by tf-idf:
-                k: result[k] for k in sorted(result, key=lambda x: (result[x][1], x), reverse=True)
-            },
-        }
-
-    async def estimate_interestingness(self):
-        vocab = self.result["vocabulary"]
-        return assessment.recoursive_distribution(
-            {word: exp(vocab[word][1]) for word in vocab}
-        )  # interestingness based on tf-idf
-
-
-
-class ExtractBigrams(AnalysisUtility):
-    @classmethod
-    def _make_processor(cls):
-        return Processor(
-            name=cls.__name__,
-            import_path=cls.__module__,
-            description="Finds all the different bigrams in the input document set, their counts and weights.",
-            parameter_info=[
-                {
-                    "name": "unit",
-                    "description": "which unit --- token or stem --- should be used for analysis",
-                    "type": "string",
-                    "default": "stem",
-                    "required": False,
-                }
-            ],
-            input_type="dataset",
-            output_type="bigram_list",  ## is it the same type as word list?
-        )
-
-
-    
-    
