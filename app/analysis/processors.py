@@ -97,6 +97,8 @@ class ExtractFacets(AnalysisUtility):
         return facets
 
 
+
+
 class ExtractWords(AnalysisUtility):
     @classmethod
     def _make_processor(cls):
@@ -109,7 +111,7 @@ class ExtractWords(AnalysisUtility):
                     "name": "unit",
                     "description": "which unit --- token or stem --- should be used for analysis",
                     "type": "string",
-                    "default": "stem",
+                    "default": "stems",
                     "required": False,
                 }
             ],
@@ -118,10 +120,8 @@ class ExtractWords(AnalysisUtility):
         )
 
     async def get_input_data(self, solr_query):
-        if self.task.parameters["unit"] == "stem":
-            return await search_database(solr_query, retrieve="stems")
-        elif self.task.parameters["unit"] == "token":
-            return await search_database(solr_query, retrieve="tokens")
+            return await search_database(solr_query, retrieve=self.task.parameters["unit"])
+        
 
     async def make_result(self):
         """
@@ -154,3 +154,29 @@ class ExtractWords(AnalysisUtility):
         return assessment.recoursive_distribution(
             {word: exp(vocab[word][1]) for word in vocab}
         )  # interestingness based on tf-idf
+
+
+
+class ExtractBigrams(AnalysisUtility):
+    @classmethod
+    def _make_processor(cls):
+        return Processor(
+            name=cls.__name__,
+            import_path=cls.__module__,
+            description="Finds all the different bigrams in the input document set, their counts and weights.",
+            parameter_info=[
+                {
+                    "name": "unit",
+                    "description": "which unit --- token or stem --- should be used for analysis",
+                    "type": "string",
+                    "default": "stem",
+                    "required": False,
+                }
+            ],
+            input_type="dataset",
+            output_type="bigram_list",  ## is it the same type as word list?
+        )
+
+
+    
+    

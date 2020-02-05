@@ -124,7 +124,7 @@ class Processor(db.Model):
     input_type = db.Column(db.String(255), nullable=False)
     # dataset
     output_type = db.Column(db.String(255), nullable=False)
-    # facet_list, word_list
+    # facet_list, word_list, bigram_list
 
     description = db.Column(db.String(10000))
     import_path = db.Column(db.String(1024))
