@@ -56,18 +56,19 @@ class ExtractWords(WordProcessor):
                 df[word] = info["df"]
                 tf[word] += info["tf"]
                 total += info["tf"]
-        result = {word: (tf[word], tf[word] * log(total / df[word])) for word in tf}
+                         # abs      rel                     tf-idf
+        result = {word: (tf[word], tf[word]/total, tf[word] * log(total / df[word])) for word in tf}
         return {
             "total": int(total),
             "vocabulary": {  # sort by tf-idf:
-                k: result[k] for k in sorted(result, key=lambda x: (result[x][1], x), reverse=True)
+                k: result[k] for k in sorted(result, key=lambda x: (result[x][2], x), reverse=True)
             },
         }
 
     async def estimate_interestingness(self):
         vocab = self.result["vocabulary"]
         return assessment.recoursive_distribution(
-            {word: exp(vocab[word][1]) for word in vocab}  
+            {word: exp(vocab[word][2]) for word in vocab}  
         )  # interestingness based on tf-idf, the biggest numbers highlighted
 
 
@@ -93,6 +94,7 @@ class ExtractBigrams(WordProcessor):
 
             for word in doc_word_count:
                 word_count[word] += doc_word_count[word]
+                total += doc_word_count[word]
             for bigram in doc_bigram_count:
                 bigram_count[bigram] += doc_bigram_count[bigram]
 
@@ -102,7 +104,7 @@ class ExtractBigrams(WordProcessor):
             for b in bigram_count
         }
 
-        return { " ".join(b) : (bigram_count[b], dice_score[b]) # sort by dice_score:
+        return { " ".join(b) : (bigram_count[b], bigram_count[b]/total, dice_score[b]) # sort by dice_score:
                   for b in sorted(dice_score, key=lambda b: dice_score[b], reverse=True)}
 
     @staticmethod
@@ -124,5 +126,8 @@ class ExtractBigrams(WordProcessor):
 
     async def estimate_interestingness(self):
         return assessment.recoursive_distribution(
+            #   dice_score * log(count)
             {b: self.result[b][1]*log(self.result[b][0]) for b in self.result}
             )
+
+
