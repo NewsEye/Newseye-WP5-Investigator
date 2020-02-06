@@ -31,7 +31,7 @@ class Config(object):
     HEADERS = {}
     COOKIES = {}
 
-    SOLR_MAX_RETURN_VALUES = 100
+    SOLR_MAX_RETURN_VALUES = 100000
 
     SOLR_URI = "http://localhost:9983/solr/newseye_collection/"
 
@@ -89,8 +89,6 @@ class Config(object):
     AVAILABLE_FACETS = {
         "LANGUAGE": "language_ssi",
         "NEWSPAPER_NAME": "member_of_collection_ids_ssim",
-        #        'PUB_DATE': 'date_created_dtsi', # ??? does not exist
-        #        "TYPE_OF_DOCUMENT": "has_model_ssim",
         "PUB_YEAR": "year_isi",
     }
 

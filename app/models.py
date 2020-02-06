@@ -11,6 +11,7 @@ from flask_login import UserMixin
 from app import db, login
 from config import Config
 
+
 Base = declarative_base()
 
 
@@ -94,6 +95,12 @@ class Dataset(db.Model):
             self.id, self.dataset_name, len(self.documents), len(self.tasks)
         )
 
+    def make_query(self):
+        return {
+            "q": "*:*",
+            "fq": "{!terms f=id}" + ",".join([doc.solr_id for doc in self.documents]),
+        }
+
 
 class DatasetTransformation(db.Model):
     # this table could be used to reconstruct the dataset using all transformations one by one
@@ -124,7 +131,7 @@ class Processor(db.Model):
     input_type = db.Column(db.String(255), nullable=False)
     # dataset
     output_type = db.Column(db.String(255), nullable=False)
-    # facet_list, word_list, bigram_list
+    # facet_list, word_list, bigram_list, timeseries
 
     description = db.Column(db.String(10000))
     import_path = db.Column(db.String(1024))
@@ -222,7 +229,7 @@ class Task(db.Model):
             return "<Task id: {}, processor: {}, solr_query: {}, status: {}>".format(
                 self.id, self.processor.name, self.solr_query.search_query, self.task_status,
             )
-
+        
     def dict(self, style="status"):
         if style == "status":
             if self.task_status == "running":
@@ -254,6 +261,16 @@ class Task(db.Model):
                 "task_result": self.result_with_interestingness,
             }
 
+
+    @property
+    def search_query(self):
+        if self.dataset:
+            return self.dataset.make_query()
+        elif self.solr_query:
+            return self.solr_query.search_query
+        else:
+            raise NotImplementedError("Cannot get query for task %s" %self)
+        
     @property
     def task_result(self):
         if self.task_results:

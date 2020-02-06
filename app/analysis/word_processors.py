@@ -25,8 +25,8 @@ class WordProcessor(AnalysisUtility):
             input_type="dataset",
         )
 
-    async def get_input_data(self, solr_query):
-            return await search_database(solr_query, retrieve=self.task.parameters["unit"])
+    async def get_input_data(self):
+            return await search_database(self.task.search_query, retrieve=self.task.parameters["unit"])
 
 
 

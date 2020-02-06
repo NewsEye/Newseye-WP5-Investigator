@@ -1,9 +1,9 @@
 from app import db
 from app.models import Processor
 from app.utils.search_utils import search_database
-from app.analysis import assessment  # , timeseries
+from app.analysis import assessment 
 import asyncio
-from app.utils.db_utils import make_query_from_dataset
+
 
 
 
@@ -11,7 +11,7 @@ from app.utils.db_utils import make_query_from_dataset
 class AnalysisUtility(Processor):
     @classmethod
     def make_processor(cls):
-        if not Processor.query.filter_by(name=cls.__name__).one_or_none():
+        if not Processor.query.filter_by(name=cls.__name__, import_path=cls.__module__).one_or_none():
             db.session.add(cls._make_processor())
             db.session.commit()
 
@@ -33,23 +33,13 @@ class AnalysisUtility(Processor):
 
     async def __call__(self, task):
         self.task = task
-        self.input_data = await self._get_input_data()
+        self.input_data = await self.get_input_data()
         self.result = await self.make_result()
         self.interestingness = await self.estimate_interestingness()
         return {"result": self.result, "interestingness": self.interestingness}
 
-    async def _get_input_data(self):
-        # TODO: check input type; in many cases we just need to get result form the internal db
-        if self.task.dataset:
-            return await self.get_input_data(make_query_from_dataset(self.task.dataset))
-        elif self.task.solr_query:
-            return await self.get_input_data(self.task.solr_query.search_query)
-        else:
-            # source_uuid
-            raise NotImplementedError("cannot get data for task %s" % task)
-
-    async def get_input_data(self, solr_query):
-        return await search_database(solr_query, retrieve="all")
+    async def get_input_data(self):
+        return await search_database(self.task.search_query, retrieve="all")
 
     def get_description(self):
         return self.processor.dict()

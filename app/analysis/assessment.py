@@ -33,19 +33,23 @@ class Distribution(object):
         return self.entropy / np.log2(self.number_of_outcomes)
 
 
+def ensure_distribution(d):
+    if isinstance(d, Distribution):
+        return d
+    return Distribution(d)
+    
+    
 def ensure_distributions(*dist):
-    ret = []
-    for d in dist:
-        if isinstance(d, Distribution):
-            ret.append(d)
-        else:
-            ret.append(Distribution(d))
-    return ret
+    return [ensure_distribution(d) for d in dist]
 
 
 # DISTRIBUTION COMPARISON METRICS
 # TODO: Wasserstain distance
 
+
+def normalized_entropy(p):
+    p = ensure_distribution(p)
+    return p.normalized_entropy
 
 def kl_divergence(p, q):
     p, q = ensure_distributions(p, q)
@@ -175,6 +179,7 @@ def recoursive_distribution(data):
     """
     Loop through data, converts numerical lists into distributions
     """
+
     if not data:
         return 0.0
     if isinstance(data, str):
@@ -182,7 +187,9 @@ def recoursive_distribution(data):
     if type(data) in [float, int]:
         return 0 if data == 0 else 1
     if isinstance(data, dict):
-        return {k: v for (k, v) in zip(data.keys(), recoursive_distribution(list(data.values())))}
+        if all([type(i) in [float, int] for i in data.values()]):
+            return {k: v for (k, v) in zip(data.keys(), recoursive_distribution(list(data.values())))}
+        return {k : recoursive_distribution(v) for k,v in data.items()}
     if type(data) in [list, tuple, set]:
         if all([type(i) in [float, int] for i in data]):
             return Distribution(data).dist
