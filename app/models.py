@@ -58,10 +58,11 @@ class SolrQuery(db.Model):
     def solr_output(self, retrieve):
         if self.solr_outputs:
             # return the first one with correct retrive
-            return sorted([o for o in self.solr_outputs if o.retrieve == retrieve], key=lambda o: o.last_updated)[-1]
-            
+            return sorted(
+                [o for o in self.solr_outputs if o.retrieve == retrieve],
+                key=lambda o: o.last_updated,
+            )[-1]
 
-    
     def __repr__(self):
         return "<SolrQuery {}, search_query {}>".format(self.id, self.search_query)
 
@@ -71,7 +72,9 @@ class SolrOutput(db.Model):
     # some queries might be too heavy, better to store localy
     id = db.Column(db.Integer, primary_key=True)
     output = db.Column(JSONB, nullable=False)
-    retrieve = db.Column(db.Enum("default", "all", "facets", "docids", "tokens", "stems", name="retrieve"))
+    retrieve = db.Column(
+        db.Enum("default", "all", "facets", "docids", "tokens", "stems", name="retrieve")
+    )
     last_updated = db.Column(db.DateTime, default=datetime.utcnow)
     solr_query_id = db.Column(Integer, ForeignKey("solr_query.id"), nullable=False)
     solr_query = db.relationship(
@@ -192,9 +195,7 @@ class Task(db.Model):
     solr_query_id = db.Column(Integer, ForeignKey("solr_query.id"))
     solr_query = db.relationship("SolrQuery", foreign_keys=[solr_query_id], back_populates="tasks")
 
-    input_data = db.Column(
-        db.String(255)
-    )  # later on something else?
+    input_data = db.Column(db.String(255))  # later on something else?
     uuid = db.Column(UUID(as_uuid=True), unique=True, nullable=False, default=uuid.uuid4)
 
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
@@ -229,7 +230,7 @@ class Task(db.Model):
             return "<Task id: {}, processor: {}, solr_query: {}, status: {}>".format(
                 self.id, self.processor.name, self.solr_query.search_query, self.task_status,
             )
-        
+
     def dict(self, style="status"):
         if style == "status":
             if self.task_status == "running":
@@ -261,7 +262,6 @@ class Task(db.Model):
                 "task_result": self.result_with_interestingness,
             }
 
-
     @property
     def search_query(self):
         if self.dataset:
@@ -269,8 +269,8 @@ class Task(db.Model):
         elif self.solr_query:
             return self.solr_query.search_query
         else:
-            raise NotImplementedError("Cannot get query for task %s" %self)
-        
+            raise NotImplementedError("Cannot get query for task %s" % self)
+
     @property
     def task_result(self):
         if self.task_results:

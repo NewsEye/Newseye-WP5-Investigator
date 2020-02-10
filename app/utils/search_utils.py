@@ -30,7 +30,6 @@ async def query_solr(
 ):
     #### TODO: store queries and outputs, check if output exists, and reuse
 
-    
     #    current_app.logger.debug("============== QUERY: %s RETRIEVE: %s" %(query, retrieve))
 
     """

@@ -37,8 +37,8 @@ def ensure_distribution(d):
     if isinstance(d, Distribution):
         return d
     return Distribution(d)
-    
-    
+
+
 def ensure_distributions(*dist):
     return [ensure_distribution(d) for d in dist]
 
@@ -50,6 +50,7 @@ def ensure_distributions(*dist):
 def normalized_entropy(p):
     p = ensure_distribution(p)
     return p.normalized_entropy
+
 
 def kl_divergence(p, q):
     p, q = ensure_distributions(p, q)
@@ -188,12 +189,11 @@ def recoursive_distribution(data):
         return 0 if data == 0 else 1
     if isinstance(data, dict):
         if all([type(i) in [float, int] for i in data.values()]):
-            return {k: v for (k, v) in zip(data.keys(), recoursive_distribution(list(data.values())))}
-        return {k : recoursive_distribution(v) for k,v in data.items()}
+            return {
+                k: v for (k, v) in zip(data.keys(), recoursive_distribution(list(data.values())))
+            }
+        return {k: recoursive_distribution(v) for k, v in data.items()}
     if type(data) in [list, tuple, set]:
         if all([type(i) in [float, int] for i in data]):
             return Distribution(data).dist
         return [recoursive_distribution(i) for i in data]
-
-
-

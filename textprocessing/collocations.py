@@ -1,4 +1,3 @@
-
 class Bigrams(object):
     @staticmethod
     def mention_dict_to_count(dict_of_mentions, min_count=0):

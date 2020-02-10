@@ -1,17 +1,16 @@
 from app import db
 from app.models import Processor
 from app.utils.search_utils import search_database
-from app.analysis import assessment 
+from app.analysis import assessment
 import asyncio
-
-
-
 
 
 class AnalysisUtility(Processor):
     @classmethod
     def make_processor(cls):
-        if not Processor.query.filter_by(name=cls.__name__, import_path=cls.__module__).one_or_none():
+        if not Processor.query.filter_by(
+            name=cls.__name__, import_path=cls.__module__
+        ).one_or_none():
             db.session.add(cls._make_processor())
             db.session.commit()
 
@@ -50,8 +49,3 @@ class AnalysisUtility(Processor):
     async def estimate_interestingness(self):
         # convert all numerical lists and dict values into distributions (0-1)
         return assessment.recoursive_distribution(self.result)
-
-
-
-
-
