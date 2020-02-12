@@ -38,49 +38,49 @@ def store_corpus_to_pickle(corpus, filename):
     :param filename: the descriptive part for the pickled files, etc. "fi_uusisuometar". Needs to start with the language code.
     :return: 0 if everything went fine.
     """
-    picklepath = 'pickled/'
-    with open('{}_docid_to_date.pickle'.format(picklepath + filename), 'wb') as f:
+    picklepath = "pickled/"
+    with open("{}_docid_to_date.pickle".format(picklepath + filename), "wb") as f:
         pickle.dump(corpus.docid_to_date, f, protocol=pickle.HIGHEST_PROTOCOL)
-    with open('{}_lemma_to_docids.pickle'.format(picklepath + filename), 'wb') as f:
+    with open("{}_lemma_to_docids.pickle".format(picklepath + filename), "wb") as f:
         pickle.dump(corpus.lemma_to_docids, f, protocol=pickle.HIGHEST_PROTOCOL)
-    with open('{}_token_to_docids.pickle'.format(picklepath + filename), 'wb') as f:
+    with open("{}_token_to_docids.pickle".format(picklepath + filename), "wb") as f:
         pickle.dump(corpus.token_to_docids, f, protocol=pickle.HIGHEST_PROTOCOL)
-    with open('{}_prefix_lemma_vocabulary.pickle'.format(picklepath + filename), 'wb') as f:
+    with open("{}_prefix_lemma_vocabulary.pickle".format(picklepath + filename), "wb") as f:
         pickle.dump(corpus.prefix_lemma_vocabulary, f, protocol=pickle.HIGHEST_PROTOCOL)
-    with open('{}_suffix_lemma_vocabulary.pickle'.format(picklepath + filename), 'wb') as f:
+    with open("{}_suffix_lemma_vocabulary.pickle".format(picklepath + filename), "wb") as f:
         pickle.dump(corpus.suffix_lemma_vocabulary, f, protocol=pickle.HIGHEST_PROTOCOL)
-    with open('{}_prefix_token_vocabulary.pickle'.format(picklepath + filename), 'wb') as f:
+    with open("{}_prefix_token_vocabulary.pickle".format(picklepath + filename), "wb") as f:
         pickle.dump(corpus.prefix_token_vocabulary, f, protocol=pickle.HIGHEST_PROTOCOL)
-    with open('{}_suffix_token_vocabulary.pickle'.format(picklepath + filename), 'wb') as f:
+    with open("{}_suffix_token_vocabulary.pickle".format(picklepath + filename), "wb") as f:
         pickle.dump(corpus.suffix_token_vocabulary, f, protocol=pickle.HIGHEST_PROTOCOL)
-    with open('{}_token_bi_to_docids.pickle'.format(picklepath + filename), 'wb') as f:
+    with open("{}_token_bi_to_docids.pickle".format(picklepath + filename), "wb") as f:
         pickle.dump(corpus.token_bi_to_docids, f, protocol=pickle.HIGHEST_PROTOCOL)
-    with open('{}_lemma_bi_to_docids.pickle'.format(picklepath + filename), 'wb') as f:
+    with open("{}_lemma_bi_to_docids.pickle".format(picklepath + filename), "wb") as f:
         pickle.dump(corpus.lemma_bi_to_docids, f, protocol=pickle.HIGHEST_PROTOCOL)
     return corpus
 
 
 def load_corpus_from_pickle(filename):
     corpus = Corpus(filename[:2])
-    picklepath = 'pickled/'
-    with open('{}_docid_to_date.pickle'.format(picklepath + filename), 'rb') as f:
+    picklepath = "pickled/"
+    with open("{}_docid_to_date.pickle".format(picklepath + filename), "rb") as f:
         corpus.docid_to_date = pickle.load(f)
-    with open('{}_lemma_to_docids.pickle'.format(picklepath + filename), 'rb') as f:
+    with open("{}_lemma_to_docids.pickle".format(picklepath + filename), "rb") as f:
         corpus.lemma_to_docids = pickle.load(f)
-    with open('{}_token_to_docids.pickle'.format(picklepath + filename), 'rb') as f:
+    with open("{}_token_to_docids.pickle".format(picklepath + filename), "rb") as f:
         corpus.token_to_docids = pickle.load(f)
-    with open('{}_prefix_lemma_vocabulary.pickle'.format(picklepath + filename), 'rb') as f:
+    with open("{}_prefix_lemma_vocabulary.pickle".format(picklepath + filename), "rb") as f:
         corpus.prefix_lemma_vocabulary = pickle.load(f)
-    with open('{}_suffix_lemma_vocabulary.pickle'.format(picklepath + filename), 'rb') as f:
+    with open("{}_suffix_lemma_vocabulary.pickle".format(picklepath + filename), "rb") as f:
         corpus.suffix_lemma_vocabulary = pickle.load(f)
-    with open('{}_prefix_token_vocabulary.pickle'.format(picklepath + filename), 'rb') as f:
+    with open("{}_prefix_token_vocabulary.pickle".format(picklepath + filename), "rb") as f:
         corpus.prefix_token_vocabulary = pickle.load(f)
-    with open('{}_suffix_token_vocabulary.pickle'.format(picklepath + filename), 'rb') as f:
+    with open("{}_suffix_token_vocabulary.pickle".format(picklepath + filename), "rb") as f:
         corpus.suffix_token_vocabulary = pickle.load(f)
     try:
-        with open('{}_token_bi_to_docids.pickle'.format(picklepath + filename), 'rb') as f:
+        with open("{}_token_bi_to_docids.pickle".format(picklepath + filename), "rb") as f:
             corpus.token_bi_to_docids = pickle.load(f)
-        with open('{}_lemma_bi_to_docids.pickle'.format(picklepath + filename), 'rb') as f:
+        with open("{}_lemma_bi_to_docids.pickle".format(picklepath + filename), "rb") as f:
             corpus.lemma_bi_to_docids = pickle.load(f)
     except FileNotFoundError:
         pass
@@ -135,11 +135,11 @@ def mz_fwt(x, n=3):
         gz = insert_zeros(g, n_zeros)
         hz = insert_zeros(h, n_zeros)
         current = (1.0 / lambda_j[j]) * np.convolve(s, gz)
-        current = current[n_pnts + gn[j] - 1:2 * n_pnts + gn[j] - 1]
+        current = current[n_pnts + gn[j] - 1 : 2 * n_pnts + gn[j] - 1]
         prod *= current
         prods[j] *= current
         s_new = np.convolve(s, hz)
-        s = s_new[n_pnts + hn[j] - 1:2 * n_pnts + hn[j] - 1]
+        s = s_new[n_pnts + hn[j] - 1 : 2 * n_pnts + hn[j] - 1]
     prod /= np.abs(prod).max()
     return prod, prods
 
@@ -195,9 +195,9 @@ def find_steps(array, threshold=None):
     if len(neg_cross_ups) > len(neg_cross_dns):
         neg_cross_ups = neg_cross_ups[1:]
     for upi, dni in zip(pos_cross_ups, pos_cross_dns):
-        steps.append(np.argmax(array[upi: dni]) + upi + 1)
+        steps.append(np.argmax(array[upi:dni]) + upi + 1)
     for dni, upi in zip(neg_cross_dns, neg_cross_ups):
-        steps.append(np.argmin(array[dni: upi]) + dni + 1)
+        steps.append(np.argmin(array[dni:upi]) + dni + 1)
     return sorted(steps)
 
 
@@ -244,8 +244,8 @@ def get_step_sizes(array, indices, window=1000):
             q = min(window, index - indices[i - 1], len(array) - 1 - index)
         else:
             q = min(window, index - indices[i - 1], indices[i + 1] - index)
-        a = array[index - q: index + 1]
-        b = array[index: index + q + 1]
+        a = array[index - q : index + 1]
+        b = array[index : index + q + 1]
         step_sizes.append((a.mean(), b.mean()))
         error = sqrt(a.var() + b.var())
         if isnan(error):
@@ -255,7 +255,9 @@ def get_step_sizes(array, indices, window=1000):
     return step_sizes, step_error
 
 
-def step_analysis(keyword, corpus=None, df=None, item='token-1', fill_na='interpolate', use_relative_values=True):
+def step_analysis(
+    keyword, corpus=None, df=None, item="token-1", fill_na="interpolate", use_relative_values=True,
+):
     if corpus:
         ts, ts_ipm = corpus.timeseries(word_list=[keyword], item=item)
         if use_relative_values:
@@ -272,7 +274,7 @@ def step_analysis(keyword, corpus=None, df=None, item='token-1', fill_na='interp
     return prod, steps, step_sizes
 
 
-def prepare_timeseries(ts, fill_na='interpolate'):
+def prepare_timeseries(ts, fill_na="interpolate"):
     """
     Prepares a time series in  a dictionary format into a pandas timeframe, adding missing values where necessary.
     :param ts: a timeseries returned by Corpus.timeseries()
@@ -283,18 +285,22 @@ def prepare_timeseries(ts, fill_na='interpolate'):
                     valid values and interpolate('pad') outside valid values
     :return: two DataFrames. df contains the time series, filled_values shows which values were filled in
     """
-    if fill_na not in ['none', 'interpolate', 'zero']:
-        raise ValueError("Invalid value for parameter fill_na. Valid values are 'none', 'zero' and 'interpolate'")
+    if fill_na not in ["none", "interpolate", "zero"]:
+        raise ValueError(
+            "Invalid value for parameter fill_na. Valid values are 'none', 'zero' and 'interpolate'"
+        )
     df = pd.DataFrame(ts)
-    first_date = df.index[0].split('-')
+    first_date = df.index[0].split("-")
     if len(first_date) == 1:
-        freq = 'AS'
+        freq = "AS"
     elif len(first_date) == 2:
-        freq = 'MS'
+        freq = "MS"
     elif len(first_date) == 3:
-        freq = 'D'
+        freq = "D"
     else:
-        raise ValueError('Invalid date format in the time series! Use YYYY or YYYY-MM or YYYY-MM-DD!')
+        raise ValueError(
+            "Invalid date format in the time series! Use YYYY or YYYY-MM or YYYY-MM-DD!"
+        )
     df.index = pd.to_datetime(df.index)
     if len(df.index) < 2:
         return df
@@ -302,24 +308,31 @@ def prepare_timeseries(ts, fill_na='interpolate'):
     idx = pd.date_range(start=df.index.min(), end=df.index.max(), freq=freq)
     df = df.reindex(idx)
     filled_values = df.isna
-    if fill_na == 'zero':
+    if fill_na == "zero":
         df = df.fillna(0)
-    elif fill_na == 'interpolate':
-        df = df.interpolate(limit_direction='both')
+    elif fill_na == "interpolate":
+        df = df.interpolate(limit_direction="both")
 
     return df, filled_values
 
 
-def plot_wavelets(keyword, corpus=None, df=None, item='token-1', fill_na='interpolate', use_relative_values=True):
+def plot_wavelets(
+    keyword, corpus=None, df=None, item="token-1", fill_na="interpolate", use_relative_values=True,
+):
     if corpus:
-        df, filled_indices = dataframe_from_corpus(corpus=corpus, wordlist=[keyword], item=item, fill_na=fill_na,
-                                                   use_relative_values=use_relative_values)
+        df, filled_indices = dataframe_from_corpus(
+            corpus=corpus,
+            wordlist=[keyword],
+            item=item,
+            fill_na=fill_na,
+            use_relative_values=use_relative_values,
+        )
     if df is None:
         return
     idx = df.index
     prod, prods = mz_fwt(df[keyword])
     f, (ax1, ax2, ax3, ax4, ax5) = plt.subplots(5, 1, sharex=True)
-    ax1.set_title('Wavelets for {}'.format(keyword))
+    ax1.set_title("Wavelets for {}".format(keyword))
     ax1.plot(idx, df[keyword])
     ax2.plot(idx, prods[0])
     ax3.plot(idx, prods[1])
@@ -328,43 +341,77 @@ def plot_wavelets(keyword, corpus=None, df=None, item='token-1', fill_na='interp
     f.show()
 
 
-def plot_step_locations(keyword, corpus=None, df=None, item='token-1', fill_na='interpolate', use_relative_values=True):
-    prod, steps, step_sizes = step_analysis(keyword, corpus=corpus, df=df, item=item, fill_na=fill_na)
+def plot_step_locations(
+    keyword, corpus=None, df=None, item="token-1", fill_na="interpolate", use_relative_values=True,
+):
+    prod, steps, step_sizes = step_analysis(
+        keyword, corpus=corpus, df=df, item=item, fill_na=fill_na
+    )
     if corpus:
-        df, filled_indices = dataframe_from_corpus(corpus=corpus, wordlist=[keyword], item=item, fill_na=fill_na,
-                                                   use_relative_values=use_relative_values)
+        df, filled_indices = dataframe_from_corpus(
+            corpus=corpus,
+            wordlist=[keyword],
+            item=item,
+            fill_na=fill_na,
+            use_relative_values=use_relative_values,
+        )
     if df is None:
         return
     idx = df.index
     threshold = 4 * np.var(prod)
     max_freq = df[keyword].max()
-    f, (ax1, ax2) = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': [3, 1]})
+    f, (ax1, ax2) = plt.subplots(2, 1, sharex=True, gridspec_kw={"height_ratios": [3, 1]})
     # Plot the word frequency
-    ax1.plot(idx, df[keyword], c='gray')
+    ax1.plot(idx, df[keyword], c="gray")
     ax1.set_title(
         """Word frequencies for '{}' and detected steps.
         Taller bar corresponds to a more certain step.
-        Years with no data have been {}.""".format(keyword, "zero-filled" if fill_na == 'zero' else "interpolated"))
+        Years with no data have been {}.""".format(
+            keyword, "zero-filled" if fill_na == "zero" else "interpolated"
+        )
+    )
     if use_relative_values:
-        ax1.set_ylabel('Word frequency (ipm)')
+        ax1.set_ylabel("Word frequency (ipm)")
     else:
-        ax1.set_ylabel('Word frequency (total)')
+        ax1.set_ylabel("Word frequency (total)")
     # Plot the detected steps
     for i in steps:
         if prod[i] > threshold:
-            ax2.vlines(idx[i] + datetime.timedelta(days=183), 0, max_freq * prod[i], color='blue', linewidth=3)
+            ax2.vlines(
+                idx[i] + datetime.timedelta(days=183),
+                0,
+                max_freq * prod[i],
+                color="blue",
+                linewidth=3,
+            )
         if prod[i] < -threshold:
-            ax2.vlines(idx[i] + datetime.timedelta(days=183), 0, max_freq * prod[i], color='orange', linewidth=3)
+            ax2.vlines(
+                idx[i] + datetime.timedelta(days=183),
+                0,
+                max_freq * prod[i],
+                color="orange",
+                linewidth=3,
+            )
     ax2.hlines(0, idx[0], idx[-1])
     ax2.get_yaxis().set_visible(False)
     f.tight_layout()
     f.show()
 
 
-def plot_estimate(keyword, corpus=None, df=None, item='token-1', fill_na='interpolate', use_relative_values=True):
-    prod, steps, step_sizes = step_analysis(keyword, corpus=corpus, df=df, item=item, fill_na=fill_na)
+def plot_estimate(
+    keyword, corpus=None, df=None, item="token-1", fill_na="interpolate", use_relative_values=True,
+):
+    prod, steps, step_sizes = step_analysis(
+        keyword, corpus=corpus, df=df, item=item, fill_na=fill_na
+    )
     if corpus:
-        df, filled_indices = dataframe_from_corpus(corpus=corpus, wordlist=[keyword], item=item, fill_na=fill_na, use_relative_values=use_relative_values)
+        df, filled_indices = dataframe_from_corpus(
+            corpus=corpus,
+            wordlist=[keyword],
+            item=item,
+            fill_na=fill_na,
+            use_relative_values=use_relative_values,
+        )
     if df is None:
         return
     idx = df.index
@@ -375,7 +422,7 @@ def plot_estimate(keyword, corpus=None, df=None, item='token-1', fill_na='interp
         estimate[s:] += sizes[1] - sizes[0]
     f, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex=True)
     ax1.plot(idx, df[keyword])
-    ax1.set_title('Word frequencies and estimate of the steps for {}'.format(keyword))
+    ax1.set_title("Word frequencies and estimate of the steps for {}".format(keyword))
     ax2.plot(idx, prod)
     ax2.hlines([threshold, -threshold], idx[0], idx[-1])
     ax3.plot(idx, estimate)
@@ -383,15 +430,25 @@ def plot_estimate(keyword, corpus=None, df=None, item='token-1', fill_na='interp
     return estimate
 
 
-def research_steps(corpus=None, df=None, verbose=True, num_items=None, item='token-1', fill_na='interpolate', use_relative_values=True):
+def research_steps(
+    corpus=None,
+    df=None,
+    verbose=True,
+    num_items=None,
+    item="token-1",
+    fill_na="interpolate",
+    use_relative_values=True,
+):
     if corpus:
-        df, filled_indices = dataframe_from_corpus(corpus=corpus, item=item, fill_na=fill_na, use_relative_values=use_relative_values)
+        df, filled_indices = dataframe_from_corpus(
+            corpus=corpus, item=item, fill_na=fill_na, use_relative_values=use_relative_values,
+        )
     if df is None:
         return
     pb = ProgressBar("Research {}s".format(item), verbose=verbose)
-    if item == 'lemma':
+    if item == "lemma":
         items = [(key, len(docids)) for key, docids in corpus.lemma_to_docids.items()]
-    elif item == 'token':
+    elif item == "token":
         items = [(key, len(docids)) for key, docids in corpus.token_to_docids.items()]
     else:
         return None
@@ -411,7 +468,9 @@ def research_steps(corpus=None, df=None, verbose=True, num_items=None, item='tok
     return steps_by_year
 
 
-def dataframe_from_corpus(corpus, wordlist=None, item='token-1', fill_na='interpolate', use_relative_values=True):
+def dataframe_from_corpus(
+    corpus, wordlist=None, item="token-1", fill_na="interpolate", use_relative_values=True,
+):
     ts, ts_ipm = corpus.timeseries(item=item, word_list=wordlist)
     if use_relative_values:
         df, filled_indices = prepare_timeseries(ts_ipm, fill_na)
@@ -426,7 +485,7 @@ def stay_tuned():
 
 
 def print_group_count(corpus, item, group):
-    if item == 'lemma':
+    if item == "lemma":
         counts = {w: len(corpus.lemma_to_docids[w]) for w in group}
         total = len(corpus.lemma_to_docids)
     else:
@@ -438,15 +497,19 @@ def print_group_count(corpus, item, group):
         print(w, c, "%2.2fipm" % (c * 1000000 / total))
 
 
-def ism(corpus, word='patriotisme', affix=("suffix", "isme"),
-        item="lemma", granularity="month"):
-    # TODO: make impressive example, add plots    
+def ism(
+    corpus, word="patriotisme", affix=("suffix", "isme"), item="lemma", granularity="month",
+):
+    # TODO: make impressive example, add plots
     print("\n******************************************************")
-    print("Corpus: %s, word: '%s', group: all words with %s '%s'" \
-          % (corpus.lang_id, word, affix[0], affix[1]))
+    print(
+        "Corpus: %s, word: '%s', group: all words with %s '%s'"
+        % (corpus.lang_id, word, affix[0], affix[1])
+    )
 
     group = corpus.find_group_by_affix(affix, item)
-    if not group: return
+    if not group:
+        return
 
     print_group_count(corpus, item, group)
 
@@ -457,26 +520,30 @@ def ism(corpus, word='patriotisme', affix=("suffix", "isme"),
     group_ts = timeseries.sum_up({w: ts[w] for w in group})
     group_ts_ipm = timeseries.sum_up({w: ts_ipm[w] for w in group})
 
-    print("'%s': averaged count %3.2f, averaged relative count (ipm) %3.2f" \
-          % (word, np.mean(list(ts[word].values())), np.mean(list(ts_ipm[word].values()))))
-    print("'%s': averaged count %3.2f, averaged relative count (ipm) %3.2f" \
-          % (affix[1], np.mean(list(group_ts.values())), np.mean(list(group_ts_ipm.values()))))
+    print(
+        "'%s': averaged count %3.2f, averaged relative count (ipm) %3.2f"
+        % (word, np.mean(list(ts[word].values())), np.mean(list(ts_ipm[word].values())))
+    )
+    print(
+        "'%s': averaged count %3.2f, averaged relative count (ipm) %3.2f"
+        % (affix[1], np.mean(list(group_ts.values())), np.mean(list(group_ts_ipm.values())),)
+    )
 
     spikes = assessment.find_large_numbers(wfr)
     print("Potentially interesting dates:")
     for k in sorted(spikes, key=spikes.get, reverse=True):
-        print("%s: '%s': %d (%2.2f ipm), '%s': %d (%2.2f ipm)" \
-              % (k, word, ts[word][k], ts_ipm[word][k], affix[1], group_ts[k], group_ts_ipm[k]))
+        print(
+            "%s: '%s': %d (%2.2f ipm), '%s': %d (%2.2f ipm)"
+            % (k, word, ts[word][k], ts_ipm[word][k], affix[1], group_ts[k], group_ts_ipm[k],)
+        )
 
     stay_tuned()
 
 
-def group_outliers(corpus,
-                   item="lemma",
-                   granularity="month",
-                   affix=("suffix", "isme"),
-                   weights=False):
-    # try running this function with and without weights 
+def group_outliers(
+    corpus, item="lemma", granularity="month", affix=("suffix", "isme"), weights=False
+):
+    # try running this function with and without weights
     # 'gargarisme' is the act of bubbling liquid in the mouth
     # for more details see: https://fr.wikipedia.org/wiki/Gargarisme
 
@@ -486,7 +553,8 @@ def group_outliers(corpus,
     print("Corpus: %s, group: all words with '%s' '%s'" % (corpus.lang_id, affix[0], affix[1]))
 
     group = corpus.find_group_by_affix(affix, item)
-    if not group: return
+    if not group:
+        return
 
     print_group_count(corpus, item, group)
 
@@ -494,9 +562,9 @@ def group_outliers(corpus,
         word_to_docid = corpus.find_word_to_doc_dict(item)
         weights = {w: np.log10(len(word_to_docid[w])) for w in group}
 
-    outliers = timeseries.find_group_outliers(corpus, group,
-                                              weights=weights, item=item,
-                                              granularity=granularity)
+    outliers = timeseries.find_group_outliers(
+        corpus, group, weights=weights, item=item, granularity=granularity
+    )
     print("Group outliers: ")
 
     ts, _ = corpus.timeseries(item, granularity, word_list=outliers.keys())
@@ -507,19 +575,23 @@ def group_outliers(corpus,
     stay_tuned()
 
 
-def find_interesting_words(corpus, item="lemma", granularity="month", min_count=10,
-                           threshold=0.5, coefficient=1.2, smoothing=0.5):
+def find_interesting_words(
+    corpus,
+    item="lemma",
+    granularity="month",
+    min_count=10,
+    threshold=0.5,
+    coefficient=1.2,
+    smoothing=0.5,
+):
     # when smoothing is used (highly recommended) min_count is needed
     # only to speed up comutations
     normalized_entropy = timeseries.normalized_entropy_for_aligned_ts_ipm(
-        corpus=corpus,
-        item=item,
-        granularity=granularity,
-        min_count=min_count,
-        smoothing=smoothing)
+        corpus=corpus, item=item, granularity=granularity, min_count=min_count, smoothing=smoothing,
+    )
 
     ts, ts_ipm = corpus.timeseries(item, granularity, min_count=min_count)
-    total = corpus._timeseries[item][granularity]['total']
+    total = corpus._timeseries[item][granularity]["total"]
 
     word_to_docid = corpus.find_word_to_doc_dict(item)
 
@@ -528,13 +600,16 @@ def find_interesting_words(corpus, item="lemma", granularity="month", min_count=
 
     # the smaller normalized_entropy, the more interesting word is
     # small NE means that probability mass is concentrated on some particular dates
-    for (w, ne) in sorted(normalized_entropy.items(),
-                          key=lambda x: (x[1], -len(word_to_docid[x[0]]))):
+    for (w, ne) in sorted(
+        normalized_entropy.items(), key=lambda x: (x[1], -len(word_to_docid[x[0]]))
+    ):
         if 1 - ne < threshold:
             break
         print("")
         print(w)
-        print('interestness %2.2f' % (1 - ne))  # entropy 0 means word is only used in a certain date; superinteresting
+        print(
+            "interestness %2.2f" % (1 - ne)
+        )  # entropy 0 means word is only used in a certain date; superinteresting
         print("Potentially interesting dates:")
 
         assessment.align_dicts_from_to(total, ts_ipm[w])
@@ -544,32 +619,39 @@ def find_interesting_words(corpus, item="lemma", granularity="month", min_count=
         for date in sorted(interesting_dates):
             print("%s: %d (%2.2f ipm)" % (date, ts[w][date], ts_ipm[w][date]))
 
-        print("average count in other dates: %2.2f (%2.2fipm)"
-              % (np.mean([ts[w][d] for d in ts[w] if d not in interesting_dates]),
-                 np.mean([ts_ipm[w][d] for d in ts_ipm[w] if d not in interesting_dates])))
+        print(
+            "average count in other dates: %2.2f (%2.2fipm)"
+            % (
+                np.mean([ts[w][d] for d in ts[w] if d not in interesting_dates]),
+                np.mean([ts_ipm[w][d] for d in ts_ipm[w] if d not in interesting_dates]),
+            )
+        )
         print("total count: %d" % len(word_to_docid[w]))
 
     stay_tuned()
-    # 
+    #
 
 
-def print_top_counts(counts_dict, min_count=0, top=1000, form=(0,2)):
+def print_top_counts(counts_dict, min_count=0, top=1000, form=(0, 2)):
     iterator = 1
     for k in sorted(counts_dict, key=counts_dict.get, reverse=True):
         if iterator == top or counts_dict[k] < min_count:
             break
-        print ("%%s, %%%d.%df" %(form[0],form[1]) %(k, counts_dict[k]))
-        iterator+=1
+        print("%%s, %%%d.%df" % (form[0], form[1]) % (k, counts_dict[k]))
+        iterator += 1
+
 
 def print_top(dict_of_mentions, min_count=1, top=1000):
-    print_top_counts({k: len(v) for k, v in dict_of_mentions.items()
-                      if len(v) >= min_count}, min_count)
+    print_top_counts(
+        {k: len(v) for k, v in dict_of_mentions.items() if len(v) >= min_count}, min_count,
+    )
 
 
 def dump_corpus(corpus, corpus_name=None, output_dir="dump/"):
     #### dump corpus (for Elaine, for TM, maybe we will use it for smth else)
 
-    if not corpus_name: corpus_name = corpus.lang_id
+    if not corpus_name:
+        corpus_name = corpus.lang_id
     output_dir = os.path.join(os.path.abspath(output_dir), corpus_name)
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -577,7 +659,7 @@ def dump_corpus(corpus, corpus_name=None, output_dir="dump/"):
     print("Dumping corpus into %s" % output_dir)
 
     for doc in corpus.readin_docs(process=False):
-        with open(os.path.join(output_dir, doc.doc_id), 'w') as out:
+        with open(os.path.join(output_dir, doc.doc_id), "w") as out:
             print(doc.doc_id, file=out)
             print("-".join(doc.date[:3]), file=out)
             print(doc.text, file=out)

@@ -15,7 +15,7 @@ from pytrie import StringTrie as Trie
 import string
 from progress import ProgressBar
 import warnings
-from app.search.search_utils import search_database
+from app.utils.search_utils import search_database
 
 warnings.filterwarnings("ignore")
 
@@ -30,7 +30,7 @@ class TextProcessor(object):
         self.output_lemmas = False
         # this should remove OCR bugs but would skip "legal" punctuation also
         # might be insufficient
-        self.remove = string.punctuation + '—»■„™®«§£•€□►▼♦“»★✓❖’▲°©‘*®'
+        self.remove = string.punctuation + "—»■„™®«§£•€□►▼♦“»★✓❖’▲°©‘*®"
         self.token_to_lemma = {}
         self.skip_item = {}
 
@@ -45,9 +45,11 @@ class TextProcessor(object):
             return Text(self.preprocess(text)).sentences
         except Exception as e:
             # polyglot crashes with broken utf ('pycld2.error:')
-            return Text(self.preprocess(
-                # remove non-printable symbols
-                ''.join(x for x in self.preprocess(text) if x.isprintable()))
+            return Text(
+                self.preprocess(
+                    # remove non-printable symbols
+                    "".join(x for x in self.preprocess(text) if x.isprintable())
+                )
             ).sentences
 
     def get_tokens(self, sentence):
@@ -116,7 +118,7 @@ class FinProcessor(TextProcessor):
         self.output_lemmas = True
 
     def preprocess(self, text):
-        return text.translate(str.maketrans('wW', 'vV'))
+        return text.translate(str.maketrans("wW", "vV"))
 
     def get_lemma(self, token):
         readings = uralicApi.lemmatize(token, "fin")
@@ -138,7 +140,7 @@ class FinProcessor_CG3(TextProcessor):
         self.output_lemmas = True
 
     def preprocess(self, text):
-        return text.translate(str.maketrans('wW', 'vV'))
+        return text.translate(str.maketrans("wW", "vV"))
 
     def get_lemmas(self, tokens):
         # process the whole sentence, rather than single token, because
@@ -154,7 +156,7 @@ class FinProcessor_CG3(TextProcessor):
             else:
                 # more than one reading
                 readings = [r for r in output[1]]
-                if readings[0].morphology[-1] == 'Cmpnd' and readings[1].lemma.startswith('"'):
+                if readings[0].morphology[-1] == "Cmpnd" and readings[1].lemma.startswith('"'):
                     # compounds, example:
                     # >>> cg.disambiguate(['presidenttivaaleissa'])
                     # [('presidenttivaaleissa', [<vaalea - N, Pl, Ine, <W:0.000000>, Cmpnd>, <"presidentti - N, Sg, Nom, <W:0.000000>>, <vaali - N, Pl, Ine, <W:0.000000>, Cmpnd>, <"presidentti - N, Sg, Nom, <W:0.000000>>])]
@@ -164,7 +166,6 @@ class FinProcessor_CG3(TextProcessor):
                     # TODO: make proper lemma selection---we might prefer
                     # compounds if the end users have special iterest in compounds
                     lemma = readings[0].lemma
-                
 
         return lemmas
 
@@ -193,7 +194,7 @@ class FinProcessor_CG3(TextProcessor):
 #         return "".join(self.omorfi.analyse(token)[-1].lemmas)
 
 
-LANG_PROCESSOR_MAP = defaultdict(TextProcessor, {'fr': FrProcessor(), 'fi': FinProcessor()})
+LANG_PROCESSOR_MAP = defaultdict(TextProcessor, {"fr": FrProcessor(), "fi": FinProcessor()})
 
 
 class Document(object):
@@ -233,13 +234,13 @@ class Document(object):
 
 class Document_Format1(Document):
     def __init__(self, title_line, text, text_processor, lang_id=None, process=True):
-        self.doc_id = title_line.strip().replace('-', '').replace(' ', '_')
+        self.doc_id = title_line.strip().replace("-", "").replace(" ", "_")
         self.lang_id = lang_id
         self.text_processor = text_processor
 
         self.text = text
 
-        date = title_line.split('-')[1].strip()
+        date = title_line.split("-")[1].strip()
         self.date = [date[:4], date[4:6], date[6:]]
 
         if process:
@@ -247,28 +248,32 @@ class Document_Format1(Document):
 
 
 class Document_Format2(Document):
-    month_to_number_map = {'September': '09', 'Oktober': '10'}
+    month_to_number_map = {"September": "09", "Oktober": "10"}
 
     def __init__(self, filename, text, text_processor, lang_id=None, process=True):
-        filename = filename.replace('.txt', '')
-        self.doc_id = filename.replace(' ', '_')
+        filename = filename.replace(".txt", "")
+        self.doc_id = filename.replace(" ", "_")
         self.lang_id = lang_id
         self.text_processor = text_processor
         self.text = text
 
-        date = filename.split(',')[1].strip().split(' ')
-        self.date = [date[2], self.month_to_number_map[date[1]], date[0].replace('.', '')]
+        date = filename.split(",")[1].strip().split(" ")
+        self.date = [
+            date[2],
+            self.month_to_number_map[date[1]],
+            date[0].replace(".", ""),
+        ]
         if process:
             self.get_tokens_and_lemmas()
 
 
 class Document_DB(Document):
     def __init__(self, doc, text_processor, lang_id=None, process=True):
-        self.doc_id = doc['id']
-        self.lang_id = lang_id or doc['language_ssi']
+        self.doc_id = doc["id"]
+        self.lang_id = lang_id or doc["language_ssi"]
         self.text_processor = text_processor
 
-        text_field = 'all_text_t' + self.lang_id + '_siv'  # e.g. 'all_text_tfr_siv',
+        text_field = "all_text_t" + self.lang_id + "_siv"  # e.g. 'all_text_tfr_siv',
         # don't know what it mean,
         # let's hope it won't change
         self.text = doc.get(text_field)
@@ -281,14 +286,15 @@ class Document_DB(Document):
             # dates are lists of strings in format 'yyyy-mm-dd-'
             # why lists, could it be more than one date for a document???
             # lets take the first
-            self.date = doc['date_created_ssim'][0].strip().split('-')
+            self.date = doc["date_created_ssim"][0].strip().split("-")
             if process:
                 self.get_tokens_and_lemmas()
 
 
 class Corpus(object):
-
-    def __init__(self, lang_id, debug_count=10e100, verbose=True, input_dir=None, input_format=None):
+    def __init__(
+        self, lang_id, debug_count=10e100, verbose=True, input_dir=None, input_format=None,
+    ):
         self.lang_id = lang_id
         self.text_processor = LANG_PROCESSOR_MAP[lang_id]
         self.DEBUG_COUNT = debug_count  # limits number of documents
@@ -297,8 +303,10 @@ class Corpus(object):
         self.input_dir = input_dir
         self.input_format = input_format
 
-        self.default_query = {'fq': 'language_ssi:{}'.format(self.lang_id),
-                              'fl': 'id, language_ssi, date_created_ssim, all_text_t{}_siv'.format(self.lang_id)}
+        self.default_query = {
+            "fq": "language_ssi:{}".format(self.lang_id),
+            "fl": "id, language_ssi, date_created_ssim, all_text_t{}_siv".format(self.lang_id),
+        }
 
         self.target_query = self.default_query
 
@@ -335,17 +343,17 @@ class Corpus(object):
         start_row = 0
 
         pb = ProgressBar("Loop DB", verbose=self.verbose)
-        query = {'rows': rows_per_page}
+        query = {"rows": rows_per_page}
         query.update(self.target_query)
         if force_refresh:
-            query.update({'force_refresh': 'T'})
+            query.update({"force_refresh": "T"})
         while True:
-            query.update({'start': start_row})
+            query.update({"start": start_row})
             result = loop.run_until_complete(search_database(query))
-            docs = result['docs']
+            docs = result["docs"]
 
             try:
-                pb.total = min(result['numFound'], self.DEBUG_COUNT)
+                pb.total = min(result["numFound"], self.DEBUG_COUNT)
             except KeyError:
                 pass
 
@@ -353,7 +361,7 @@ class Corpus(object):
                 pb.next()
                 yield doc
 
-            if start_row + rows_per_page >= result['numFound']:
+            if start_row + rows_per_page >= result["numFound"]:
                 break
             start_row += rows_per_page
         pb.end()
@@ -375,39 +383,35 @@ class Corpus(object):
         if self.input_format == 1:
             pb = ProgressBar("Reading %s" % self.input_dir)
             for f in os.listdir(self.input_dir):
-                text = ''
+                text = ""
                 title_line = None
                 if os.path.splitext(f)[1] == ".docx":
                     pb.next()
                     text = textract.process(os.path.join(self.input_dir, f)).decode("utf-8")
-                    for line in text.split('\n'):
-                        if re.search('\d{8}', line):
+                    for line in text.split("\n"):
+                        if re.search("\d{8}", line):
                             if title_line:
-                                doc = Document_Format1(title_line,
-                                                       text,
-                                                       self.text_processor,
-                                                       self.lang_id,
-                                                       process)
+                                doc = Document_Format1(
+                                    title_line, text, self.text_processor, self.lang_id, process,
+                                )
                                 yield (doc)
                             title_line = line
-                            text = ''
+                            text = ""
                         else:
                             text += line
                     if title_line:
                         # the last document within a file
-                        doc = Document_Format1(title_line,
-                                               text,
-                                               self.text_processor,
-                                               self.lang_id,
-                                               process)
+                        doc = Document_Format1(
+                            title_line, text, self.text_processor, self.lang_id, process
+                        )
                         yield (doc)
             pb.end()
 
         elif self.input_format == 2:
             pb = ProgressBar("Reading %s" % self.input_dir)
             for f in os.listdir(self.input_dir):
-                with open(os.path.join(self.input_dir, f), 'rb') as inp:
-                    text = inp.read().decode(errors='ignore')
+                with open(os.path.join(self.input_dir, f), "rb") as inp:
+                    text = inp.read().decode(errors="ignore")
                 yield Document_Format2(f, text, self.text_processor, self.lang_id, process)
                 pb.next()
             pb.end()
@@ -461,14 +465,21 @@ class Corpus(object):
             self.build_timeseries(item=item, granularity=granularity, min_count=min_count)
         elif not min_count in self._timeseries[item][granularity]:
             # let's see if there is timeseries with smaller min_count, that's would be fine as well
-            smaller_min_counts = [mc for mc in self._timeseries[item][granularity].keys()
-                                  if (isinstance(mc, int) and mc < min_count)]
+            smaller_min_counts = [
+                mc
+                for mc in self._timeseries[item][granularity].keys()
+                if (isinstance(mc, int) and mc < min_count)
+            ]
             if smaller_min_counts:
                 # still we are storing the same information multiple times
                 # TODO: rethink, how to store timeseries in a more compact way
-                self._timeseries[item][granularity][min_count] = \
-                    {w: ts for w, ts in self._timeseries[item][granularity][max(smaller_min_counts)].items()
-                     if len(self.find_word_to_doc_dict(item)[w]) >= min_count}
+                self._timeseries[item][granularity][min_count] = {
+                    w: ts
+                    for w, ts in self._timeseries[item][granularity][
+                        max(smaller_min_counts)
+                    ].items()
+                    if len(self.find_word_to_doc_dict(item)[w]) >= min_count
+                }
             else:
                 self.build_timeseries(item=item, granularity=granularity, min_count=min_count)
 
@@ -477,12 +488,14 @@ class Corpus(object):
             word_to_docids = self.find_word_to_doc_dict(item)
             timeseries = {w: ts for w, ts in timeseries.items() if w in word_list}
 
-        total = self._timeseries[item][granularity]['total']
+        total = self._timeseries[item][granularity]["total"]
 
         # ipm - items per million
         # relative count (relative to all items in this date slice)
-        timeseries_ipm = \
-            {w: {date: (count * 10e5) / total[date] for (date, count) in ts.items()} for (w, ts) in timeseries.items()}
+        timeseries_ipm = {
+            w: {date: (count * 10e5) / total[date] for (date, count) in ts.items()}
+            for (w, ts) in timeseries.items()
+        }
 
         return timeseries, timeseries_ipm
 
@@ -506,7 +519,7 @@ class Corpus(object):
         for (w, docids) in word_to_docids.items():
             pb.next()
             for docid in docids:
-                date = "-".join(self.docid_to_date[docid][:field + 1])
+                date = "-".join(self.docid_to_date[docid][: field + 1])
                 total[date] += 1
                 if len(docids) >= min_count:
                     timeseries[w][date] += 1
@@ -521,7 +534,7 @@ class Corpus(object):
         # into account everything, including items that are less
         # frequent than min_count
         self._timeseries[item][granularity][min_count] = timeseries
-        self._timeseries[item][granularity]['total'] = total
+        self._timeseries[item][granularity]["total"] = total
 
     # BIGRAMS
 
@@ -565,7 +578,9 @@ class Corpus(object):
     # SUFFIX/PREFIX SEARCH
     @staticmethod
     def build_tries_from_dict(item_to_doc, min_count):
-        prefix_trie = Trie({item: None for item in item_to_doc.keys() if len(item_to_doc[item]) >= min_count})
+        prefix_trie = Trie(
+            {item: None for item in item_to_doc.keys() if len(item_to_doc[item]) >= min_count}
+        )
         suffix_trie = Trie({item[::-1]: None for item in prefix_trie.keys()})
         return prefix_trie, suffix_trie
 
@@ -577,10 +592,12 @@ class Corpus(object):
         print("Building prefix/suffix search structures")
 
         # Tries are slow so we build indexes first and use frequency threshold to store only most frequent tokens
-        self.prefix_token_vocabulary, self.suffix_token_vocabulary = \
-            self.build_tries_from_dict(self.token_to_docids, token_min_count)
-        self.prefix_lemma_vocabulary, self.suffix_lemma_vocabulary = \
-            self.build_tries_from_dict(self.lemma_to_docids, lemma_min_count)
+        (self.prefix_token_vocabulary, self.suffix_token_vocabulary,) = self.build_tries_from_dict(
+            self.token_to_docids, token_min_count
+        )
+        (self.prefix_lemma_vocabulary, self.suffix_lemma_vocabulary,) = self.build_tries_from_dict(
+            self.lemma_to_docids, lemma_min_count
+        )
 
     def find_tokens_by_prefix(self, prefix):
         return self.prefix_token_vocabulary.keys(prefix=prefix)
@@ -612,7 +629,7 @@ class Corpus(object):
         # affix is a tuple, e.g. ("suffix", "ismi"), ("prefix", "kansalais")
         group = self._find_group_by_affix(affix, item)
         try:
-            assert (group)
+            assert group
         except:
             self.build_substring_structures()
             group = self._find_group_by_affix(affix, item)
