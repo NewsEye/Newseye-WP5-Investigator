@@ -262,6 +262,33 @@ class Task(db.Model):
                 "task_result": self.result_with_interestingness,
             }
 
+        elif style == "reporter":
+            if self.dataset:
+                return {
+                    "uuid": str(self.uuid),
+                    "dataset": self.dataset.dataset_name,
+                    "processor": self.processor.name,
+                    "parameters": self.parameters,
+                    "task_status": self.task_status,
+                    "task_started": http_date(self.task_started),
+                    "task_finished": http_date(self.task_finished),
+                    "task_result": self.result_with_interestingness,
+                }
+            elif self.solr_query:
+                return {
+                    "uuid": str(self.uuid),
+                    "search_query": self.solr_query.search_query,
+                    "processor": self.processor.name,
+                    "parameters": self.parameters,
+                    "task_status": self.task_status,
+                    "task_started": http_date(self.task_started),
+                    "task_finished": http_date(self.task_finished),
+                    "task_result": self.result_with_interestingness,
+                }
+                
+
+
+        
     @property
     def search_query(self):
         if self.dataset:
