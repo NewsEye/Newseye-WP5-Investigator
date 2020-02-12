@@ -7,7 +7,6 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 
 class Corpus(object):
-
     def __init__(self, lang_id, verbose=True, input_dir=None, input_format=None):
         self.lang_id = lang_id
         # self.text_processor = LANG_PROCESSOR_MAP[lang_id]
@@ -18,8 +17,10 @@ class Corpus(object):
         self.input_dir = input_dir
         self.input_format = input_format
 
-        self.default_query = {'fq': 'language_ssi:{}'.format(self.lang_id),
-                              'fl': 'id, language_ssi, date_created_ssim, all_text_t{}_siv'.format(self.lang_id)}
+        self.default_query = {
+            "fq": "language_ssi:{}".format(self.lang_id),
+            "fl": "id, language_ssi, date_created_ssim, all_text_t{}_siv".format(self.lang_id),
+        }
 
         self.target_query = self.default_query
 
@@ -50,14 +51,14 @@ class Corpus(object):
         self.target_query.update(query)
 
     def find_word_to_doc_dict(self, item):
-        item, *ngram = item.split('-')
+        item, *ngram = item.split("-")
         if not ngram:
             ngram = 1
         else:
             ngram = ngram[0]
-        if item == "token" and ngram == '1':
+        if item == "token" and ngram == "1":
             return self.token_to_docids
-        elif item == "token" and ngram == '2':
+        elif item == "token" and ngram == "2":
             return self.token_bi_to_docids
         elif item == "lemma":
             if not self.lemma_to_docids:
@@ -74,14 +75,21 @@ class Corpus(object):
             self.build_timeseries(item=item, granularity=granularity, min_count=min_count)
         elif not min_count in self._timeseries[item][granularity]:
             # let's see if there is timeseries with smaller min_count, that's would be fine as well
-            smaller_min_counts = [mc for mc in self._timeseries[item][granularity].keys()
-                                  if (isinstance(mc, int) and mc < min_count)]
+            smaller_min_counts = [
+                mc
+                for mc in self._timeseries[item][granularity].keys()
+                if (isinstance(mc, int) and mc < min_count)
+            ]
             if smaller_min_counts:
                 # still we are storing the same information multiple times
                 # TODO: rethink, how to store timeseries in a more compact way
-                self._timeseries[item][granularity][min_count] = \
-                    {w: ts for w, ts in self._timeseries[item][granularity][max(smaller_min_counts)].items()
-                     if len(self.find_word_to_doc_dict(item)[w]) >= min_count}
+                self._timeseries[item][granularity][min_count] = {
+                    w: ts
+                    for w, ts in self._timeseries[item][granularity][
+                        max(smaller_min_counts)
+                    ].items()
+                    if len(self.find_word_to_doc_dict(item)[w]) >= min_count
+                }
             else:
                 self.build_timeseries(item=item, granularity=granularity, min_count=min_count)
 
@@ -89,12 +97,14 @@ class Corpus(object):
         if word_list:
             timeseries = {w: ts for w, ts in timeseries.items() if w in word_list}
 
-        total = self._timeseries[item][granularity]['total']
+        total = self._timeseries[item][granularity]["total"]
 
         # ipm - items per million
         # relative count (relative to all items in this date slice)
-        timeseries_ipm = \
-            {w: {date: (count * 10e5) / total[date] for (date, count) in ts.items()} for (w, ts) in timeseries.items()}
+        timeseries_ipm = {
+            w: {date: (count * 10e5) / total[date] for (date, count) in ts.items()}
+            for (w, ts) in timeseries.items()
+        }
 
         return timeseries, timeseries_ipm
 
@@ -116,9 +126,9 @@ class Corpus(object):
         for (w, docids) in word_to_docids.items():
             pb.next()
             if isinstance(w, tuple):
-                w = ' '.join(w)
+                w = " ".join(w)
             for docid in docids:
-                date = "-".join(self.docid_to_date[docid][:field + 1])
+                date = "-".join(self.docid_to_date[docid][: field + 1])
                 total[date] += 1
                 if len(docids) >= min_count:
                     timeseries[w][date] += 1
@@ -133,7 +143,7 @@ class Corpus(object):
         # into account everything, including items that are less
         # frequent than min_count
         self._timeseries[item][granularity][min_count] = timeseries
-        self._timeseries[item][granularity]['total'] = total
+        self._timeseries[item][granularity]["total"] = total
 
     # TF_IDF
 
@@ -187,7 +197,7 @@ class Corpus(object):
         # affix is a tuple, e.g. ("suffix", "ismi"), ("prefix", "kansalais")
         group = self._find_group_by_affix(affix, item)
         try:
-            assert (group)
+            assert group
         except:
             print("Invalid corpus: required indexes are missing")
             return None

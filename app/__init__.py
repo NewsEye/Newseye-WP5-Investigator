@@ -22,16 +22,17 @@ def create_app(config_class=Config):
     login.init_app(app)
 
     from app.apis import api
+
     api.init_app(app)
 
     # FLASK_DEBUG in .flaskenv
     if not app.debug and not app.testing:
-        if not os.path.exists('logs'):
-            os.mkdir('logs')
-        file_handler = RotatingFileHandler('logs/investigator.log', maxBytes=10240,
-                                          backupCount=10)
-        file_handler.setFormatter(logging.Formatter(
-            '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'))
+        if not os.path.exists("logs"):
+            os.mkdir("logs")
+        file_handler = RotatingFileHandler("logs/investigator.log", maxBytes=10240, backupCount=10)
+        file_handler.setFormatter(
+            logging.Formatter("%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]")
+        )
 
         # for log files
         file_handler.setLevel(logging.INFO)
@@ -40,9 +41,10 @@ def create_app(config_class=Config):
         app.logger.addHandler(file_handler)
 
         app.logger.setLevel(logging.INFO)
-        app.logger.info('NewsEye Investigator startup')
+        app.logger.info("NewsEye Investigator startup")
 
     return app
+
 
 # This is required for the migrations to work properly
 from app import models
