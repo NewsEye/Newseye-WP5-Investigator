@@ -26,6 +26,11 @@ class TaskPlanner(object):
 
         async_tasks = []
         for task in tasks:
+            # importing processor using its name and import path stored in the database and linked to the task
+            # currently all processors are from this package so it would be possible to import them directly
+            # in the future it is possible that we use another processing package,
+            # which would need to register its processors in the database and then they will be imported
+            # so, planner doesn't nede to know import path beforehand and imports it during runtime
             Processor = getattr(
                 __import__(task.processor.import_path, fromlist=[task.processor.name]),
                 task.processor.name,
