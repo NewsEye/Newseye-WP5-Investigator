@@ -4,7 +4,7 @@ from flask_restplus import Resource
 from app.auth import AuthParser
 from app.main import controller
 from app.analysis import ns
-from app.models import Task
+from app.models import Task, Processor
 from uuid import UUID
 from werkzeug.exceptions import BadRequest, InternalServerError, NotFound
 from flask import current_app
@@ -114,7 +114,7 @@ class AnalysisTask(Resource):
         return task.dict(style="result")
 
 
-@ns.route("/utilities/")
+@ns.route("/processors/")
 class UtilityList(Resource):
     @login_required
     @ns.expect(AuthParser())
@@ -122,5 +122,5 @@ class UtilityList(Resource):
         """
         Retrieve information on the available analysis utilities
         """
-        response = [utility.get_description() for utility in UTILITY_MAP.values()]
+        response = [p.dict() for p in Processor.query.all()]
         return response
