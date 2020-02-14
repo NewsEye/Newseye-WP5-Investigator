@@ -1,50 +1,258 @@
 import heapq
-
+import itertools
+from app import db
+from app.utils.db_utils import generate_task
+from app.models import Task, Processor, InvestigatorRun, InvestigatorAction
+from copy import copy
+from app.investigator import processorsets
+from flask import current_app
 
 class Investigator:
-    def __init__(self, documentset, **user_parameters):
-        self.root_set = documentset
-        self.task_queue = self.initialize_queue(**user_parameters)
+    def __init__(self, run_uuid, planner):
+        # planner, which executes tasks
+        self.planner = planner
+        self.user = self.planner.user
+        # database record which should be updated in all operations
+        self.run = InvestigatorRun.query.filter_by(uuid=run_uuid).one()
+        self.root_documentset = Documentset(self.run, self.user)
         self.action_id = 0
         self.to_stop = False
+        self.task_queue = TaskQueue()
+        # for now: always start with description
+        # later on processorset could be infered from user parameters a parameter
+        self.action(self.initialize, processorset = "DESCRIPTION")
+        self.done_tasks = []
 
-    def describe_documentset(self):
-        pass
+    @property
+    def queue_state(self):
+        return self.task_queue.queue_state()
 
-    def run(self):
+        
+    def act(self):
+        """
+        main function 
+        running investigator actions
+        """
+        
+        self.update_status("running")
+
+        current_app.logger.debug("to stop: %s" %self.to_stop)
+        
         while not self.to_stop:
-            self.select_tasks()
-            self.execute_tasks()
-            self.update_queue()
-            self.check_for_stop()
-        self.stop()
 
+            # variables needed to pass information between actions within this step
+            self.selected_tasks = None
+            self.executed_tasks = None
+
+
+            # TODO: debug from here:
+            self.action(self.select)
+            self.action(self.execute)
+            self.action(self.report)
+            self.action(self.update)
+            self.check_for_stop()
+        self.action(self.stop)
+        self.action(self.report, final=True)
+        
     # ACTIONS
     # recorded in DB for Explainer
 
-    def initialize_queue(self, **user_parameters):
-        self.describe_documentset()
-        # create tasks in the database
-        # put tasks into the taskq
-        # initialize run in db
-        return None
+    def action(self, action_func, **action_parameters):
+        input_q = self.queue_state
+        
+        why, action = action_func(**action_parameters)
 
-    def select_tasks(self):
-        self.action_id += 1
-        pass
+        db_action = InvestigatorAction(run_id=self.run.id,
+                                       action_id=self.action_id,
+                                       action_type=action_func.__name__,
+                                       why=why,
+                                       action=action,
+                                       input_queue=input_q,
+                                       output_queue=self.queue_state
+                                   )
 
-    def execute_tasks(self):
-        self.action_id += 1
-        pass
+#        current_app.logger.debug("ACTION: %s" %action)
+#        current_app.logger.debug("Input_Q: %s" %input_q)
+#        current_app.logger.debug("Output_Queue: %s" %self.queue_state)
+#        current_app.logger.debug("DB_ACTION: %s" %db_action)
+        
+        db.session.add(db_action)
+        db.session.commit()  # this commit should store changes made inside actions (e.g. execute, report)
+            
+        self.action_id += 1        
+    
+    def initialize(self, processorset):
+        """
+        task queue initialization
+        """
+        tasks = self.make_tasks(processorsets[processorset], self.root_documentset)
+        self.task_queue.add_tasks(tasks)
+        why = {"processorset" : processorset}
+        action = {"tasks_added_to_q" : self.task_list(tasks)}
+        return why, action
 
-    def update_queue(self):
-        self.action_id += 1
-        pass
+    def select(self):
+        """
+        task selection from queue
+        """
+        tasks = self.task_queue.pop_tasks_with_lowest_priority()
+        self.selected_tasks = tasks
+        why = {"priority":"lowest"}
+        action = {"selected_tasks":self.task_list(tasks)}
+        return why, action
+
+    def execute(self):
+        """
+        task execution
+        """
+        tasks = self.selected_tasks
+        self.planner.execute_and_store_tasks(tasks)
+        self.executed_tasks = [t for t in tasks if t.status=="finished"] # maybe "failed"
+        why = {"status":"finished"}
+        action = {"execute_tasks":self.task_list(self.executed_tasks)}
+        
+        # append to previously done tasks
+        self.done_tasks += self.task_list(self.executed_tasks)
+        self.run.done_tasks = self.done_tasks
+    
+        return why, action
+
+    def report(self, final=False):
+        """
+        collects tasks that should be reported so far
+        reports should be available at every stage
+        """
+        previous_results = self.run.result
+        new_results = [t.dict(style="reporter") for t in executed_tasks]
+        why, combined_results = self.combine_results(previous_res, current_res)
+        action = combine_results
+
+        # replace previous results
+        self.run.result = combine_results
+
+        return why, action
+        
+    
+    def update(self):
+        """
+        update task queue
+        """
+        # dev_note means temporal placeholder, which should not be used by explainer:
+        why = {"dev_note":"not implemented"}
+        action = {}
+        return why, action
 
     def stop(self):
-        self.action_id += 1
-        pass
+        """
+        stop investigations
+        """
+        self.update_status("finished")
+        why = self.to_stop
+        action = {}
+        return why, action
 
     def check_for_stop(self):
-        if True:
+        if self.run.user_parameters["describe"]:
+            self.to_stop = {"user_parameters":"describe"}
+        elif self.task_queue.taskq == []:
+            self.to_stop = {"taskq":"empty"}
+        elif True:
             self.to_stop = True
+
+        return self.to_stop
+
+    # HELPERS
+
+    def update_status(self, status):
+        self.run.run_status=status
+        db.session.commit()
+
+    def make_tasks(self, processorset, documentset):
+        # TODO: processor parameters
+        return [documentset.make_task(processor_name) for processor_name in processorset]
+
+    def combine_results(*results):
+        # for now: just add everything
+        # later on: some selective process based on result interestingness
+        why = {"dev_note":"not implemented; all results combined unselectevely"}
+        combined_result = sum(results, [])
+        return why, combined_result
+        
+        
+        
+    @staticmethod
+    def task_list(tasks):
+        return [task.dict(style="investigator") for task in tasks]
+
+        
+class TaskQueue:
+    def __init__(self):
+        self.taskq = []                      # list of entries arranged in a heap
+        self.entry_finder = {}               # mapping of tasks to entries
+        self.REMOVED = '<removed-task>'      # placeholder for a removed task
+        self.counter = itertools.count()     # unique sequence count
+
+    def add_tasks(self, tasks, priority=0):
+        for t in tasks:
+            self.add_task(t, priority=priority)
+        
+    def add_task(self, task, priority=0):
+        'Add a new task or update the priority of an existing task'
+        if task in self.entry_finder:
+            self.remove_task(task)
+        count = next(self.counter)
+        entry = [priority, count, task]
+        self.entry_finder[task] = entry
+        heapq.heappush(self.taskq, entry)
+
+    def remove_task(self, task):
+        'Mark an existing task as REMOVED.  Raise KeyError if not found.'
+        entry = self.entry_finder.pop(task)
+        entry[-1] = self.REMOVED
+
+    def pop_task(self):
+        'Remove and return the lowest priority task. Raise KeyError if empty.'
+        while self.taskq:
+            priority, count, task = heapq.heappop(self.taskq)
+            if task is not REMOVED:
+                del self.entry_finder[task]
+            return task
+        raise KeyError('pop from an empty priority queue')
+
+    def pop_tasks_with_lowest_priority(self):
+        if not self.taskq:
+            return None
+        tasks = []
+        lowest_priority = self.taskq[0][0]
+        while self.taskq:
+            if self.taskq[0][0] == lowest_priority:
+                tasks.append(self.pop_task)
+            else:
+                break
+        return tasks
+
+    def queue_state(self):
+        return [t[2].id for t in self.taskq]
+
+   
+class Documentset:
+    def __init__(self, run, user):
+        self.user = user
+        if run.root_dataset_id is not None:
+            raise NotImplementedError
+        elif run.root_solr_query_id is not None:
+            self.data_type = 'search_query'
+            self.data = run.root_solr_query.search_query
+        else:
+            raise Exception("Unknown documentset for run %s" %run)
+        
+    def make_task(self, processor_name, task_parameters={}):
+        return generate_task ({'processor':processor_name,
+                               self.data_type : self.data,
+                               'parameters':task_parameters},
+                              user=self.user,
+                              return_task=True)
+
+        
+    
+

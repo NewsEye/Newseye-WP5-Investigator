@@ -74,12 +74,6 @@ class TaskPlanner(object):
         task.task_results.append(result)
         return True
 
-        # TODO:
-        # 1. search for identical tasks
-        # 2. get result
-        # 3. update Task-Result relation
-        return None
-
     async def execute_and_store(self, task):
         """this function executes one task and its prerequisites"""
 
@@ -87,7 +81,6 @@ class TaskPlanner(object):
 
         task.task_started = datetime.utcnow()
         # to update data obtained in previous searches
-        # TODO: force_refresh
 
         current_app.logger.debug("FORCE_REFRESH %s" % task.force_refresh)
 

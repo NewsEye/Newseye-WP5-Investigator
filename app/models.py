@@ -68,8 +68,9 @@ class SolrQuery(db.Model):
 
 
 class SolrOutput(db.Model):
+    # not used at the moment
+    # in the future some queries might be too heavy, better to store localy
     __tablename__ = "solr_output"
-    # some queries might be too heavy, better to store localy
     id = db.Column(db.Integer, primary_key=True)
     output = db.Column(JSONB, nullable=False)
     retrieve = db.Column(
@@ -155,6 +156,13 @@ class Processor(db.Model):
             "output_type": self.output_type,
         }
 
+    @staticmethod
+    def find_by_name(name):
+        processors = Processor.query.filter_by(name=name).all()
+        if len(processors)>1:
+            raise NotImplementedError("More than one processor with name %s" %name)
+        return Processor.query.filter_by(name=name).one_or_none()
+        
 
 task_parent_child_relation = db.Table(
     "task_parent_child_relation",
@@ -286,7 +294,24 @@ class Task(db.Model):
                     "task_result": self.result_with_interestingness,
                 }
                 
-
+        elif style == "investigator":
+            if self.dataset:
+                return {
+                    "uuid": str(self.uuid),
+                    "dataset": self.dataset.dataset_name,
+                    "processor": self.processor.name,
+                    "parameters": self.parameters,
+                    "task_status": self.task_status,
+                }
+                
+            elif self.solr_query:
+                return {
+                    "uuid": str(self.uuid),
+                    "search_query": self.solr_query.search_query,
+                    "processor": self.processor.name,
+                    "parameters": self.parameters,
+                    "task_status": self.task_status,
+                }
 
         
     @property
@@ -357,15 +382,45 @@ class InvestigatorRun(db.Model):
     # TODO: make explicit relations w other tables
     __tablename__ = "investigator_run"
     id = db.Column(db.Integer, primary_key=True)
+    uuid = db.Column(UUID(as_uuid=True), unique=True, nullable=False, default=uuid.uuid4)
+    
     root_dataset_id = db.Column(db.Integer, db.ForeignKey("dataset.id"))
+    root_dataset = db.relationship("Dataset", foreign_keys=[root_dataset_id])
+
+    root_solr_query_id = db.Column(Integer, ForeignKey("solr_query.id"))
+    root_solr_query = db.relationship("SolrQuery", foreign_keys=[root_solr_query_id])
+        
     user_parameters = db.Column(db.JSON)
     run_status = db.Column(db.String(255))
-    final_result = db.Column(db.JSON)
 
-    # ??? done_tasks = None # relation to tasks; might be redundant with action information
+    # list of tasks ready for report
+    # replaced with updated results after each investigator's cycle
+    result = db.Column(db.JSON, default=[])
 
+    # all done tasks
+    # unlike result never replaced, just updated
+    done_tasks = db.Column(ARRAY(db.Integer))  # task ids
+
+    
     root_action_id = db.Column(db.Integer, db.ForeignKey("investigator_action.id"))
 
+    def dict(self, style="status"):
+        if self.root_dataset:
+            return {
+                "uuid":str(self.uuid),
+                "dataset":self.root_dataset.dataset_name,
+                "user_parameters":self.user_parameters,
+                "run_status":self.run_status,          
+            }
+        elif self.root_solr_query:
+            return {
+                "uuid":str(self.uuid),
+                "solr_query":self.root_solr_query.search_query,
+                "user_parameters":self.user_parameters,
+                "run_status":self.run_status,          
+            }
+            
+        
 
 class InvestigatorAction(db.Model):
     __tablename__ = "investigator_action"
@@ -377,7 +432,7 @@ class InvestigatorAction(db.Model):
     __table_args__ = (UniqueConstraint("run_id", "action_id", name="uq_run_and_action"),)
 
     action_type = db.Column(
-        db.Enum("initialize", "select", "execute", "update", "stop", name="action_type")
+        db.Enum("initialize", "select", "execute", "report", "update", "stop", name="action_type")
     )
 
     input_queue = db.Column(ARRAY(db.Integer))  # task ids
@@ -391,6 +446,14 @@ class InvestigatorAction(db.Model):
     # UPDATE: all the modifications: add/remove/insert/permute
 
     output_queue = db.Column(ARRAY(db.Integer))
+    
+    def __repr__(self):
+        return "<InvestigatorAction id: {} run_id: {} action_id: {} action_type: {} why: {}>".format(self.id, self.run_id, self.action_id, self.action_type, self.why)
+    
+        
+    
+
+     
 
 
 # Needed by flask_login

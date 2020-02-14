@@ -1,8 +1,9 @@
 from flask import current_app
 from flask_login import current_user
 from app.main.planner import TaskPlanner
-from app.utils.db_utils import generate_task
-from app.models import Task, User
+from app.investigator.investigator import Investigator
+from app.utils.db_utils import generate_task, generate_investigator_run
+from app.models import Task, User, InvestigatorRun
 import threading
 import time
 import asyncio
@@ -39,3 +40,35 @@ def task_thread(app, user_id, task_uuid):
     with app.app_context():
         planner = TaskPlanner(User.query.get(user_id))
         asyncio.run(planner.execute_user_task(task_uuid))
+
+
+
+def investigator_run(args):
+    """
+    Currently works exactly the same as the previous function (for the single task).
+    Starts a new thread and initializes an investigator run within this thread
+    """
+
+    run_uuid = generate_investigator_run(args)
+    
+    t = threading.Thread(
+        target=run_thread,
+        args=[current_app._get_current_object(), current_user.id, run_uuid],
+    )
+    t.setDaemon(False)
+    t.start()
+
+    i = 0
+    while InvestigatorRun.query.filter(InvestigatorRun.uuid == run_uuid, InvestigatorRun.run_status == "created").count() > 0:
+        time.sleep(1)
+
+    return InvestigatorRun.query.filter(InvestigatorRun.uuid == run_uuid).one_or_none()
+
+    
+
+def run_thread(app, user_id, run_uuid):
+    with app.app_context():
+        planner = TaskPlanner(User.query.get(user_id))
+        investigator = Investigator(run_uuid, planner)
+        asyncio.run(investigator.act())
+    
