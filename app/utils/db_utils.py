@@ -3,7 +3,7 @@ from flask import current_app
 from sqlalchemy.exc import IntegrityError
 from flask_login import current_user
 from app import db
-from app.models import Task, Result, Dataset, Processor, SolrQuery, InvestigatorRun
+from app.models import Task, Result, Dataset, Processor, SolrQuery, InvestigatorRun, InvestigatorResult
 from datetime import datetime
 from werkzeug.exceptions import BadRequest
 
@@ -147,7 +147,7 @@ def generate_investigator_run(args, user=current_user):
         raise NotImplementedError
     elif args["search_query"] is not None:
         investigator_run = InvestigatorRun(
-            root_solr_query = get_solr_query(["search_query"]),
+            root_solr_query = get_solr_query(args["search_query"]),
             user_parameters = args["parameters"],
             run_status = "created"
         )
@@ -157,6 +157,17 @@ def generate_investigator_run(args, user=current_user):
     commit(investigator_run)
     return investigator_run.uuid
         
+
+def generate_investigator_node(run, start_action, end_action, result, interestingness):
+    investigator_result = InvestigatorResult(run_id = run.id,
+                                             start_action_id = start_action,
+                                             end_action_id = end_action,
+                                             result = result,
+                                             interestingness = interestingness)
+    commit(investigator_result)
+    return investigator_result
+           
+                                              
 
     
 def store_results(tasks, task_results, set_to_finished=True, interestingness=0.0):

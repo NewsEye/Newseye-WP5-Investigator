@@ -11,7 +11,6 @@ from flask_login import UserMixin
 from app import db, login
 from config import Config
 
-
 Base = declarative_base()
 
 
@@ -239,79 +238,44 @@ class Task(db.Model):
                 self.id, self.processor.name, self.solr_query.search_query, self.task_status,
             )
 
+    def data_dict(self):
+        if self.dataset:
+            return {"dataset": self.dataset.dataset_name}
+        elif self.solr_query:
+            return {"search_query": self.solr_query.search_query}
+            
     def dict(self, style="status"):
-        if style == "status":
-            if self.task_status == "running":
-                return {
-                    "uuid": str(self.uuid),
-                    "processor": self.processor.name,
-                    "parameters": self.parameters,
-                    "task_status": self.task_status,
-                    "task_started": http_date(self.task_started),
-                }
-            else:
-                return {
-                    "uuid": str(self.uuid),
-                    "processor": self.processor.name,
-                    "parameters": self.parameters,
-                    "task_status": self.task_status,
-                    "task_started": http_date(self.task_started),
-                    "task_finished": http_date(self.task_finished),
-                }
+        ret = {
+            "uuid": str(self.uuid),
+            "processor": self.processor.name,
+            "parameters": self.parameters,
+            "task_status": self.task_status,
+            "task_started": http_date(self.task_started),
+        }
+        if not self.task_status == "running":
+            ret.update({"task_finished": http_date(self.task_finished)})
 
+        if style == "status":
+            pass
+                    
         elif style == "result":
-            return {
-                "uuid": str(self.uuid),
-                "processor": self.processor.name,
-                "parameters": self.parameters,
-                "task_status": self.task_status,
-                "task_started": http_date(self.task_started),
-                "task_finished": http_date(self.task_finished),
+            ret.update({
                 "task_result": self.result_with_interestingness,
-            }
+            })
 
         elif style == "reporter":
-            if self.dataset:
-                return {
-                    "uuid": str(self.uuid),
-                    "dataset": self.dataset.dataset_name,
-                    "processor": self.processor.name,
-                    "parameters": self.parameters,
-                    "task_status": self.task_status,
-                    "task_started": http_date(self.task_started),
-                    "task_finished": http_date(self.task_finished),
-                    "task_result": self.result_with_interestingness,
-                }
-            elif self.solr_query:
-                return {
-                    "uuid": str(self.uuid),
-                    "search_query": self.solr_query.search_query,
-                    "processor": self.processor.name,
-                    "parameters": self.parameters,
-                    "task_status": self.task_status,
-                    "task_started": http_date(self.task_started),
-                    "task_finished": http_date(self.task_finished),
-                    "task_result": self.result_with_interestingness,
-                }
+            ret.update({
+                "task_result": self.result_with_interestingness,
+            })
+            ret.update(self.data_dict())
                 
         elif style == "investigator":
-            if self.dataset:
-                return {
-                    "uuid": str(self.uuid),
-                    "dataset": self.dataset.dataset_name,
-                    "processor": self.processor.name,
-                    "parameters": self.parameters,
-                    "task_status": self.task_status,
-                }
-                
-            elif self.solr_query:
-                return {
-                    "uuid": str(self.uuid),
-                    "search_query": self.solr_query.search_query,
-                    "processor": self.processor.name,
-                    "parameters": self.parameters,
-                    "task_status": self.task_status,
-                }
+            if self.task_result:
+                ret.update({
+                    "interestingness":self.task_result.interestingness["overall"]
+                })
+            ret.update(self.data_dict())
+        return ret
 
         
     @property
@@ -327,7 +291,7 @@ class Task(db.Model):
     def task_result(self):
         if self.task_results:
             if len(self.task_results) > 1:
-                raise NotImplementedError("Don't know what to do with more than one report")
+                raise NotImplementedError("Don't know what to do with more than one result")
             else:
                 return self.task_results[0]
 
@@ -347,6 +311,10 @@ class Task(db.Model):
                 "interestingness": self.task_result.interestingness,
             }
 
+    @property
+    def interestingness(self):
+        return self.task_result.interestingness["overall"]
+
 
 class Result(db.Model):
     # ??? do we need uuids for results (separately from task uuids)
@@ -360,8 +328,7 @@ class Result(db.Model):
 
     def __repr__(self):
         return "<Result id: {} date: {} tasks: {} >".format(self.id, self.last_updated, self.tasks)
-
-
+    
 class Report(db.Model):
     __tablename__ = "report"
     id = db.Column(db.Integer, primary_key=True)
@@ -389,37 +356,52 @@ class InvestigatorRun(db.Model):
 
     root_solr_query_id = db.Column(Integer, ForeignKey("solr_query.id"))
     root_solr_query = db.relationship("SolrQuery", foreign_keys=[root_solr_query_id])
-        
+    
     user_parameters = db.Column(db.JSON)
     run_status = db.Column(db.String(255))
-
+    
     # list of tasks ready for report
     # replaced with updated results after each investigator's cycle
     result = db.Column(db.JSON, default=[])
 
     # all done tasks
     # unlike result never replaced, just updated
-    done_tasks = db.Column(ARRAY(db.Integer))  # task ids
+    done_tasks = db.Column(db.JSON)
 
+    nodes = db.Column(db.JSON, default=[])
     
-    root_action_id = db.Column(db.Integer, db.ForeignKey("investigator_action.id"))
+    root_action_id = db.Column(db.Integer)
 
-    def dict(self, style="status"):
+    def data_dict(self):
         if self.root_dataset:
-            return {
-                "uuid":str(self.uuid),
-                "dataset":self.root_dataset.dataset_name,
-                "user_parameters":self.user_parameters,
-                "run_status":self.run_status,          
-            }
+            return {"dataset":self.root_dataset.dataset_name}
         elif self.root_solr_query:
-            return {
-                "uuid":str(self.uuid),
-                "solr_query":self.root_solr_query.search_query,
-                "user_parameters":self.user_parameters,
-                "run_status":self.run_status,          
-            }
+            return {"solr_query":self.root_solr_query.search_query}
+    
+    def dict(self, style="status"):
+        ret = {"uuid":str(self.uuid),
+               "user_parameters":self.user_parameters,
+               "run_status":self.run_status}
+        ret.update(self.data_dict())
+        
+        if style == "status":
+            pass
+        elif style == "result":
+            ret.update({"result":self.result,
+                        "nodes":self.nodes})
+
+        return ret
+        
             
+    def __repr__(self):
+        if self.root_dataset:
+            return "<InvestigatorRun id: {}, dataset: {}, status: {}>".format(
+                self.id, self.root_dataset.dataset_name, self.run_status,
+            )
+        elif self.root_solr_query:
+            return "<InvestigatorRun id: {}, solr_query: {}, status: {}>".format(
+                self.id, self.root_solr_query.search_query, self.run_status,
+            )
         
 
 class InvestigatorAction(db.Model):
@@ -430,7 +412,6 @@ class InvestigatorAction(db.Model):
 
     action_id = db.Column(db.Integer)  # step number inside run
     __table_args__ = (UniqueConstraint("run_id", "action_id", name="uq_run_and_action"),)
-
     action_type = db.Column(
         db.Enum("initialize", "select", "execute", "report", "update", "stop", name="action_type")
     )
@@ -443,6 +424,7 @@ class InvestigatorAction(db.Model):
     # INITIALIZE: list of initial tasks
     # SELECT: action contains list of selected tasks and their place in the input, output_queue
     # EXECUTE: list of tasks that should be executed
+    # REPORT: selection of actions to report
     # UPDATE: all the modifications: add/remove/insert/permute
 
     output_queue = db.Column(ARRAY(db.Integer))
@@ -451,11 +433,32 @@ class InvestigatorAction(db.Model):
         return "<InvestigatorAction id: {} run_id: {} action_id: {} action_type: {} why: {}>".format(self.id, self.run_id, self.action_id, self.action_type, self.why)
     
         
+class InvestigatorResult(db.Model):
+    """
+    Single result node---a set of actions, that could be reported to a user 
+    """    
+    __tablename__ = "investigator_result"
+    id = db.Column(db.Integer, primary_key=True)
+
+    # can be queried from the demonstrator, needs uuid
+    uuid = db.Column(UUID(as_uuid=True), unique=True, nullable=False, default=uuid.uuid4)
+    run_id = db.Column(db.Integer, db.ForeignKey("investigator_run.id"))
+
+    # results for actions from .. to ..
+    start_action_id  = db.Column(db.Integer)
+    end_action_id = db.Column(db.Integer)
+
+    interestingness = db.Column(db.Float, default=0.0)
+    result = db.Column(db.JSON, default=[])
     
+    def __repr__(self):
+        return "<InvestigatorResult id: {} node_id: {}, uuid: {} run_id: {} start_action_id: {} end_action_id: {} interestingness: {} result: {}".format(self.id, self.uuid, self.run_id, self.start_action_id, self.end_action_id, self.interestingness, self.result)
 
-     
-
-
+    def dict(self, style="result"):
+        return {"uuid":str(self.uuid),
+                "result":self.result,
+                "interestingness":self.interestingness}
+    
 # Needed by flask_login
 @login.user_loader
 def load_user(id):

@@ -70,5 +70,6 @@ def run_thread(app, user_id, run_uuid):
     with app.app_context():
         planner = TaskPlanner(User.query.get(user_id))
         investigator = Investigator(run_uuid, planner)
+        asyncio.run(investigator.initialize_run())
         asyncio.run(investigator.act())
     
