@@ -162,7 +162,7 @@ def recoursive_max(data):
         return 0.0
     elif isinstance(data, float):
         return data
-    elif isinstance(data, (list or tuple or set)):
+    elif type(data) in [list, tuple, set]:
         return max([recoursive_max(i) for i in data])
     elif isinstance(data, dict):
         return recoursive_max([recoursive_max(i) for i in data.values()])
