@@ -149,7 +149,8 @@ def generate_investigator_run(args, user=current_user):
         investigator_run = InvestigatorRun(
             root_solr_query = get_solr_query(args["search_query"]),
             user_parameters = args["parameters"],
-            run_status = "created"
+            run_status = "created",
+            user_id = user.id,
         )
     else:
         raise NotImplementedError
@@ -158,8 +159,9 @@ def generate_investigator_run(args, user=current_user):
     return investigator_run.uuid
         
 
-def generate_investigator_node(run, start_action, end_action, result, interestingness):
+def generate_investigator_node(run, start_action, end_action, result, interestingness,  user=current_user):    
     investigator_result = InvestigatorResult(run_id = run.id,
+                                             user_id = user.id,
                                              start_action_id = start_action,
                                              end_action_id = end_action,
                                              result = result,

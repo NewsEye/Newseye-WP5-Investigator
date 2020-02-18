@@ -23,7 +23,8 @@ class User(UserMixin, db.Model):
     created_on = db.Column(db.DateTime, default=datetime.utcnow)
     last_seen = db.Column(db.DateTime, default=datetime.utcnow)
     all_tasks = db.relationship("Task", back_populates="user")
-
+    all_runs = db.relationship("InvestigatorRun", back_populates="user")
+    
     def __repr__(self):
         return "<User {}>".format(self.username)
 
@@ -295,14 +296,15 @@ class Task(db.Model):
             else:
                 return self.task_results[0]
 
-    @property
-    def task_report(self):
+            
+
+    def report(self, language="en", format="p"):
         result = self.task_result
         if result:
-            reports = result.result_reports
-            if reports:
-                return sorted(reports, key=lambda r: r.report_generated)[-1]
+            return get_report(result.result_reports, language=language, format=format)
 
+    
+            
     @property
     def result_with_interestingness(self):
         if self.task_result:
@@ -332,10 +334,19 @@ class Result(db.Model):
 class Report(db.Model):
     __tablename__ = "report"
     id = db.Column(db.Integer, primary_key=True)
-
+    
+    # result for a single task
     result_id = db.Column(db.Integer, db.ForeignKey("result.id"))
     result = db.relationship("Result", back_populates="result_reports", foreign_keys=[result_id])
+    
+    # result for a set of tasks (investigator node)
+    node_id = db.Column(db.Integer, db.ForeignKey("investigator_result.id"))
+    node = db.relationship("InvestigatorResult", back_populates="result_reports", foreign_keys=[node_id])
 
+    # result for a whole investigator run
+    run_id = db.Column(db.Integer, db.ForeignKey("investigator_run.id"))
+    run = db.relationship("InvestigatorRun", back_populates="result_reports", foreign_keys=[run_id])
+    
     report_language = db.Column(db.String(255))
     report_format = db.Column(db.String(255))
     report_content = db.Column(db.JSON)
@@ -344,12 +355,21 @@ class Report(db.Model):
     def __repr__(self):
         return "<Report>"
 
+def get_report(reports, language="en", format="p"):
+    reports = [r for r in reports if r.report_language==language and r.report_format==format]
+    if reports:
+        return sorted(reports, key=lambda r: r.report_generated)[-1]
 
+
+    
 class InvestigatorRun(db.Model):
     # TODO: make explicit relations w other tables
     __tablename__ = "investigator_run"
     id = db.Column(db.Integer, primary_key=True)
     uuid = db.Column(UUID(as_uuid=True), unique=True, nullable=False, default=uuid.uuid4)
+    
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    user = db.relationship("User", back_populates="all_runs", foreign_keys=[user_id])
     
     root_dataset_id = db.Column(db.Integer, db.ForeignKey("dataset.id"))
     root_dataset = db.relationship("Dataset", foreign_keys=[root_dataset_id])
@@ -363,7 +383,9 @@ class InvestigatorRun(db.Model):
     # list of tasks ready for report
     # replaced with updated results after each investigator's cycle
     result = db.Column(db.JSON, default=[])
-
+    result_reports = db.relationship("Report", back_populates="run")  
+    
+    
     # all done tasks
     # unlike result never replaced, just updated
     done_tasks = db.Column(db.JSON)
@@ -391,7 +413,10 @@ class InvestigatorRun(db.Model):
                         "nodes":self.nodes})
 
         return ret
-        
+
+    def report(self, language="en", format="p"):
+        if self.result_reports:
+            return get_report(self.result_reports, language=language, format=format)
             
     def __repr__(self):
         if self.root_dataset:
@@ -443,13 +468,21 @@ class InvestigatorResult(db.Model):
     # can be queried from the demonstrator, needs uuid
     uuid = db.Column(UUID(as_uuid=True), unique=True, nullable=False, default=uuid.uuid4)
     run_id = db.Column(db.Integer, db.ForeignKey("investigator_run.id"))
-
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    user = db.relationship("User",  foreign_keys=[user_id])
+    
     # results for actions from .. to ..
     start_action_id  = db.Column(db.Integer)
     end_action_id = db.Column(db.Integer)
 
     interestingness = db.Column(db.Float, default=0.0)
     result = db.Column(db.JSON, default=[])
+    result_reports = db.relationship("Report", back_populates="node")
+
+    def report(self, language="en", format="p"):
+        if self.result_reports:
+            return get_report(self.result_reports, language=language, format=format)
+
     
     def __repr__(self):
         return "<InvestigatorResult id: {} node_id: {}, uuid: {} run_id: {} start_action_id: {} end_action_id: {} interestingness: {} result: {}".format(self.id, self.uuid, self.run_id, self.start_action_id, self.end_action_id, self.interestingness, self.result)

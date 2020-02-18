@@ -86,27 +86,6 @@ class Investigator(Resource):
             raise InternalServerError
 
 
-
-#@ns.route("/<string:run_uuid>")
-#@ns.param("run_uuid", "The UUID of the investigator which result should be retrieved")
-#class Run(Resource):
-#    @login_required
-#    @ns.expect(AuthParser())
-#    def get(self, run_uuid):
-#        """
-#        Retrieve results for investigator run
-#        """
-#        try:
-#            run_uuid = UUID(run_uuid)
-#        except ValueError:
-#            raise NotFound
-#        run = InvestigatorRun.query.filter_by(uuid=run_uuid).first()
-#        if run is None:
-#            raise NotFound("Investigator run {} not found for user {}".format(run_uuid, current_user.username))
-#        return run.dict(style="result")
-
-
-
 @ns.route("/result")
 class Run(Resource):
     @login_required
@@ -123,6 +102,8 @@ class Run(Resource):
         elif "node" in args:
             uuid = args.get("node")
             Table = InvestigatorResult
+        else:
+            raise BadRequest("A 'run' or 'node' must be in a query")
         
         try:
             uuid = UUID(uuid)

@@ -3,12 +3,13 @@ from flask_restplus import Resource
 from app.auth import AuthParser
 from app.report import ns
 from app.models import Task, Report
-from app.report.report_utils import generate_report, get_formats, get_languages
+from app.report.report_utils import make_report, get_formats, get_languages
 from uuid import UUID
 from werkzeug.exceptions import NotFound, BadRequest
 
+from flask import current_app
 
-@ns.route("/<string:task_uuid>")
+@ns.route("/")
 @ns.param("task_uuid", "The UUID of the analysis task for which a report should be retrieved")
 class ReportTask(Resource):
     parser = AuthParser()
@@ -16,32 +17,21 @@ class ReportTask(Resource):
         "language", default="en", help="The language the report should be written in."
     )
     parser.add_argument("format", default="p", help="The format of the body of the report.")
-
+    
+    parser.add_argument("task", help="task uuid")
+    parser.add_argument("node", help="node uuid")
+    parser.add_argument("run",  help="run uuid")
+    
     @login_required
     @ns.expect(parser)
-    def get(self, task_uuid):
+    def get(self):
         """
         Retrieve a report generated from the task results.
-        """
-        try:
-            task_uuid = UUID(task_uuid)
-        except ValueError:
-            raise NotFound
+        """        
         args = self.parser.parse_args()
-        report_language = args["language"]
-        report_format = args["format"]
-        task = Task.query.filter_by(uuid=task_uuid, user_id=current_user.id).first()
-        if task is None:
-            raise NotFound("Task {} not found for user {}".format(task_uuid, current_user.username))
-        if task.task_type == "search":
-            raise BadRequest(
-                "Task {} is a search task. Reports can only be generated from analysis tasks."
-            )
-        #        task_report = Report.query.filter_by(task_uuid=task_uuid, report_format=report_format, report_language=report_language).first()
-        task_report = task.task_report
-        if not task_report:
-            task_report = generate_report(task, report_language, report_format)
-        return task_report.report_content
+        report = make_report(args)
+        return report
+        
 
 
 @ns.route("/languages")

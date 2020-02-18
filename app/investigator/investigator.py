@@ -162,7 +162,8 @@ class Investigator:
 
             # save results for a single "node" --- a set of actions that could be shown to a user via demonstrator
             node=generate_investigator_node(self.run, self.start_action, self.action_id,
-                                            self.sort_by_interestingness(new_results), interestingness)
+                                            self.sort_by_interestingness(new_results), interestingness,
+                                            self.user)
             self.nodes += [{"uuid":str(node.uuid),
                             "interestingness":interestingness}]
             self.run.nodes = self.nodes

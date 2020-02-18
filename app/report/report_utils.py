@@ -1,40 +1,104 @@
 import requests
 from app import db
-from app.models import Report, Task
+from app.models import Report, Task, InvestigatorRun, InvestigatorResult
 from config import Config
 from flask_login import current_user
 import json
 from flask import current_app
 from pprint import pprint
+from uuid import UUID
+from werkzeug.exceptions import NotFound, BadRequest
+
+def make_report(args):
+
+    report_language = args["language"]
+    report_format = args["format"]
+    if args.get("task"):
+        uuid = args.get("task")
+        Table = Task
+    elif args.get("node"):
+        uuid = args.get("node")
+        Table = InvestigatorResult
+    elif args.get("run"):
+        uuid = args.get("run")
+        Table = InvestigatorRun
+    else:
+        raise BadRequest("A 'run', 'node' or 'task' must be in a query")
+
+    try:
+        uuid = UUID(uuid)
+    except ValueError:
+        raise NotFound
+    
+    record = Table.query.filter_by(uuid=uuid, user_id=current_user.id).first()
+    if record is None:
+        raise NotFound("{} {} not found for user {}".format(Table.__name__, uuid, current_user.username))
+    report = record.report(report_language, report_format)
+    if report:
+        current_app.logger.info("Report exists, not generating")
+    else:
+        report = generate_report(record, report_language, report_format)
+        current_app.logger.debug("GENERATE: report_content: %s" %report.report_content)
+    return report.report_content
+    
+    
 
 
-def generate_report(task, report_language, report_format):
-    data = [t.dict("reporter") for t in get_parents(task)]
+def generate_report(record, report_language, report_format):
 
-    #    with open(str(task.uuid), 'w') as debug:
-    #        pprint(data,debug)
-
+    if isinstance(record, Task):
+        tasks = [record]
+    else:
+        task_uuids = [task["uuid"] for task in record.result]
+        tasks = Task.query.filter(Task.uuid.in_(task_uuids)).all()
+                                                   
+    data = [t.dict("reporter") for t in tasks]
+    
     payload = {
         "language": report_language,
         "format": report_format,
-        "data": json.dumps(data),  # data is a list!
+        "data": json.dumps(data),  
     }
 
     response = requests.post(Config.REPORTER_URI + "/report", data=payload)
 
-    current_app.logger.debug("RESPONSE %s" % response.text)
+#    current_app.logger.debug("RESPONSE %s" % response.text)
 
     report_content = response.json()
 
-    task_report = Report(
-        report_language=report_language,
-        report_format=report_format,
-        result_id=task.task_result.id,
-        report_content=report_content,
-    )
-    db.session.add(task_report)
+
+    
+    if isinstance(record, Task):   
+        report = Report(
+            report_language=report_language,
+            report_format=report_format,
+            report_content=report_content,
+            result_id=record.task_result.id,
+        )
+    elif isinstance(record, InvestigatorRun):
+        report = Report(
+            report_language=report_language,
+            report_format=report_format,
+            report_content=report_content,
+            run_id=record.id,
+        )
+    elif isinstance(record, InvestigatorResult):
+        report = Report(
+            report_language=report_language,
+            report_format=report_format,
+            report_content=report_content,
+            node_id=record.id,
+        )
+  
+
+
+    
+    db.session.add(report)
     db.session.commit()
-    return task_report
+
+    current_app.logger.debug("Report_Content: %s" %report.report_content)
+    
+    return report
 
 
 def get_languages():
@@ -67,6 +131,8 @@ def get_history(make_tree=True):
 
 
 def get_parents(tasks):
+    raise NotImplementedError("Need to update get_parents function for new data structures")
+    
     if not isinstance(tasks, list):
         tasks = [tasks]
     required_tasks = set(tasks)
