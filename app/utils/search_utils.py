@@ -14,7 +14,6 @@ async def search_database(queries, **kwargs):
     tasks = []
     async with aiohttp.ClientSession() as session:
         # if queries: current_app.logger.info("Log, appending searches: {}".format(queries))
-        current_app.logger.debug("SESSION %s" % session)
         for query in queries:
             tasks.append(query_solr(session, query, **kwargs))
         results = await asyncio.gather(*tasks, return_exceptions=(not current_app.debug))
