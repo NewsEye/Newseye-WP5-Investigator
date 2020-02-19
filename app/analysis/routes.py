@@ -82,7 +82,6 @@ class AnalysisTaskList(Resource):
 
         try:
             task = controller.execute_task(args)
-
             if task.task_status == "finished":
                 return Task.query.filter_by(uuid=task.uuid).first().dict(style="result")
             elif task.task_status == "running":

@@ -11,7 +11,7 @@ class Config(object):
     # internal database for tasks and results
     SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-
+    
     # not used currently
     MAIL_SERVER = os.environ.get("MAIL_SERVER")
     MAIL_PORT = int(os.environ.get("MAIL_PORT") or 25)
@@ -26,6 +26,11 @@ class Config(object):
     # This should contain the URI for the topic modelling tools
     TOPIC_MODEL_URI = "https://newseye-wp4.cs.helsinki.fi"
 
+    # credentials for the dataset API
+    DATASET_URI = "https://platform2.newseye.eu"
+    DATASET_EMAIL = "pra@newseye.eu"
+    DATASET_PASSWORD = os.environ.get("DATASET_PASSWORD")
+    
     HEADERS = {}
     COOKIES = {}
 

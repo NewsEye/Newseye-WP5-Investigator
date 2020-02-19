@@ -14,7 +14,7 @@ from app.models import (
 )
 from datetime import datetime
 from werkzeug.exceptions import BadRequest
-
+from app.utils.dataset_utils import get_dataset
 
 def verify_data(args):
     current_app.logger.debug("ARGS: %s" % args)
@@ -30,9 +30,7 @@ def verify_data(args):
         raise BadREquest("You cannot specify 'dataset' and 'search query' in the same time")
 
     if args.get("dataset"):
-        if not Dataset.query.filter_by(dataset_name=args["dataset"]).one_or_none():
-            # TODO: check dataset from Axel's api and insert it into the local db
-            raise NotImplementedError("Dataset {} does not exist".format(args["dataset"]))
+        get_dataset(args.get("dataset")) # this will raise an exeption if something is wrong
 
 
 def verify_analysis_parameters(args):
@@ -108,33 +106,21 @@ def generate_task(query, user=current_user, parent_id=None, return_task=False):
     """
     # TODO: current_user doesn't work
     task_parameters, processor = verify_analysis_parameters(query)
-
-    if task_parameters.get("dataset"):
-        raise NotImplementedError
-    ###        dataset = Dataset.query.filter_by(dataset_name=task_parameters["dataset"]).first()
-    ###
-    ###        task = Task(
-    ###            processor_id=processor.id,
-    ###            force_refresh=bool(task_parameters.get("force_refresh", False)),
-    ###            user_id=user.id,
-    ###            input_data="dataset",
-    ###            task_status="created",
-    ###            parameters=task_parameters.get("parameters", {}),
-    ###            dataset_id=dataset.id,
-    ###        )
-
-    elif task_parameters["search_query"]:
-
-        task = Task(
+    task = Task(
             processor_id=processor.id,
             force_refresh=bool(task_parameters.get("force_refresh", False)),
             user_id=user.id,
             input_data="solr_query",
             task_status="created",
-            parameters=task_parameters.get("parameters", {}),
-            solr_query=get_solr_query(task_parameters["search_query"]),
+            parameters=task_parameters.get("parameters", {})
         )
 
+
+    
+    if task_parameters.get("dataset"):
+        task.dataset = get_dataset(task_parameters["dataset"])
+    elif task_parameters.get("search_query"):
+        task.solr_query = get_solr_query(task_parameters["search_query"])
     else:
         raise NotImplementedError("Taking a source_uuid as an input is not ready yet")
     # if source_uuid:

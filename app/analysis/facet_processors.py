@@ -69,7 +69,7 @@ class GenerateTimeSeries(AnalysisUtility):
         )
 
     async def make_result(self):
-        # TODO Add support for total document count
+        # This is example of the function, which would be trickier to adapt to another document structure
 
         facet_name = self.task.parameters["facet_name"]
         facet_string = AVAILABLE_FACETS.get(facet_name)
@@ -79,6 +79,7 @@ class GenerateTimeSeries(AnalysisUtility):
             )
 
         year_facet = AVAILABLE_FACETS["PUB_YEAR"]
+        
         for facet in self.input_data[FACETS_KEY]:
             if facet[FACET_ID_KEY] == year_facet:
                 years_in_data = [item["value"] for item in facet["items"]]
@@ -88,9 +89,16 @@ class GenerateTimeSeries(AnalysisUtility):
 
         original_search = self.task.search_query
 
-        queries = [{"fq": "{}:{}".format(year_facet, item)} for item in years_in_data]
-        for query in queries:
-            query.update(original_search)
+        if self.task.solr_query:
+            queries = [{"fq": "{}:{}".format(year_facet, item)} for item in years_in_data]
+            for q in queries:
+                q.update(original_search)
+        elif self.task.dataset:
+            queries = [{"q" : item, "qf" : year_facet, 'fq':original_search["fq"]} for item in years_in_data]
+        else:
+            raise NotImplementedError
+        
+          
         query_results = await search_database(queries, retrieve="facets")
 
         f_counts = []
@@ -98,7 +106,14 @@ class GenerateTimeSeries(AnalysisUtility):
             if result is None:
                 current_app.logger.error("Empty query result in generate_time_series")
                 continue
-            _, year = query["fq"].split(":")
+            if self.task.solr_query:
+                year = query["fq"].split(":")[1]
+            elif self.task.dataset:
+                current_app.logger.debug("QUERY: %s" %query)
+                year = query["q"]
+            else:
+                raise NotImplementedError
+            
             total_hits = result["numFound"]
             for facet in result[FACETS_KEY]:
                 if facet[FACET_ID_KEY] == facet_string:
@@ -114,7 +129,6 @@ class GenerateTimeSeries(AnalysisUtility):
         # TODO: get all years available in the database
 
         df = pd.DataFrame(f_counts, columns=["year", facet_name, "count", "rel_count"])
-
         abs_counts = df.pivot(index=facet_name, columns="year", values="count").fillna(0)
         rel_counts = df.pivot(index=facet_name, columns="year", values="rel_count").fillna(0)
         analysis_results = {

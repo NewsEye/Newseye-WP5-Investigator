@@ -28,25 +28,53 @@ class User(UserMixin, db.Model):
     def __repr__(self):
         return "<User {}>".format(self.username)
 
-
-document_dataset_relation = db.Table(
-    "document_dataset_relation",
-    db.Column("dataset_id", db.Integer, db.ForeignKey("dataset.id"), primary_key=True),
-    db.Column("document_id", db.Integer, db.ForeignKey("document.id"), primary_key=True),
-)
-
+class DocumentDatasetRelation(db.Model):
+    __tablename__ = "document_dataset_relation"
+    dataset_id = db.Column(db.Integer, db.ForeignKey("dataset.id"))
+    document_id = db.Column(db.Integer, db.ForeignKey("document.id"))
+    db.Column("relevance", db.Integer, nullable=False)
+    dataset = db.relationship("Dataset", back_populates="documents")
+    document = db.relationship("Document", back_populates="datasets")
+    relevance = db.Column(db.Integer)
+    __table_args__ = (db.PrimaryKeyConstraint("dataset_id", "document_id"),)
 
 class Document(db.Model):
+    # currently not used, just store document names
+    # in principle it might be possible to store link to task for document-level tasks
     __tablename__ = "document"
     id = db.Column(db.Integer, primary_key=True)
     # name used in the main Solr database
     solr_id = db.Column(db.String(255))
     __table_args__ = (UniqueConstraint("solr_id", name="uniq_solr_id"),)
     datasets = db.relationship(
-        "Dataset", secondary=document_dataset_relation, back_populates="documents"
+        "DocumentDatasetRelation", back_populates="document"
     )
 
+class Dataset(db.Model):
+    __tablename__ = "dataset"
+    id = db.Column(db.Integer, primary_key=True)
+    dataset_name = db.Column(db.String(255))
+    __table_args__ = (UniqueConstraint("dataset_name", name="uq_dataset_name"),)
+    documents = db.relationship(
+        "DocumentDatasetRelation", back_populates="dataset"
+    )
+    hash_value = db.Column(db.Integer, nullable=False)
+    created_on = db.Column(db.DateTime, default=datetime.utcnow)
+    tasks = db.relationship("Task", back_populates="dataset")
 
+    def __repr__(self):
+        return "<Dataset {}, dataset_name: {}, {} documents, {} tasks>".format(
+            self.id, self.dataset_name, len(self.documents), len(self.tasks)
+        )
+
+    def make_query(self):
+        return {
+            "q": "*:*",
+            "fq": "{!terms f=id}" + ",".join([d.document.solr_id for d in self.documents]),
+        }
+
+
+    
 class SolrQuery(db.Model):
     __tablename__ = "solr_query"
     id = db.Column(db.Integer, primary_key=True)
@@ -82,46 +110,6 @@ class SolrOutput(db.Model):
         "SolrQuery", foreign_keys=[solr_query_id], back_populates="solr_outputs"
     )
 
-
-class Dataset(db.Model):
-    __tablename__ = "dataset"
-    id = db.Column(db.Integer, primary_key=True)
-    dataset_name = db.Column(db.String(255))
-    __table_args__ = (UniqueConstraint("dataset_name", name="uq_dataset_name"),)
-    documents = db.relationship(
-        "Document", secondary=document_dataset_relation, back_populates="datasets"
-    )
-    creation_history = db.relationship("DatasetTransformation", back_populates="dataset")
-    tasks = db.relationship("Task", back_populates="dataset")
-
-    def __repr__(self):
-        return "<Dataset {}, dataset_name: {}, {} documents, {} tasks>".format(
-            self.id, self.dataset_name, len(self.documents), len(self.tasks)
-        )
-
-    def make_query(self):
-        return {
-            "q": "*:*",
-            "fq": "{!terms f=id}" + ",".join([doc.solr_id for doc in self.documents]),
-        }
-
-
-class DatasetTransformation(db.Model):
-    # this table could be used to reconstruct the dataset using all transformations one by one
-    # later on we can also do some reasoning using these transformations
-    __tablename__ = "dataset_transformation"
-    id = db.Column(db.Integer, primary_key=True)
-    transformation = db.Column(
-        db.Enum("create", "add", "remove", "drop", name="transformation"), nullable=False,
-    )
-    search_query = db.Column(JSONB)
-    # these are documents that where explicitly added/deleted to/from the dataset
-    # the dataset contains other documents, defined via search queries, but they are stored in document table
-    document = db.Column(db.String(255))
-    dataset_id = db.Column(Integer, ForeignKey("dataset.id"))
-    dataset = db.relationship(
-        "Dataset", foreign_keys=[dataset_id], back_populates="creation_history"
-    )
 
 
 class Processor(db.Model):
