@@ -1,0 +1,951 @@
+--
+-- PostgreSQL database dump
+--
+
+-- Dumped from database version 10.12 (Ubuntu 10.12-0ubuntu0.18.04.1)
+-- Dumped by pg_dump version 10.12 (Ubuntu 10.12-0ubuntu0.18.04.1)
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
+
+--
+-- Name: plpgsql; Type: EXTENSION; Schema: -; Owner: 
+--
+
+CREATE EXTENSION IF NOT EXISTS plpgsql WITH SCHEMA pg_catalog;
+
+
+--
+-- Name: EXTENSION plpgsql; Type: COMMENT; Schema: -; Owner: 
+--
+
+COMMENT ON EXTENSION plpgsql IS 'PL/pgSQL procedural language';
+
+
+--
+-- Name: action_type; Type: TYPE; Schema: public; Owner: newseye
+--
+
+CREATE TYPE public.action_type AS ENUM (
+    'initialize',
+    'select',
+    'execute',
+    'update',
+    'stop'
+);
+
+
+ALTER TYPE public.action_type OWNER TO newseye;
+
+--
+-- Name: retrieve; Type: TYPE; Schema: public; Owner: newseye
+--
+
+CREATE TYPE public.retrieve AS ENUM (
+    'default',
+    'all',
+    'facets',
+    'docids',
+    'tokens',
+    'stems'
+);
+
+
+ALTER TYPE public.retrieve OWNER TO newseye;
+
+--
+-- Name: task_status; Type: TYPE; Schema: public; Owner: newseye
+--
+
+CREATE TYPE public.task_status AS ENUM (
+    'created',
+    'running',
+    'finished',
+    'failed'
+);
+
+
+ALTER TYPE public.task_status OWNER TO newseye;
+
+--
+-- Name: transformation; Type: TYPE; Schema: public; Owner: newseye
+--
+
+CREATE TYPE public.transformation AS ENUM (
+    'create',
+    'add',
+    'remove',
+    'drop'
+);
+
+
+ALTER TYPE public.transformation OWNER TO newseye;
+
+SET default_tablespace = '';
+
+SET default_with_oids = false;
+
+--
+-- Name: alembic_version; Type: TABLE; Schema: public; Owner: newseye
+--
+
+CREATE TABLE public.alembic_version (
+    version_num character varying(32) NOT NULL
+);
+
+
+ALTER TABLE public.alembic_version OWNER TO newseye;
+
+--
+-- Name: dataset; Type: TABLE; Schema: public; Owner: newseye
+--
+
+CREATE TABLE public.dataset (
+    id integer NOT NULL,
+    dataset_name character varying(255),
+    hash_value character varying(255) NOT NULL,
+    created_on timestamp without time zone
+);
+
+
+ALTER TABLE public.dataset OWNER TO newseye;
+
+--
+-- Name: document; Type: TABLE; Schema: public; Owner: newseye
+--
+
+CREATE TABLE public.document (
+    id integer NOT NULL,
+    solr_id character varying(255)
+);
+
+
+ALTER TABLE public.document OWNER TO newseye;
+
+--
+-- Name: document_dataset_relation; Type: TABLE; Schema: public; Owner: newseye
+--
+
+CREATE TABLE public.document_dataset_relation (
+    dataset_id integer NOT NULL,
+    document_id integer NOT NULL,
+    relevance integer
+);
+
+
+ALTER TABLE public.document_dataset_relation OWNER TO newseye;
+
+--
+-- Name: investigator_action; Type: TABLE; Schema: public; Owner: newseye
+--
+
+CREATE TABLE public.investigator_action (
+    id integer NOT NULL,
+    run_id integer,
+    action_id integer,
+    action_type character varying(255),
+    input_queue integer[],
+    why json,
+    action json,
+    output_queue integer[]
+);
+
+
+ALTER TABLE public.investigator_action OWNER TO newseye;
+
+--
+-- Name: investigator_result; Type: TABLE; Schema: public; Owner: newseye
+--
+
+CREATE TABLE public.investigator_result (
+    id integer NOT NULL,
+    uuid uuid NOT NULL,
+    run_id integer,
+    result json,
+    interestingness double precision,
+    end_action_id integer,
+    start_action_id integer,
+    user_id integer NOT NULL
+);
+
+
+ALTER TABLE public.investigator_result OWNER TO newseye;
+
+--
+-- Name: investigator_run; Type: TABLE; Schema: public; Owner: newseye
+--
+
+CREATE TABLE public.investigator_run (
+    id integer NOT NULL,
+    root_dataset_id integer,
+    user_parameters json,
+    run_status character varying(255),
+    root_solr_query_id integer,
+    uuid uuid NOT NULL,
+    result json,
+    done_tasks json,
+    nodes json,
+    root_action_id integer,
+    user_id integer NOT NULL
+);
+
+
+ALTER TABLE public.investigator_run OWNER TO newseye;
+
+--
+-- Name: investigator_run_id_seq; Type: SEQUENCE; Schema: public; Owner: newseye
+--
+
+CREATE SEQUENCE public.investigator_run_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.investigator_run_id_seq OWNER TO newseye;
+
+--
+-- Name: investigator_run_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: newseye
+--
+
+ALTER SEQUENCE public.investigator_run_id_seq OWNED BY public.investigator_run.id;
+
+
+--
+-- Name: processor; Type: TABLE; Schema: public; Owner: newseye
+--
+
+CREATE TABLE public.processor (
+    id integer NOT NULL,
+    name character varying(255) NOT NULL,
+    parameter_info jsonb,
+    input_type character varying(255) NOT NULL,
+    output_type character varying(255) NOT NULL,
+    description character varying(10000),
+    import_path character varying(1024)
+);
+
+
+ALTER TABLE public.processor OWNER TO newseye;
+
+--
+-- Name: report; Type: TABLE; Schema: public; Owner: newseye
+--
+
+CREATE TABLE public.report (
+    id integer NOT NULL,
+    result_id integer,
+    report_language character varying(255),
+    report_format character varying(255),
+    report_content json,
+    report_generated timestamp without time zone,
+    node_id integer,
+    run_id integer
+);
+
+
+ALTER TABLE public.report OWNER TO newseye;
+
+--
+-- Name: result; Type: TABLE; Schema: public; Owner: newseye
+--
+
+CREATE TABLE public.result (
+    id integer NOT NULL,
+    result json,
+    interestingness json,
+    last_updated timestamp without time zone
+);
+
+
+ALTER TABLE public.result OWNER TO newseye;
+
+--
+-- Name: result_id_seq; Type: SEQUENCE; Schema: public; Owner: newseye
+--
+
+CREATE SEQUENCE public.result_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.result_id_seq OWNER TO newseye;
+
+--
+-- Name: result_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: newseye
+--
+
+ALTER SEQUENCE public.result_id_seq OWNED BY public.result.id;
+
+
+--
+-- Name: solr_output; Type: TABLE; Schema: public; Owner: newseye
+--
+
+CREATE TABLE public.solr_output (
+    id integer NOT NULL,
+    output jsonb NOT NULL,
+    retrieve public.retrieve,
+    last_updated timestamp without time zone,
+    solr_query_id integer NOT NULL
+);
+
+
+ALTER TABLE public.solr_output OWNER TO newseye;
+
+--
+-- Name: solr_query; Type: TABLE; Schema: public; Owner: newseye
+--
+
+CREATE TABLE public.solr_query (
+    id integer NOT NULL,
+    search_query jsonb
+);
+
+
+ALTER TABLE public.solr_query OWNER TO newseye;
+
+--
+-- Name: task; Type: TABLE; Schema: public; Owner: newseye
+--
+
+CREATE TABLE public.task (
+    id integer NOT NULL,
+    processor_id integer NOT NULL,
+    parameters jsonb,
+    dataset_id integer,
+    solr_query_id integer,
+    input_data character varying(255),
+    uuid uuid NOT NULL,
+    user_id integer NOT NULL,
+    force_refresh boolean,
+    task_status public.task_status NOT NULL,
+    status_message character varying(255),
+    task_started timestamp without time zone,
+    task_finished timestamp without time zone
+);
+
+
+ALTER TABLE public.task OWNER TO newseye;
+
+--
+-- Name: task_parent_child_relation; Type: TABLE; Schema: public; Owner: newseye
+--
+
+CREATE TABLE public.task_parent_child_relation (
+    parent_id integer NOT NULL,
+    child_id integer NOT NULL
+);
+
+
+ALTER TABLE public.task_parent_child_relation OWNER TO newseye;
+
+--
+-- Name: task_result_relation; Type: TABLE; Schema: public; Owner: newseye
+--
+
+CREATE TABLE public.task_result_relation (
+    task_id integer NOT NULL,
+    result_id integer NOT NULL
+);
+
+
+ALTER TABLE public.task_result_relation OWNER TO newseye;
+
+--
+-- Name: user; Type: TABLE; Schema: public; Owner: newseye
+--
+
+CREATE TABLE public."user" (
+    id integer NOT NULL,
+    username character varying(64),
+    created_on timestamp without time zone,
+    last_seen timestamp without time zone
+);
+
+
+ALTER TABLE public."user" OWNER TO newseye;
+
+--
+-- Name: user_id_seq; Type: SEQUENCE; Schema: public; Owner: newseye
+--
+
+CREATE SEQUENCE public.user_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.user_id_seq OWNER TO newseye;
+
+--
+-- Name: user_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: newseye
+--
+
+ALTER SEQUENCE public.user_id_seq OWNED BY public."user".id;
+
+
+--
+-- Name: investigator_run id; Type: DEFAULT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.investigator_run ALTER COLUMN id SET DEFAULT nextval('public.investigator_run_id_seq'::regclass);
+
+
+--
+-- Name: result id; Type: DEFAULT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.result ALTER COLUMN id SET DEFAULT nextval('public.result_id_seq'::regclass);
+
+
+--
+-- Name: user id; Type: DEFAULT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public."user" ALTER COLUMN id SET DEFAULT nextval('public.user_id_seq'::regclass);
+
+
+--
+-- Data for Name: alembic_version; Type: TABLE DATA; Schema: public; Owner: newseye
+--
+
+COPY public.alembic_version (version_num) FROM stdin;
+702049005454
+\.
+
+
+--
+-- Data for Name: dataset; Type: TABLE DATA; Schema: public; Owner: newseye
+--
+
+COPY public.dataset (id, dataset_name, hash_value, created_on) FROM stdin;
+\.
+
+
+--
+-- Data for Name: document; Type: TABLE DATA; Schema: public; Owner: newseye
+--
+
+COPY public.document (id, solr_id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: document_dataset_relation; Type: TABLE DATA; Schema: public; Owner: newseye
+--
+
+COPY public.document_dataset_relation (dataset_id, document_id, relevance) FROM stdin;
+\.
+
+
+--
+-- Data for Name: investigator_action; Type: TABLE DATA; Schema: public; Owner: newseye
+--
+
+COPY public.investigator_action (id, run_id, action_id, action_type, input_queue, why, action, output_queue) FROM stdin;
+\.
+
+
+--
+-- Data for Name: investigator_result; Type: TABLE DATA; Schema: public; Owner: newseye
+--
+
+COPY public.investigator_result (id, uuid, run_id, result, interestingness, end_action_id, start_action_id, user_id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: investigator_run; Type: TABLE DATA; Schema: public; Owner: newseye
+--
+
+COPY public.investigator_run (id, root_dataset_id, user_parameters, run_status, root_solr_query_id, uuid, result, done_tasks, nodes, root_action_id, user_id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: processor; Type: TABLE DATA; Schema: public; Owner: newseye
+--
+
+COPY public.processor (id, name, parameter_info, input_type, output_type, description, import_path) FROM stdin;
+\.
+
+
+--
+-- Data for Name: report; Type: TABLE DATA; Schema: public; Owner: newseye
+--
+
+COPY public.report (id, result_id, report_language, report_format, report_content, report_generated, node_id, run_id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: result; Type: TABLE DATA; Schema: public; Owner: newseye
+--
+
+COPY public.result (id, result, interestingness, last_updated) FROM stdin;
+31	{"total": 137, "vocabulary": {"mnomesul": [1, 0.0072992700729927005, 4.22683374526818], "viaun": [1, 0.0072992700729927005, 3.5336865647082343], "d'achi": [1, 0.0072992700729927005, 3.5336865647082343], "s'enteterent": [1, 0.0072992700729927005, 2.840539384148289], "kalkiw": [1, 0.0072992700729927005, 2.2809235962128662], "kankurikat": [1, 0.0072992700729927005, 1.2564192796984786], "tyndall": [1, 0.0072992700729927005, 1.1823113075447567], "perci": [1, 0.0072992700729927005, 0.27559002668675225], "baraient": [1, 0.0072992700729927005, 0.03717900324175403], "kirnupiim": [1, 0.0072992700729927005, -0.8101188571454495], "paaaine": [1, 0.0072992700729927005, -0.9605520605725754], "hapan": [1, 0.0072992700729927005, -1.1576613175209094], "d'apart": [1, 0.0072992700729927005, -1.2263483318407724], "baba": [1, 0.0072992700729927005, -1.2682831972544648], "runsaam": [1, 0.0072992700729927005, -1.6123533663942244], "pole": [1, 0.0072992700729927005, -1.8322894503136171], "refection": [1, 0.0072992700729927005, -2.4540209335220355], "sauron": [1, 0.0072992700729927005, -2.5160468905237234], "rt": [1, 0.0072992700729927005, -2.520752781561136], "wiil": [1, 0.0072992700729927005, -2.689385612126087], "vagabond": [1, 0.0072992700729927005, -2.755100931888209], "l'exped": [1, 0.0072992700729927005, -2.803581546449845], "jatketu": [1, 0.0072992700729927005, -3.047299253114075], "ruisleip": [1, 0.0072992700729927005, -3.1774453727690886], "apercut": [1, 0.0072992700729927005, -3.2882384576687094], "edess": [1, 0.0072992700729927005, -3.377811700552737], "pin": [1, 0.0072992700729927005, -3.3785586195467547], "kuorim": [1, 0.0072992700729927005, -3.4089531161274045], "erila": [1, 0.0072992700729927005, -3.627353422500099], "leiwisk": [1, 0.0072992700729927005, -3.644477458055227], "88": [1, 0.0072992700729927005, -3.7380171421791335], "maur": [1, 0.0072992700729927005, -3.772677034918854], "hap": [1, 0.0072992700729927005, -3.7924500476486136], "suhteellis": [1, 0.0072992700729927005, -3.8663229524544582], "1915": [1, 0.0072992700729927005, -3.891224261734763], "ocupant": [1, 0.0072992700729927005, -3.9492765969691614], "cesa": [1, 0.0072992700729927005, -3.9505416192757483], "lahete": [1, 0.0072992700729927005, -3.975374691168268], "debarqu": [1, 0.0072992700729927005, -4.029384216524841], "tuonu": [1, 0.0072992700729927005, -4.034046833442335], "ruisjauh": [1, 0.0072992700729927005, -4.100529773863782], "85": [1, 0.0072992700729927005, -4.122059130716357], "saarn": [1, 0.0072992700729927005, -4.166834959862561], "peintur": [1, 0.0072992700729927005, -4.188548180001373], "alennet": [1, 0.0072992700729927005, -4.209474717407594], "toisiin": [1, 0.0072992700729927005, -4.232836259904392], "s\\u2019y": [1, 0.0072992700729927005, -4.336383884459337], "relach": [1, 0.0072992700729927005, -4.3543665761223505], "dramat": [1, 0.0072992700729927005, -4.364538844322309], "41": [1, 0.0072992700729927005, -4.38539686148281], "pullo": [1, 0.0072992700729927005, -4.430295286445575], "rev": [1, 0.0072992700729927005, -4.484938900337514], "reusit": [1, 0.0072992700729927005, -4.487651713871834], "york": [1, 0.0072992700729927005, -4.582058439957772], "puhd": [1, 0.0072992700729927005, -4.608012857095823], "l'opinion": [1, 0.0072992700729927005, -4.748290494159524], "kunk": [1, 0.0072992700729927005, -4.800064442245345], "entrepris": [1, 0.0072992700729927005, -4.860038712707758], "poyd": [1, 0.0072992700729927005, -4.93782911321135], "fameu": [1, 0.0072992700729927005, -4.939136678972063], "don": [1, 0.0072992700729927005, -4.943621693009089], "interes": [1, 0.0072992700729927005, -4.9530989642865775], "otetaw": [1, 0.0072992700729927005, -4.978845781825808], "syyskuu": [1, 0.0072992700729927005, -5.1107118009432915], "res": [1, 0.0072992700729927005, -5.211478502878854], "new": [1, 0.0072992700729927005, -5.214062637737666], "wed": [1, 0.0072992700729927005, -5.244023031087014], "toa": [1, 0.0072992700729927005, -5.283092566162607], "jokais": [1, 0.0072992700729927005, -5.290807486028936], "manqu": [1, 0.0072992700729927005, -5.358856110911544], "avenu": [1, 0.0072992700729927005, -5.391967243795966], "26": [1, 0.0072992700729927005, -5.457315506794718], "contrair": [1, 0.0072992700729927005, -5.469199040834996], "s'en": [1, 0.0072992700729927005, -5.505687534512128], "tuo": [1, 0.0072992700729927005, -5.63311980524422], "roi": [1, 0.0072992700729927005, -5.6529244805687116], "defens": [1, 0.0072992700729927005, -5.653487529236108], "pens": [1, 0.0072992700729927005, -5.708951573567111], "hinto": [1, 0.0072992700729927005, -5.741692203447171], "rout": [1, 0.0072992700729927005, -5.767773400635432], "second": [1, 0.0072992700729927005, -5.772463862113924], "avril": [1, 0.0072992700729927005, -5.909133639559145], "nord": [1, 0.0072992700729927005, -5.937497685764984], "ao\\u00fbt": [1, 0.0072992700729927005, -5.971615568372627], "prendr": [1, 0.0072992700729927005, -6.066412885554495], "kann": [1, 0.0072992700729927005, -6.13144861650898], "c": [1, 0.0072992700729927005, -6.42922488906781], "suit": [1, 0.0072992700729927005, -6.445047597202431], "min": [1, 0.0072992700729927005, -6.543733286327291], "tu": [1, 0.0072992700729927005, -6.571741331491], "jasen": [1, 0.0072992700729927005, -6.600724198960926], "8": [1, 0.0072992700729927005, -6.656613932697695], "point": [1, 0.0072992700729927005, -6.79124606670465], "gouvern": [1, 0.0072992700729927005, -6.866370474045682], "taw": [1, 0.0072992700729927005, -7.0851315378983255], "maar": [1, 0.0072992700729927005, -7.088116277667837], "h": [1, 0.0072992700729927005, -7.236381382303056], "jour": [1, 0.0072992700729927005, -7.278422385397143], "paiw": [1, 0.0072992700729927005, -7.497992305070211], "pari": [1, 0.0072992700729927005, -7.511648357180533], "helsing": [1, 0.0072992700729927005, -7.737087718058203], "meijer": [2, 0.014598540145985401, -10.167337307213968], "pastor": [2, 0.014598540145985401, -11.989560424187609], "mai": [2, 0.014598540145985401, -12.629289959199427], "5": [2, 0.014598540145985401, -13.314222232234039], "kuoritu": [4, 0.029197080291970802, -14.303954516545943], "maito": [24, 0.17518248175182483, -113.28616728952338]}}	{"mnomesul": 0.3883138588784731, "viaun": 0.19415692943923654, "d'achi": 0.19415692943923654, "s'enteterent": 0.09707846471961826, "kalkiw": 0.055473408411210436, "kankurikat": 0.019913531224537085, "tyndall": 0.01849113613707015, "perci": 0.0074675742092014065, "baraient": 0.005883543316340502, "kirnupiim": 0.0025215185641459304, "paaaine": 0.0021693511669188454, "hapan": 0.0017812562333874927, "d'apart": 0.0016630143849185157, "baba": 0.0015947181062770982, "runsaam": 0.0011304624712619317, "pole": 0.0009072753712113871, "refection": 0.0004872193963343463, "sauron": 0.000457917286413295, "rt": 0.0004557674399982091, "wiil": 0.0003850410102910009, "vagabond": 0.00036055140100136907, "l'exped": 0.0003434885969734406, "jatketu": 0.00026919504948247835, "ruisleip": 0.0002363444058907335, "apercut": 0.00021155753684471554, "edess": 0.00019343156108516844, "pin": 0.00019328713732129203, "kuorim": 0.00018750065614605297, "erila": 0.00015071370420278532, "leiwisk": 0.0001481548488662634, "88": 0.00013492489884589184, "maur": 0.00013032853125641113, "hap": 0.0001277768538593211, "suhteellis": 0.00011867782973058592, "1915": 0.00011575908745818375, "ocupant": 0.00010923034005020468, "cesa": 0.00010909224859628531, "lahete": 0.00010641651380610516, "debarqu": 0.0001008214614769513, "tuonu": 0.00010035246385281762, "ruisjauh": 9.389768078309229e-05, "85": 9.189773018068361e-05, "saarn": 8.787369515240519e-05, "peintur": 8.598623978708567e-05, "alennet": 8.420554242187551e-05, "toisiin": 8.226117124848615e-05, "s\\u2019y": 7.41693933489599e-05, "relach": 7.284754880001496e-05, "dramat": 7.21102802002748e-05, "41": 7.062178028161861e-05, "pullo": 6.752110222195796e-05, "rev": 6.393050030926585e-05, "reusit": 6.375730381388732e-05, "york": 5.801357419563482e-05, "puhd": 5.652723762697166e-05, "l'opinion": 4.912877769211578e-05, "kunk": 4.664991096569962e-05, "entrepris": 4.3934362038636e-05, "poyd": 4.064624052739679e-05, "fameu": 4.059312762685396e-05, "don": 4.0411474542458636e-05, "interes": 4.003029316823724e-05, "otetaw": 3.901279538639531e-05, "syyskuu": 3.419309284361268e-05, "res": 3.091547779773806e-05, "new": 3.083569116798929e-05, "wed": 2.9925543994951416e-05, "toa": 2.8778911945341305e-05, "jokais": 2.85577392078316e-05, "manqu": 2.6679069658432932e-05, "avenu": 2.581016011156478e-05, "26": 2.4177439691083577e-05, "contrair": 2.3891826670675783e-05, "s'en": 2.3035763117903215e-05, "tuo": 2.0279604077631975e-05, "roi": 1.9881924063207095e-05, "defens": 1.9870732723288193e-05, "pens": 1.8798627980466146e-05, "hinto": 1.8193115577141113e-05, "rout": 1.772475163768946e-05, "second": 1.764180904450051e-05, "avril": 1.538821291796964e-05, "nord": 1.4957872879124276e-05, "ao\\u00fbt": 1.4456149465908719e-05, "prendr": 1.3148695805587415e-05, "kann": 1.2320774784354884e-05, "c": 9.147774008304704e-06, "suit": 9.00417054395324e-06, "min": 8.158025565212144e-06, "tu": 7.93270533550969e-06, "jasen": 7.706092594408404e-06, "8": 7.2872156225447095e-06, "point": 6.369298858857732e-06, "gouvern": 5.90834044213678e-06, "taw": 4.747432393114157e-06, "maar": 4.733283668481777e-06, "h": 4.081049063101011e-06, "jour": 3.913034169843584e-06, "paiw": 3.1416343429835865e-06, "pari": 3.0990236299391126e-06, "helsing": 2.4735336181458433e-06, "meijer": 2.17707720760908e-07, "pastor": 3.519592524463184e-08, "mai": 1.8563564854710216e-08, "5": 9.358345460838677e-09, "kuoritu": 3.4782741044797946e-09, "maito": 1.2587298887822616e-18, "overall": 0.3883138588784731}	2020-02-18 15:52:53.6175
+32	{"PUB_YEAR": {"1913": 638, "1903": 577, "1894": 551, "1912": 543, "1902": 529, "1893": 521, "1895": 516, "1904": 513, "1911": 496, "1910": 488, "1901": 486, "1892": 473, "1907": 464, "1908": 464, "1891": 442, "1890": 441, "1897": 432, "1896": 420, "1905": 407, "1909": 405, "1887": 390, "1898": 387, "1900": 386, "1899": 365, "1886": 359, "1889": 319, "1906": 319, "1888": 317, "1884": 316, "1885": 280, "1883": 255, "1914": 244, "1882": 234, "1881": 222, "1878": 158, "1879": 134, "1880": 131, "1877": 121, "1870": 91, "1869": 84, "1875": 84, "1871": 76, "1873": 75, "1876": 71, "1874": 66, "1872": 64, "1915": 19, "1931": 2, "1935": 2, "1941": 2}, "LANGUAGE": {"fi": 15371, "fr": 8}, "NEWSPAPER_NAME": {"uusi_suometar": 15371, "l_oeuvre": 8}}	{"PUB_YEAR": {"1913": 0.04148514207685805, "1903": 0.03751869432342805, "1894": 0.03582807724819559, "1912": 0.035307887378893295, "1902": 0.03439755510761428, "1893": 0.03387736523831198, "1895": 0.03355224656999805, "1904": 0.03335717536900969, "1911": 0.03225177189674231, "1910": 0.03173158202744002, "1901": 0.03160153456011444, "1892": 0.030756226022498213, "1907": 0.03017101241953313, "1908": 0.03017101241953313, "1891": 0.028740490278951817, "1890": 0.02867546654528903, "1897": 0.028090252942323948, "1896": 0.027309968138370506, "1905": 0.026464659600754274, "1909": 0.026334612133428702, "1887": 0.0253592561284869, "1898": 0.025164184927498535, "1900": 0.02509916119383575, "1899": 0.023733662786917225, "1886": 0.023343520384940503, "1889": 0.020742571038429025, "1906": 0.020742571038429025, "1888": 0.020612523571103453, "1884": 0.020547499837440666, "1885": 0.018206645425580335, "1883": 0.016581052084010665, "1914": 0.01586579101372001, "1882": 0.015215553677092139, "1881": 0.014435268873138696, "1878": 0.010273749918720333, "1879": 0.008713180310813447, "1880": 0.008518109109825086, "1877": 0.007867871773197217, "1870": 0.005917159763313609, "1869": 0.005461993627674101, "1875": 0.005461993627674101, "1871": 0.004941803758371805, "1873": 0.0048767800247090185, "1876": 0.0046166850900578715, "1874": 0.004291566421743937, "1872": 0.004161518954418362, "1915": 0.0012354509395929513, "1931": 0.00013004746732557382, "1935": 0.00013004746732557382, "1941": 0.00013004746732557382}, "LANGUAGE": {"fi": 0.9994798101306978, "fr": 0.0005201898693022953}, "NEWSPAPER_NAME": {"uusi_suometar": 0.9994798101306978, "l_oeuvre": 0.0005201898693022953}, "overall": 0.9994798101306978}	2020-02-18 15:52:53.817997
+33	{"sauron jour": [1, 0.0072992700729927005, 2.0], "vagabond roi": [1, 0.0072992700729927005, 2.0], "point debarqu": [1, 0.0072992700729927005, 1.0], "debarqu 26": [1, 0.0072992700729927005, 1.0], "26 avril": [1, 0.0072992700729927005, 1.0], "avril 1915": [1, 0.0072992700729927005, 1.0], "ao\\u00fbt second": [1, 0.0072992700729927005, 1.0], "second pens": [1, 0.0072992700729927005, 1.0], "pens ocupant": [1, 0.0072992700729927005, 1.0], "ocupant prendr": [1, 0.0072992700729927005, 1.0], "prendr rev": [1, 0.0072992700729927005, 1.0], "rev fameu": [1, 0.0072992700729927005, 1.0], "fameu defens": [1, 0.0072992700729927005, 1.0], "d'achi baba": [1, 0.0072992700729927005, 1.0], "baba baraient": [1, 0.0072992700729927005, 1.0], "baraient rout": [1, 0.0072992700729927005, 1.0], "rout nord": [1, 0.0072992700729927005, 1.0], "nord reusit": [1, 0.0072992700729927005, 1.0], "reusit l'exped": [1, 0.0072992700729927005, 1.0], "l'exped manqu": [1, 0.0072992700729927005, 1.0], "manqu l'opinion": [1, 0.0072992700729927005, 1.0], "l'opinion s'en": [1, 0.0072992700729927005, 1.0], "s'en apercut": [1, 0.0072992700729927005, 1.0], "apercut suit": [1, 0.0072992700729927005, 1.0], "suit cesa": [1, 0.0072992700729927005, 1.0], "cesa s\\u2019y": [1, 0.0072992700729927005, 1.0], "s\\u2019y interes": [1, 0.0072992700729927005, 1.0], "interes gouvern": [1, 0.0072992700729927005, 1.0], "gouvern contrair": [1, 0.0072992700729927005, 1.0], "contrair s'enteterent": [1, 0.0072992700729927005, 1.0], "s'enteterent entrepris": [1, 0.0072992700729927005, 1.0], "entrepris sauron": [1, 0.0072992700729927005, 1.0], "runsaam min": [1, 0.0072992700729927005, 1.0], "lahete taw": [1, 0.0072992700729927005, 1.0], "taw jasen": [1, 0.0072992700729927005, 1.0], "jasen kunk": [1, 0.0072992700729927005, 1.0], "don tuo": [1, 0.0072992700729927005, 1.0], "tuo otetaw": [1, 0.0072992700729927005, 1.0], "meijer tuonu": [1, 0.0072992700729927005, 1.0], "relach pole": [1, 0.0072992700729927005, 1.0], "pole dramat": [1, 0.0072992700729927005, 1.0], "dramat vagabond": [1, 0.0072992700729927005, 1.0], "alennet hinto": [1, 0.0072992700729927005, 1.0], "peintur refection": [1, 0.0072992700729927005, 1.0], "refection d'apart": [1, 0.0072992700729927005, 1.0], "85 rt": [1, 0.0072992700729927005, 1.0], "rt viaun": [1, 0.0072992700729927005, 1.0], "viaun res": [1, 0.0072992700729927005, 1.0], "res 41": [1, 0.0072992700729927005, 1.0], "5 maur": [1, 0.0072992700729927005, 1.0], "helsing syyskuu": [1, 0.0072992700729927005, 1.0], "syyskuu ruisjauh": [1, 0.0072992700729927005, 1.0], "ruisjauh leiwisk": [1, 0.0072992700729927005, 1.0], "leiwisk ruisleip": [1, 0.0072992700729927005, 1.0], "kann kuorim": [1, 0.0072992700729927005, 1.0], "tu toisiin": [1, 0.0072992700729927005, 1.0], "toisiin paiw": [1, 0.0072992700729927005, 1.0], "c h": [1, 0.0072992700729927005, 1.0], "h tyndall": [1, 0.0072992700729927005, 1.0], "tyndall saarn": [1, 0.0072992700729927005, 1.0], "saarn new": [1, 0.0072992700729927005, 1.0], "new york": [1, 0.0072992700729927005, 1.0], "edess poyd": [1, 0.0072992700729927005, 1.0], "poyd pullo": [1, 0.0072992700729927005, 1.0], "pullo jokais": [1, 0.0072992700729927005, 1.0], "jokais erila": [1, 0.0072992700729927005, 1.0], "toa wed": [1, 0.0072992700729927005, 1.0], "wed jatketu": [1, 0.0072992700729927005, 1.0], "kirnupiim hapan": [1, 0.0072992700729927005, 1.0], "avenu perci": [1, 0.0072992700729927005, 1.0], "perci 8": [1, 0.0072992700729927005, 1.0], "8 pari": [1, 0.0072992700729927005, 1.0], "pari 88": [1, 0.0072992700729927005, 1.0], "1915 5": [1, 0.0072992700729927005, 0.6666666666666666], "5 ao\\u00fbt": [1, 0.0072992700729927005, 0.6666666666666666], "meijer runsaam": [1, 0.0072992700729927005, 0.6666666666666666], "kunk mai": [1, 0.0072992700729927005, 0.6666666666666666], "mai don": [1, 0.0072992700729927005, 0.6666666666666666], "41 5": [1, 0.0072992700729927005, 0.6666666666666666], "paaaine pastor": [1, 0.0072992700729927005, 0.6666666666666666], "pastor c": [1, 0.0072992700729927005, 0.6666666666666666], "york pastor": [1, 0.0072992700729927005, 0.6666666666666666], "pastor edess": [1, 0.0072992700729927005, 0.6666666666666666], "puhd mai": [1, 0.0072992700729927005, 0.6666666666666666], "mai toa": [1, 0.0072992700729927005, 0.6666666666666666], "min kuoritu": [1, 0.0072992700729927005, 0.4], "otetaw kuoritu": [1, 0.0072992700729927005, 0.4], "ruisleip kuoritu": [1, 0.0072992700729927005, 0.4], "kuoritu maito": [4, 0.029197080291970802, 0.3333333333333333], "maito meijer": [2, 0.014598540145985401, 0.18181818181818182], "maito maito": [2, 0.014598540145985401, 0.1], "maito kalkiw": [1, 0.0072992700729927005, 0.1], "maito mnomesul": [1, 0.0072992700729927005, 0.1], "maar maito": [1, 0.0072992700729927005, 0.09523809523809523], "defens maito": [1, 0.0072992700729927005, 0.09523809523809523], "maito d'achi": [1, 0.0072992700729927005, 0.09523809523809523], "maito lahete": [1, 0.0072992700729927005, 0.09523809523809523], "maito suhteellis": [1, 0.0072992700729927005, 0.09523809523809523], "suhteellis maito": [1, 0.0072992700729927005, 0.09523809523809523], "pin maito": [1, 0.0072992700729927005, 0.09523809523809523], "maito relach": [1, 0.0072992700729927005, 0.09523809523809523], "maito alennet": [1, 0.0072992700729927005, 0.09523809523809523], "hinto maito": [1, 0.0072992700729927005, 0.09523809523809523], "d'apart maito": [1, 0.0072992700729927005, 0.09523809523809523], "maito 85": [1, 0.0072992700729927005, 0.09523809523809523], "maito kann": [1, 0.0072992700729927005, 0.09523809523809523], "kuorim maito": [1, 0.0072992700729927005, 0.09523809523809523], "maito hap": [1, 0.0072992700729927005, 0.09523809523809523], "hap maito": [1, 0.0072992700729927005, 0.09523809523809523], "maito wiil": [1, 0.0072992700729927005, 0.09523809523809523], "wiil maito": [1, 0.0072992700729927005, 0.09523809523809523], "maito kankurikat": [1, 0.0072992700729927005, 0.09523809523809523], "kankurikat maito": [1, 0.0072992700729927005, 0.09523809523809523], "paiw maito": [1, 0.0072992700729927005, 0.09523809523809523], "maito paaaine": [1, 0.0072992700729927005, 0.09523809523809523], "erila maito": [1, 0.0072992700729927005, 0.09523809523809523], "maito puhd": [1, 0.0072992700729927005, 0.09523809523809523], "jatketu maito": [1, 0.0072992700729927005, 0.09523809523809523], "maito kirnupiim": [1, 0.0072992700729927005, 0.09523809523809523], "hapan maito": [1, 0.0072992700729927005, 0.09523809523809523], "88 maito": [1, 0.0072992700729927005, 0.09523809523809523], "maito kuoritu": [1, 0.0072992700729927005, 0.08333333333333333]}	{"sauron jour": 3.6572452585204e-15, "vagabond roi": 3.6572452585204e-15, "point debarqu": 3.6572452585204e-15, "debarqu 26": 3.6572452585204e-15, "26 avril": 3.6572452585204e-15, "avril 1915": 3.6572452585204e-15, "ao\\u00fbt second": 3.6572452585204e-15, "second pens": 3.6572452585204e-15, "pens ocupant": 3.6572452585204e-15, "ocupant prendr": 3.6572452585204e-15, "prendr rev": 3.6572452585204e-15, "rev fameu": 3.6572452585204e-15, "fameu defens": 3.6572452585204e-15, "d'achi baba": 3.6572452585204e-15, "baba baraient": 3.6572452585204e-15, "baraient rout": 3.6572452585204e-15, "rout nord": 3.6572452585204e-15, "nord reusit": 3.6572452585204e-15, "reusit l'exped": 3.6572452585204e-15, "l'exped manqu": 3.6572452585204e-15, "manqu l'opinion": 3.6572452585204e-15, "l'opinion s'en": 3.6572452585204e-15, "s'en apercut": 3.6572452585204e-15, "apercut suit": 3.6572452585204e-15, "suit cesa": 3.6572452585204e-15, "cesa s\\u2019y": 3.6572452585204e-15, "s\\u2019y interes": 3.6572452585204e-15, "interes gouvern": 3.6572452585204e-15, "gouvern contrair": 3.6572452585204e-15, "contrair s'enteterent": 3.6572452585204e-15, "s'enteterent entrepris": 3.6572452585204e-15, "entrepris sauron": 3.6572452585204e-15, "runsaam min": 3.6572452585204e-15, "lahete taw": 3.6572452585204e-15, "taw jasen": 3.6572452585204e-15, "jasen kunk": 3.6572452585204e-15, "don tuo": 3.6572452585204e-15, "tuo otetaw": 3.6572452585204e-15, "meijer tuonu": 3.6572452585204e-15, "relach pole": 3.6572452585204e-15, "pole dramat": 3.6572452585204e-15, "dramat vagabond": 3.6572452585204e-15, "alennet hinto": 3.6572452585204e-15, "peintur refection": 3.6572452585204e-15, "refection d'apart": 3.6572452585204e-15, "85 rt": 3.6572452585204e-15, "rt viaun": 3.6572452585204e-15, "viaun res": 3.6572452585204e-15, "res 41": 3.6572452585204e-15, "5 maur": 3.6572452585204e-15, "helsing syyskuu": 3.6572452585204e-15, "syyskuu ruisjauh": 3.6572452585204e-15, "ruisjauh leiwisk": 3.6572452585204e-15, "leiwisk ruisleip": 3.6572452585204e-15, "kann kuorim": 3.6572452585204e-15, "tu toisiin": 3.6572452585204e-15, "toisiin paiw": 3.6572452585204e-15, "c h": 3.6572452585204e-15, "h tyndall": 3.6572452585204e-15, "tyndall saarn": 3.6572452585204e-15, "saarn new": 3.6572452585204e-15, "new york": 3.6572452585204e-15, "edess poyd": 3.6572452585204e-15, "poyd pullo": 3.6572452585204e-15, "pullo jokais": 3.6572452585204e-15, "jokais erila": 3.6572452585204e-15, "toa wed": 3.6572452585204e-15, "wed jatketu": 3.6572452585204e-15, "kirnupiim hapan": 3.6572452585204e-15, "avenu perci": 3.6572452585204e-15, "perci 8": 3.6572452585204e-15, "8 pari": 3.6572452585204e-15, "pari 88": 3.6572452585204e-15, "1915 5": 3.6572452585204e-15, "5 ao\\u00fbt": 3.6572452585204e-15, "meijer runsaam": 3.6572452585204e-15, "kunk mai": 3.6572452585204e-15, "mai don": 3.6572452585204e-15, "41 5": 3.6572452585204e-15, "paaaine pastor": 3.6572452585204e-15, "pastor c": 3.6572452585204e-15, "york pastor": 3.6572452585204e-15, "pastor edess": 3.6572452585204e-15, "puhd mai": 3.6572452585204e-15, "mai toa": 3.6572452585204e-15, "min kuoritu": 3.6572452585204e-15, "otetaw kuoritu": 3.6572452585204e-15, "ruisleip kuoritu": 3.6572452585204e-15, "kuoritu maito": 0.666666666666373, "maito meijer": 0.166666666666596, "maito maito": 0.166666666666596, "maito kalkiw": 3.6572452585204e-15, "maito mnomesul": 3.6572452585204e-15, "maar maito": 3.6572452585204e-15, "defens maito": 3.6572452585204e-15, "maito d'achi": 3.6572452585204e-15, "maito lahete": 3.6572452585204e-15, "maito suhteellis": 3.6572452585204e-15, "suhteellis maito": 3.6572452585204e-15, "pin maito": 3.6572452585204e-15, "maito relach": 3.6572452585204e-15, "maito alennet": 3.6572452585204e-15, "hinto maito": 3.6572452585204e-15, "d'apart maito": 3.6572452585204e-15, "maito 85": 3.6572452585204e-15, "maito kann": 3.6572452585204e-15, "kuorim maito": 3.6572452585204e-15, "maito hap": 3.6572452585204e-15, "hap maito": 3.6572452585204e-15, "maito wiil": 3.6572452585204e-15, "wiil maito": 3.6572452585204e-15, "maito kankurikat": 3.6572452585204e-15, "kankurikat maito": 3.6572452585204e-15, "paiw maito": 3.6572452585204e-15, "maito paaaine": 3.6572452585204e-15, "erila maito": 3.6572452585204e-15, "maito puhd": 3.6572452585204e-15, "jatketu maito": 3.6572452585204e-15, "maito kirnupiim": 3.6572452585204e-15, "hapan maito": 3.6572452585204e-15, "88 maito": 3.6572452585204e-15, "maito kuoritu": 3.6572452585204e-15, "overall": 0.666666666666373}	2020-02-18 15:52:53.864446
+34	{"absolute_counts": {"l_oeuvre": {"1869": 0.0, "1870": 0.0, "1871": 0.0, "1872": 0.0, "1873": 0.0, "1874": 0.0, "1875": 0.0, "1876": 0.0, "1877": 0.0, "1878": 0.0, "1879": 0.0, "1880": 0.0, "1881": 0.0, "1882": 0.0, "1883": 0.0, "1884": 0.0, "1885": 0.0, "1886": 0.0, "1887": 0.0, "1888": 0.0, "1889": 0.0, "1890": 0.0, "1891": 0.0, "1892": 0.0, "1893": 0.0, "1894": 0.0, "1895": 0.0, "1896": 0.0, "1897": 0.0, "1898": 0.0, "1899": 0.0, "1900": 0.0, "1901": 0.0, "1902": 0.0, "1903": 0.0, "1904": 0.0, "1905": 0.0, "1906": 0.0, "1907": 0.0, "1908": 0.0, "1909": 0.0, "1910": 0.0, "1911": 0.0, "1912": 0.0, "1913": 0.0, "1914": 0.0, "1915": 2.0, "1931": 2.0, "1935": 2.0, "1941": 2.0, "min": 2.0, "max": 2.0, "avg": 2.0}, "uusi_suometar": {"1869": 84.0, "1870": 91.0, "1871": 76.0, "1872": 64.0, "1873": 75.0, "1874": 66.0, "1875": 84.0, "1876": 71.0, "1877": 121.0, "1878": 158.0, "1879": 134.0, "1880": 131.0, "1881": 222.0, "1882": 234.0, "1883": 255.0, "1884": 316.0, "1885": 280.0, "1886": 359.0, "1887": 390.0, "1888": 317.0, "1889": 319.0, "1890": 441.0, "1891": 442.0, "1892": 473.0, "1893": 521.0, "1894": 551.0, "1895": 516.0, "1896": 420.0, "1897": 432.0, "1898": 387.0, "1899": 365.0, "1900": 386.0, "1901": 486.0, "1902": 529.0, "1903": 577.0, "1904": 513.0, "1905": 407.0, "1906": 319.0, "1907": 464.0, "1908": 464.0, "1909": 405.0, "1910": 488.0, "1911": 496.0, "1912": 543.0, "1913": 638.0, "1914": 244.0, "1915": 17.0, "1931": 0.0, "1935": 0.0, "1941": 0.0, "min": 17.0, "max": 638.0, "avg": 327.0425531914894}}, "relative_counts": {"l_oeuvre": {"1869": 0.0, "1870": 0.0, "1871": 0.0, "1872": 0.0, "1873": 0.0, "1874": 0.0, "1875": 0.0, "1876": 0.0, "1877": 0.0, "1878": 0.0, "1879": 0.0, "1880": 0.0, "1881": 0.0, "1882": 0.0, "1883": 0.0, "1884": 0.0, "1885": 0.0, "1886": 0.0, "1887": 0.0, "1888": 0.0, "1889": 0.0, "1890": 0.0, "1891": 0.0, "1892": 0.0, "1893": 0.0, "1894": 0.0, "1895": 0.0, "1896": 0.0, "1897": 0.0, "1898": 0.0, "1899": 0.0, "1900": 0.0, "1901": 0.0, "1902": 0.0, "1903": 0.0, "1904": 0.0, "1905": 0.0, "1906": 0.0, "1907": 0.0, "1908": 0.0, "1909": 0.0, "1910": 0.0, "1911": 0.0, "1912": 0.0, "1913": 0.0, "1914": 0.0, "1915": 0.10526315789473684, "1931": 1.0, "1935": 1.0, "1941": 1.0, "min": 0.10526315789473684, "max": 1.0, "avg": 0.7763157894736842}, "uusi_suometar": {"1869": 1.0, "1870": 1.0, "1871": 1.0, "1872": 1.0, "1873": 1.0, "1874": 1.0, "1875": 1.0, "1876": 1.0, "1877": 1.0, "1878": 1.0, "1879": 1.0, "1880": 1.0, "1881": 1.0, "1882": 1.0, "1883": 1.0, "1884": 1.0, "1885": 1.0, "1886": 1.0, "1887": 1.0, "1888": 1.0, "1889": 1.0, "1890": 1.0, "1891": 1.0, "1892": 1.0, "1893": 1.0, "1894": 1.0, "1895": 1.0, "1896": 1.0, "1897": 1.0, "1898": 1.0, "1899": 1.0, "1900": 1.0, "1901": 1.0, "1902": 1.0, "1903": 1.0, "1904": 1.0, "1905": 1.0, "1906": 1.0, "1907": 1.0, "1908": 1.0, "1909": 1.0, "1910": 1.0, "1911": 1.0, "1912": 1.0, "1913": 1.0, "1914": 1.0, "1915": 0.8947368421052632, "1931": 0.0, "1935": 0.0, "1941": 0.0, "min": 0.8947368421052632, "max": 1.0, "avg": 0.9977603583426651}}}	{"l_oeuvre": [0.4385722675180027, {"1869": 4.452609491900354e-17, "1870": 4.452609491900354e-17, "1871": 4.452609491900354e-17, "1872": 4.452609491900354e-17, "1873": 4.452609491900354e-17, "1874": 4.452609491900354e-17, "1875": 4.452609491900354e-17, "1876": 4.452609491900354e-17, "1877": 4.452609491900354e-17, "1878": 4.452609491900354e-17, "1879": 4.452609491900354e-17, "1880": 4.452609491900354e-17, "1881": 4.452609491900354e-17, "1882": 4.452609491900354e-17, "1883": 4.452609491900354e-17, "1884": 4.452609491900354e-17, "1885": 4.452609491900354e-17, "1886": 4.452609491900354e-17, "1887": 4.452609491900354e-17, "1888": 4.452609491900354e-17, "1889": 4.452609491900354e-17, "1890": 4.452609491900354e-17, "1891": 4.452609491900354e-17, "1892": 4.452609491900354e-17, "1893": 4.452609491900354e-17, "1894": 4.452609491900354e-17, "1895": 4.452609491900354e-17, "1896": 4.452609491900354e-17, "1897": 4.452609491900354e-17, "1898": 4.452609491900354e-17, "1899": 4.452609491900354e-17, "1900": 4.452609491900354e-17, "1901": 4.452609491900354e-17, "1902": 4.452609491900354e-17, "1903": 4.452609491900354e-17, "1904": 4.452609491900354e-17, "1905": 4.452609491900354e-17, "1906": 4.452609491900354e-17, "1907": 4.452609491900354e-17, "1908": 4.452609491900354e-17, "1909": 4.452609491900354e-17, "1910": 4.452609491900354e-17, "1911": 4.452609491900354e-17, "1912": 4.452609491900354e-17, "1913": 4.452609491900354e-17, "1914": 4.452609491900354e-17, "1915": 0.021108179419525062, "1931": 0.20052770448548773, "1935": 0.20052770448548773, "1941": 0.20052770448548773, "min": 0.021108179419525062, "max": 0.20052770448548773, "avg": 0.15567282321899706}], "uusi_suometar": [0.9852679208905786, {"1869": 0.020085470085470087, "1870": 0.020085470085470087, "1871": 0.020085470085470087, "1872": 0.020085470085470087, "1873": 0.020085470085470087, "1874": 0.020085470085470087, "1875": 0.020085470085470087, "1876": 0.020085470085470087, "1877": 0.020085470085470087, "1878": 0.020085470085470087, "1879": 0.020085470085470087, "1880": 0.020085470085470087, "1881": 0.020085470085470087, "1882": 0.020085470085470087, "1883": 0.020085470085470087, "1884": 0.020085470085470087, "1885": 0.020085470085470087, "1886": 0.020085470085470087, "1887": 0.020085470085470087, "1888": 0.020085470085470087, "1889": 0.020085470085470087, "1890": 0.020085470085470087, "1891": 0.020085470085470087, "1892": 0.020085470085470087, "1893": 0.020085470085470087, "1894": 0.020085470085470087, "1895": 0.020085470085470087, "1896": 0.020085470085470087, "1897": 0.020085470085470087, "1898": 0.020085470085470087, "1899": 0.020085470085470087, "1900": 0.020085470085470087, "1901": 0.020085470085470087, "1902": 0.020085470085470087, "1903": 0.020085470085470087, "1904": 0.020085470085470087, "1905": 0.020085470085470087, "1906": 0.020085470085470087, "1907": 0.020085470085470087, "1908": 0.020085470085470087, "1909": 0.020085470085470087, "1910": 0.020085470085470087, "1911": 0.020085470085470087, "1912": 0.020085470085470087, "1913": 0.020085470085470087, "1914": 0.020085470085470087, "1915": 0.017971210076473235, "1931": 4.459870269861739e-18, "1935": 4.459870269861739e-18, "1941": 4.459870269861739e-18, "min": 0.017971210076473235, "max": 0.020085470085470087, "avg": 0.02004048582995951}], "overall": 0.9852679208905786}	2020-02-18 15:52:54.534517
+35	{"PUB_YEAR": {}, "LANGUAGE": {}, "NEWSPAPER_NAME": {}}	{"PUB_YEAR": 0.0, "LANGUAGE": 0.0, "NEWSPAPER_NAME": 0.0, "overall": 0.0}	2020-02-19 13:33:17.445821
+36	{"PUB_YEAR": {}, "LANGUAGE": {}, "NEWSPAPER_NAME": {}}	{"PUB_YEAR": 0.0, "LANGUAGE": 0.0, "NEWSPAPER_NAME": 0.0, "overall": 0.0}	2020-02-19 13:36:59.849991
+37	{"PUB_YEAR": {"1922": 7, "1898": 1, "1916": 1, "1918": 1}, "LANGUAGE": {"de": 10}, "NEWSPAPER_NAME": {"arbeiter_zeitung": 10}}	{"PUB_YEAR": {"1922": 0.7, "1898": 0.10000000000000002, "1916": 0.10000000000000002, "1918": 0.10000000000000002}, "LANGUAGE": {"de": 1.0}, "NEWSPAPER_NAME": {"arbeiter_zeitung": 1.0}, "overall": 1.0}	2020-02-19 14:06:41.06387
+38	{"total": 239, "vocabulary": {"president": [18, 0.07531380753138076, 33.099793059692246], "1z.dez": [2, 0.008368200836820083, 8.18033838162324], "america": [6, 0.02510460251046025, 5.227760195660516], "zur\\u00fcckschaften": [1, 0.0041841004184100415, 4.783316371371566], "zentimetervernichtet": [1, 0.0041841004184100415, 4.783316371371566], "z.jan": [1, 0.0041841004184100415, 4.783316371371566], "washlagten": [1, 0.0041841004184100415, 4.783316371371566], "srik\\u00e4nischen": [1, 0.0041841004184100415, 4.783316371371566], "seebbot\\u00e9": [1, 0.0041841004184100415, 4.783316371371566], "registertonneih": [1, 0.0041841004184100415, 4.783316371371566], "reesevelt": [1, 0.0041841004184100415, 4.783316371371566], "mannau\\u00dferdem": [1, 0.0041841004184100415, 4.783316371371566], "leesdel": [1, 0.0041841004184100415, 4.783316371371566], "lantischen": [1, 0.0041841004184100415, 4.783316371371566], "j.jan": [1, 0.0041841004184100415, 4.783316371371566], "g.dez": [1, 0.0041841004184100415, 4.783316371371566], "bruttobewaffneten": [1, 0.0041841004184100415, 4.783316371371566], "ausenkung": [1, 0.0041841004184100415, 4.783316371371566], "opem": [1, 0.0041841004184100415, 3.6847040827034556], "amteh": [1, 0.0041841004184100415, 3.6847040827034556], "feb": [3, 0.012552301255230125, 3.5171953761820234], "lineoln": [1, 0.0041841004184100415, 3.397022010251675], "goorge": [1, 0.0041841004184100415, 3.397022010251675], "truppentransporter": [1, 0.0041841004184100415, 2.99155690214351], "upfer": [1, 0.0041841004184100415, 2.837406222316252], "unni": [1, 0.0041841004184100415, 2.837406222316252], "terbrochen": [1, 0.0041841004184100415, 2.385421098573195], "usich": [1, 0.0041841004184100415, 2.2984097215835653], "segellisten": [1, 0.0041841004184100415, 2.2984097215835653], "begun": [1, 0.0041841004184100415, 2.2984097215835653], "deitsche": [1, 0.0041841004184100415, 2.1091677219450364], "4646": [1, 0.0041841004184100415, 1.5644405465033646], "umder": [1, 0.0041841004184100415, 1.2137836748901953], "lines": [1, 0.0041841004184100415, 1.1589754383952002], "verdrehte": [1, 0.0041841004184100415, 1.0576229441349128], "regierungsdampfer": [1, 0.0041841004184100415, 1.0576229441349128], "ihm's": [1, 0.0041841004184100415, 1.0338122954411941], "5262": [1, 0.0041841004184100415, 1.022116255678003], "alung": [1, 0.0041841004184100415, 0.9656040454146606], "states": [1, 0.0041841004184100415, 0.4525830310852343], "lincoln": [1, 0.0041841004184100415, 0.2507168782183094], "southampton": [6, 0.02510460251046025, 0.2042750484583024], "aufgearbeitet": [1, 0.0041841004184100415, -0.044997365930735805], "abfahrten": [1, 0.0041841004184100415, -0.08421807908401711], "united": [1, 0.0041841004184100415, -0.21389590239254969], "beier": [1, 0.0041841004184100415, -0.24384822467590092], "vork": [1, 0.0041841004184100415, -0.29185744386226165], "glaublich": [1, 0.0041841004184100415, -0.310433829435197], "regelm\\u00e4ssige": [1, 0.0041841004184100415, -0.47417900065621615], "cherbourg": [6, 0.02510460251046025, -0.8418452744103635], "1840": [1, 0.0041841004184100415, -0.8478954104498003], "kaiserlich": [1, 0.0041841004184100415, -0.8656578667896407], "3o": [1, 0.0041841004184100415, -0.9002633959671162], "angeschafft": [1, 0.0041841004184100415, -1.1027876600785904], "zwer": [1, 0.0041841004184100415, -1.5026817231372993], "bekanntmachung": [1, 0.0041841004184100415, -1.5561607090964957], "28.000": [1, 0.0041841004184100415, -1.6077628701664055], "bremen": [1, 0.0041841004184100415, -1.6600196566587366], "harding": [7, 0.029288702928870293, -1.7069375727313065], "ueberschrift": [1, 0.0041841004184100415, -1.8280523945286444], "zo": [2, 0.008368200836820083, -1.8475877867546209], "versenkte": [1, 0.0041841004184100415, -1.864372002191764], "prachtvollen": [1, 0.0041841004184100415, -1.8798163246192379], "ozean": [1, 0.0041841004184100415, -2.064688903204798], "gesch\\u00fctzen": [1, 0.0041841004184100415, -2.140804261696836], "ion": [1, 0.0041841004184100415, -2.3096728858515614], "schiffes": [1, 0.0041841004184100415, -2.334699833093768], "absichtlich": [1, 0.0041841004184100415, -2.416361974319607], "vermutlich": [1, 0.0041841004184100415, -2.5285697927055995], "bewaffneten": [1, 0.0041841004184100415, -2.5646274517771217], "innen": [1, 0.0041841004184100415, -2.5862843491548437], "650": [1, 0.0041841004184100415, -2.7498424360839975], "marine": [1, 0.0041841004184100415, -2.780662734065919], "bef\\u00f6rdert": [1, 0.0041841004184100415, -2.8613637105164047], "besatzung": [1, 0.0041841004184100415, -3.073777493530927], "prospekte": [1, 0.0041841004184100415, -3.0906620082329357], "118": [1, 0.0041841004184100415, -3.0950284128921055], "offizieren": [1, 0.0041841004184100415, -3.12709080513277], "sitzungen": [1, 0.0041841004184100415, -3.1853493290946697], "bord": [1, 0.0041841004184100415, -3.18880475755009], "van": [1, 0.0041841004184100415, -3.3222930309283303], "befanden": [1, 0.0041841004184100415, -3.3606368592312443], "neuerdings": [1, 0.0041841004184100415, -3.418206711052722], "amtlichen": [1, 0.0041841004184100415, -3.530290767945993], "san": [1, 0.0041841004184100415, -3.5822396453817125], "dampfer": [1, 0.0041841004184100415, -3.6602302798763735], "schiffe": [1, 0.0041841004184100415, -3.678786853726712], "milit\\u00e4r": [1, 0.0041841004184100415, -3.694824092780971], "new": [1, 0.0041841004184100415, -3.700836965966472], "amerikanischen": [1, 0.0041841004184100415, -3.8403966634223448], "bestand": [1, 0.0041841004184100415, -3.9156148733002105], "amerika": [1, 0.0041841004184100415, -3.9967025164975865], "verbindung": [1, 0.0041841004184100415, -4.01226584558486], "verstehen": [1, 0.0041841004184100415, -4.019581939612232], "n\\u00e4chste": [1, 0.0041841004184100415, -4.02228362981091], "offiziere": [1, 0.0041841004184100415, -4.09706053589623], "bruttoregistertonnen": [3, 0.012552301255230125, -4.114625167934557], "armee": [1, 0.0041841004184100415, -4.2526706134598395], "gr\\u00f6\\u00dfte": [1, 0.0041841004184100415, -4.301970851601055], "englische": [1, 0.0041841004184100415, -4.345271498732358], "ver": [1, 0.0041841004184100415, -4.4614737353338425], "verlangen": [1, 0.0041841004184100415, -4.76163736774083], "polizei": [1, 0.0041841004184100415, -4.785432441169501], "gekommen": [1, 0.0041841004184100415, -4.839067424072905], "sitzung": [1, 0.0041841004184100415, -4.961204757568188], "juni": [1, 0.0041841004184100415, -4.983635279519741], "berlin": [1, 0.0041841004184100415, -5.107035281771422], "40": [1, 0.0041841004184100415, -5.315532351466321], "dez": [4, 0.016736401673640166, -6.131781523108505], "4": [1, 0.0041841004184100415, -6.547985293316005], "3": [1, 0.0041841004184100415, -6.681358533816594], "nr": [1, 0.0041841004184100415, -6.841445594723825], "2": [1, 0.0041841004184100415, -6.967692487621427], "nov": [8, 0.03347280334728033, -7.023251910926718], "roosevelt": [6, 0.02510460251046025, -8.119981113485487], "jan": [5, 0.02092050209205021, -9.341277511090809], "15": [2, 0.008368200836820083, -11.702263670360615], "6": [2, 0.008368200836820083, -13.053957402813648], "21": [3, 0.012552301255230125, -15.784295998990373], "17": [3, 0.012552301255230125, -16.248524350336517], "30": [3, 0.012552301255230125, -17.359036015419235], "george": [6, 0.02510460251046025, -18.015673904229594], "29": [4, 0.016736401673640166, -20.355857086159407], "washington": [6, 0.02510460251046025, -20.976001614770382], "20": [4, 0.016736401673640166, -24.37061277075384], "13": [5, 0.02092050209205021, -28.196238363560425], "dezember": [6, 0.02510460251046025, -29.41824458798236], "november": [6, 0.02510460251046025, -29.567704753148163], "9": [5, 0.02092050209205021, -32.00340662883492], "1": [5, 0.02092050209205021, -35.33233485068479]}}	{"president": 0.9999999999752692, "1z.dez": 1.5052836389176518e-11, "america": 7.858323942746301e-13, "zur\\u00fcckschaften": 5.038606322736908e-13, "zentimetervernichtet": 5.038606322736908e-13, "z.jan": 5.038606322736908e-13, "washlagten": 5.038606322736908e-13, "srik\\u00e4nischen": 5.038606322736908e-13, "seebbot\\u00e9": 5.038606322736908e-13, "registertonneih": 5.038606322736908e-13, "reesevelt": 5.038606322736908e-13, "mannau\\u00dferdem": 5.038606322736908e-13, "leesdel": 5.038606322736908e-13, "lantischen": 5.038606322736908e-13, "j.jan": 5.038606322736908e-13, "g.dez": 5.038606322736908e-13, "bruttobewaffneten": 5.038606322736908e-13, "ausenkung": 5.038606322736908e-13, "opem": 1.6795354409123024e-13, "amteh": 1.6795354409123024e-13, "feb": 1.4204994361689092e-13, "lineoln": 1.259651580684227e-13, "goorge": 1.259651580684227e-13, "truppentransporter": 8.397677204561512e-14, "upfer": 7.198009032481297e-14, "unni": 7.198009032481297e-14, "terbrochen": 4.5805512024880985e-14, "usich": 4.198838602280757e-14, "segellisten": 4.198838602280757e-14, "begun": 4.198838602280757e-14, "deitsche": 3.474900912232349e-14, "4646": 2.015442529094763e-14, "umder": 1.419325724714622e-14, "lines": 1.3436283527298419e-14, "verdrehte": 1.214122005478773e-14, "regierungsdampfer": 1.214122005478773e-14, "ihm's": 1.1855544288792723e-14, "5262": 1.1717689122643974e-14, "alung": 1.1073860049971227e-14, "states": 6.629745161495932e-15, "lincoln": 5.417856261007428e-15, "southampton": 5.171994428426694e-15, "aufgearbeitet": 4.030885058189527e-15, "abfahrten": 3.87585101748993e-15, "united": 3.4044637315789925e-15, "beier": 3.3040041460569897e-15, "vork": 3.149128951710568e-15, "glaublich": 3.091169523151478e-15, "regelm\\u00e4ssige": 2.6242741264254736e-15, "cherbourg": 1.8169114622352187e-15, "1840": 1.8059520870024766e-15, "kaiserlich": 1.7741571558932782e-15, "3o": 1.7138116744003097e-15, "angeschafft": 1.3996128674269197e-15, "zwer": 9.382879558169298e-16, "bekanntmachung": 8.894274179588548e-16, "28.000": 8.446951085895913e-16, "bremen": 8.016875612946562e-16, "harding": 7.649427859673871e-16, "ueberschrift": 6.776874677521069e-16, "zo": 6.645770527555559e-16, "versenkte": 6.535157357635428e-16, "prachtvollen": 6.435001689319176e-16, "ozean": 5.34883898379715e-16, "gesch\\u00fctzen": 4.956818812333416e-16, "ion": 4.186627605099226e-16, "schiffes": 4.083149370127163e-16, "absichtlich": 3.7629621529028534e-16, "vermutlich": 3.3635556226548207e-16, "bewaffneten": 3.2444342065273164e-16, "innen": 3.1749252191158934e-16, "650": 2.69588353276454e-16, "marine": 2.6140629430541765e-16, "bef\\u00f6rdert": 2.411393310714012e-16, "besatzung": 1.9499250474988128e-16, "prospekte": 1.9172779005848298e-16, "118": 1.9089245397753109e-16, "offizieren": 1.8486906339155872e-16, "sitzungen": 1.7440658784136157e-16, "bord": 1.7380497836277804e-16, "van": 1.5208591375601991e-16, "befanden": 1.4636474430608396e-16, "neuerdings": 1.3817650686238702e-16, "amtlichen": 1.2352552887317839e-16, "san": 1.172723454611183e-16, "dampfer": 1.0847376367571477e-16, "schiffe": 1.0647942355741656e-16, "milit\\u00e4r": 1.0478540756445779e-16, "new": 1.0415723664572513e-16, "amerikanischen": 9.058982960692124e-17, "bestand": 8.402578708808409e-17, "amerika": 7.748125976836797e-17, "verbindung": 7.628472858042348e-17, "verstehen": 7.57286589424659e-17, "n\\u00e4chste": 7.552433969477584e-17, "offiziere": 7.008284752398601e-17, "bruttoregistertonnen": 6.886261592615448e-17, "armee": 5.998340860401174e-17, "gr\\u00f6\\u00dfte": 5.709792421935508e-17, "englische": 5.4678310610276673e-17, "ver": 4.867983501026044e-17, "verlangen": 3.6057008177594395e-17, "polizei": 3.5209156372852385e-17, "gekommen": 3.3370463757447824e-17, "sitzung": 2.95337552987138e-17, "juni": 2.8878672146365223e-17, "berlin": 2.5526147843037098e-17, "40": 2.0722213953268082e-17, "dez": 9.16101601375687e-18, "4": 6.042110194369558e-18, "3": 5.2876826121847614e-18, "nr": 4.505473628301086e-18, "2": 3.9711118821404975e-18, "nov": 3.75649635778313e-18, "roosevelt": 1.2545256094572502e-18, "jan": 3.6989396447649695e-19, "15": 3.48910455861211e-20, "6": 9.029856632000806e-21, "21": 5.887214636313749e-22, "17": 3.700820820205227e-22, "30": 1.21901478401667e-22, "george": 6.321712835569382e-23, "29": 6.088442121700616e-24, "washington": 3.2747706734508595e-24, "20": 1.0988124599810607e-25, "13": 2.3968533477637144e-27, "dezember": 7.068655666232098e-28, "november": 6.088633325431213e-28, "9": 5.415191103097243e-29, "1": 2.8430274346610288e-30, "overall": 0.9999999999752692}	2020-02-19 14:09:46.266321
+39	{"amtlich bekanntmachung": [1, 0.0041841004184100415, 2.0], "nr 118": [1, 0.0041841004184100415, 2.0], "gekomm 4": [1, 0.0041841004184100415, 2.0], "ihm's angeschafft": [1, 0.0041841004184100415, 2.0], "cherbourg 1": [5, 0.02092050209205021, 1.4285714285714286], "kaiserlich deitsch": [1, 0.0041841004184100415, 1.0], "deitsch polizei": [1, 0.0041841004184100415, 1.0], "opem ueberschrift": [1, 0.0041841004184100415, 1.0], "ueberschrift amtlich": [1, 0.0041841004184100415, 1.0], "southampton cherbourg": [6, 0.02510460251046025, 1.0], "21 feb": [3, 0.012552301255230125, 1.0], "regelmassig verbindung": [1, 0.0041841004184100415, 1.0], "verbindung brem": [1, 0.0041841004184100415, 1.0], "new vork": [1, 0.0041841004184100415, 1.0], "vork prachtvoll": [1, 0.0041841004184100415, 1.0], "prachtvoll amerikanisch": [1, 0.0041841004184100415, 1.0], "amerikanisch regierungsdampf": [1, 0.0041841004184100415, 1.0], "regierungsdampf united": [1, 0.0041841004184100415, 1.0], "united stat": [1, 0.0041841004184100415, 1.0], "stat lin": [1, 0.0041841004184100415, 1.0], "lin nach": [1, 0.0041841004184100415, 1.0], "nach abfahrt": [1, 0.0041841004184100415, 1.0], "1 verlang": [1, 0.0041841004184100415, 1.0], "verlang prospekt": [1, 0.0041841004184100415, 1.0], "prospekt segellist": [1, 0.0041841004184100415, 1.0], "segellist nr": [1, 0.0041841004184100415, 1.0], "juni amteh": [1, 0.0041841004184100415, 1.0], "amteh lantisch": [1, 0.0041841004184100415, 1.0], "lantisch ozean": [1, 0.0041841004184100415, 1.0], "ozean seebbot\\u00e9": [1, 0.0041841004184100415, 1.0], "seebbot\\u00e9 neuerding": [1, 0.0041841004184100415, 1.0], "neuerding 28.000": [1, 0.0041841004184100415, 1.0], "2 zentimetervernichtet": [1, 0.0041841004184100415, 1.0], "zentimetervernichtet zwer": [1, 0.0041841004184100415, 1.0], "zwer srikanisch": [1, 0.0041841004184100415, 1.0], "srikanisch truppentransport": [1, 0.0041841004184100415, 1.0], "truppentransport geschutz": [1, 0.0041841004184100415, 1.0], "geschutz bewaffnet": [1, 0.0041841004184100415, 1.0], "lincoln 1840": [1, 0.0041841004184100415, 1.0], "1840 upf": [1, 0.0041841004184100415, 1.0], "upf begun": [1, 0.0041841004184100415, 1.0], "begun 4646": [1, 0.0041841004184100415, 1.0], "4646 bruttobewaffnet": [1, 0.0041841004184100415, 1.0], "bruttobewaffnet englisch": [1, 0.0041841004184100415, 1.0], "englisch ion": [1, 0.0041841004184100415, 1.0], "ion 5262": [1, 0.0041841004184100415, 1.0], "registertonneih alung": [1, 0.0041841004184100415, 1.0], "lineoln bestand": [1, 0.0041841004184100415, 1.0], "bestand militar": [1, 0.0041841004184100415, 1.0], "militar 650": [1, 0.0041841004184100415, 1.0], "650 marin": [1, 0.0041841004184100415, 1.0], "marin 40": [1, 0.0041841004184100415, 1.0], "mannau\\u00dferd befand": [1, 0.0041841004184100415, 1.0], "befand bord": [1, 0.0041841004184100415, 1.0], "bord amerika": [1, 0.0041841004184100415, 1.0], "amerika zuruckschaft": [1, 0.0041841004184100415, 1.0], "zuruckschaft arme": [1, 0.0041841004184100415, 1.0], "arme vermutlich": [1, 0.0041841004184100415, 1.0], "vermutlich gro\\u00dft": [1, 0.0041841004184100415, 1.0], "gro\\u00dft befordert": [1, 0.0041841004184100415, 1.0], "befordert ausenkung": [1, 0.0041841004184100415, 1.0], "umd besatzung": [1, 0.0041841004184100415, 1.0], "besatzung ver": [1, 0.0041841004184100415, 1.0], "ver gekomm": [1, 0.0041841004184100415, 1.0], "inn bei": [1, 0.0041841004184100415, 1.0], "aufgearbeitet unni": [1, 0.0041841004184100415, 1.0], "unni terbroch": [1, 0.0041841004184100415, 1.0], "glaublich leesdel": [1, 0.0041841004184100415, 1.0], "leesdel versteh": [1, 0.0041841004184100415, 1.0], "versteh verdreht": [1, 0.0041841004184100415, 1.0], "verdreht absichtlich": [1, 0.0041841004184100415, 1.0], "absichtlich ihm's": [1, 0.0041841004184100415, 1.0], "harding 9": [5, 0.02092050209205021, 0.8333333333333334], "georg washington": [5, 0.02092050209205021, 0.8333333333333334], "america 29": [4, 0.016736401673640166, 0.8], "1z.dez 21": [2, 0.008368200836820083, 0.8], "washington 13": [4, 0.016736401673640166, 0.7272727272727273], "reesevelt zo": [1, 0.0041841004184100415, 0.6666666666666666], "feb southampton": [3, 0.012552301255230125, 0.6666666666666666], "roosevelt 30": [3, 0.012552301255230125, 0.6666666666666666], "30 novemb": [3, 0.012552301255230125, 0.6666666666666666], "9 dezemb": [3, 0.012552301255230125, 0.6666666666666666], "13 dezemb": [3, 0.012552301255230125, 0.6666666666666666], "versenkt schiff": [1, 0.0041841004184100415, 0.6666666666666666], "schiff berlin": [1, 0.0041841004184100415, 0.6666666666666666], "berlin 15": [1, 0.0041841004184100415, 0.6666666666666666], "15 juni": [1, 0.0041841004184100415, 0.6666666666666666], "dampf 15": [1, 0.0041841004184100415, 0.6666666666666666], "15 2": [1, 0.0041841004184100415, 0.6666666666666666], "40 offizi": [1, 0.0041841004184100415, 0.6666666666666666], "offizi usich": [1, 0.0041841004184100415, 0.6666666666666666], "offizi mannau\\u00dferd": [1, 0.0041841004184100415, 0.6666666666666666], "ausenkung schiff": [1, 0.0041841004184100415, 0.6666666666666666], "schiff umd": [1, 0.0041841004184100415, 0.6666666666666666], "bei sitzung": [1, 0.0041841004184100415, 0.6666666666666666], "sitzung aufgearbeitet": [1, 0.0041841004184100415, 0.6666666666666666], "terbroch sitzung": [1, 0.0041841004184100415, 0.6666666666666666], "29 novemb": [3, 0.012552301255230125, 0.6], "dezemb georg": [3, 0.012552301255230125, 0.6], "6 jan": [2, 0.008368200836820083, 0.5714285714285714], "president harding": [7, 0.029288702928870293, 0.56], "20 nov": [3, 0.012552301255230125, 0.5], "president roosevelt": [6, 0.02510460251046025, 0.5], "g.dez 17": [1, 0.0041841004184100415, 0.5], "17 san": [1, 0.0041841004184100415, 0.5], "washington 1z.dez": [2, 0.008368200836820083, 0.5], "novemb president": [6, 0.02510460251046025, 0.5], "17 jan": [2, 0.008368200836820083, 0.5], "28.000 bruttoregistertonn": [1, 0.0041841004184100415, 0.5], "bruttoregistertonn dampf": [1, 0.0041841004184100415, 0.5], "bewaffnet bruttoregistertonn": [1, 0.0041841004184100415, 0.5], "5262 bruttoregistertonn": [1, 0.0041841004184100415, 0.5], "bruttoregistertonn registertonneih": [1, 0.0041841004184100415, 0.5], "13 dez": [2, 0.008368200836820083, 0.4444444444444444], "zo nov": [2, 0.008368200836820083, 0.4], "nov 6": [2, 0.008368200836820083, 0.4], "america 20": [2, 0.008368200836820083, 0.4], "usich 20": [1, 0.0041841004184100415, 0.4], "washlagt 13": [1, 0.0041841004184100415, 0.3333333333333333], "3 jan": [1, 0.0041841004184100415, 0.3333333333333333], "jan goorg": [1, 0.0041841004184100415, 0.3333333333333333], "20 offizi": [1, 0.0041841004184100415, 0.3333333333333333], "georg washlagt": [1, 0.0041841004184100415, 0.2857142857142857], "roosevelt 3o": [1, 0.0041841004184100415, 0.2857142857142857], "san georg": [1, 0.0041841004184100415, 0.2857142857142857], "dez 17": [1, 0.0041841004184100415, 0.2857142857142857], "goorg washington": [1, 0.0041841004184100415, 0.2857142857142857], "dez 21": [1, 0.0041841004184100415, 0.2857142857142857], "brem southampton": [1, 0.0041841004184100415, 0.2857142857142857], "cherbourg new": [1, 0.0041841004184100415, 0.2857142857142857], "abfahrt america": [1, 0.0041841004184100415, 0.2857142857142857], "jan president": [3, 0.012552301255230125, 0.2608695652173913], "harding g.dez": [1, 0.0041841004184100415, 0.25], "roosevelt zo": [1, 0.0041841004184100415, 0.25], "9 17": [1, 0.0041841004184100415, 0.25], "9 dez": [1, 0.0041841004184100415, 0.2222222222222222], "nov 3": [1, 0.0041841004184100415, 0.2222222222222222], "3o nov": [1, 0.0041841004184100415, 0.2222222222222222], "nov z.jan": [1, 0.0041841004184100415, 0.2222222222222222], "nov j.jan": [1, 0.0041841004184100415, 0.2222222222222222], "nov van": [1, 0.0041841004184100415, 0.2222222222222222], "dez georg": [1, 0.0041841004184100415, 0.2], "dez southampton": [1, 0.0041841004184100415, 0.2], "dezemb southampton": [1, 0.0041841004184100415, 0.2], "harding dez": [1, 0.0041841004184100415, 0.18181818181818182], "jan georg": [1, 0.0041841004184100415, 0.18181818181818182], "29 nov": [1, 0.0041841004184100415, 0.16666666666666666], "nov president": [2, 0.008368200836820083, 0.15384615384615385], "roosevelt nov": [1, 0.0041841004184100415, 0.14285714285714285], "polizei president": [1, 0.0041841004184100415, 0.10526315789473684], "president opem": [1, 0.0041841004184100415, 0.10526315789473684], "president reesevelt": [1, 0.0041841004184100415, 0.10526315789473684], "z.jan president": [1, 0.0041841004184100415, 0.10526315789473684], "president lincoln": [1, 0.0041841004184100415, 0.10526315789473684], "alung president": [1, 0.0041841004184100415, 0.10526315789473684], "president lineoln": [1, 0.0041841004184100415, 0.10526315789473684], "president glaublich": [1, 0.0041841004184100415, 0.10526315789473684], "j.jan president": [1, 0.0041841004184100415, 0.10526315789473684], "van president": [1, 0.0041841004184100415, 0.10526315789473684], "sitzung president": [1, 0.0041841004184100415, 0.1], "bruttoregistertonn president": [1, 0.0041841004184100415, 0.09523809523809523]}	{"amtlich bekanntmachung": 4.193825487358235e-16, "nr 118": 4.193825487358235e-16, "gekomm 4": 4.193825487358235e-16, "ihm's angeschafft": 4.193825487358235e-16, "cherbourg 1": 0.06359404650587355, "kaiserlich deitsch": 4.193825487358235e-16, "deitsch polizei": 4.193825487358235e-16, "opem ueberschrift": 4.193825487358235e-16, "ueberschrift amtlich": 4.193825487358235e-16, "southampton cherbourg": 0.08495778616853751, "21 feb": 0.026045814046403725, "regelmassig verbindung": 4.193825487358235e-16, "verbindung brem": 4.193825487358235e-16, "new vork": 4.193825487358235e-16, "vork prachtvoll": 4.193825487358235e-16, "prachtvoll amerikanisch": 4.193825487358235e-16, "amerikanisch regierungsdampf": 4.193825487358235e-16, "regierungsdampf united": 4.193825487358235e-16, "united stat": 4.193825487358235e-16, "stat lin": 4.193825487358235e-16, "lin nach": 4.193825487358235e-16, "nach abfahrt": 4.193825487358235e-16, "1 verlang": 4.193825487358235e-16, "verlang prospekt": 4.193825487358235e-16, "prospekt segellist": 4.193825487358235e-16, "segellist nr": 4.193825487358235e-16, "juni amteh": 4.193825487358235e-16, "amteh lantisch": 4.193825487358235e-16, "lantisch ozean": 4.193825487358235e-16, "ozean seebbot\\u00e9": 4.193825487358235e-16, "seebbot\\u00e9 neuerding": 4.193825487358235e-16, "neuerding 28.000": 4.193825487358235e-16, "2 zentimetervernichtet": 4.193825487358235e-16, "zentimetervernichtet zwer": 4.193825487358235e-16, "zwer srikanisch": 4.193825487358235e-16, "srikanisch truppentransport": 4.193825487358235e-16, "truppentransport geschutz": 4.193825487358235e-16, "geschutz bewaffnet": 4.193825487358235e-16, "lincoln 1840": 4.193825487358235e-16, "1840 upf": 4.193825487358235e-16, "upf begun": 4.193825487358235e-16, "begun 4646": 4.193825487358235e-16, "4646 bruttobewaffnet": 4.193825487358235e-16, "bruttobewaffnet englisch": 4.193825487358235e-16, "englisch ion": 4.193825487358235e-16, "ion 5262": 4.193825487358235e-16, "registertonneih alung": 4.193825487358235e-16, "lineoln bestand": 4.193825487358235e-16, "bestand militar": 4.193825487358235e-16, "militar 650": 4.193825487358235e-16, "650 marin": 4.193825487358235e-16, "marin 40": 4.193825487358235e-16, "mannau\\u00dferd befand": 4.193825487358235e-16, "befand bord": 4.193825487358235e-16, "bord amerika": 4.193825487358235e-16, "amerika zuruckschaft": 4.193825487358235e-16, "zuruckschaft arme": 4.193825487358235e-16, "arme vermutlich": 4.193825487358235e-16, "vermutlich gro\\u00dft": 4.193825487358235e-16, "gro\\u00dft befordert": 4.193825487358235e-16, "befordert ausenkung": 4.193825487358235e-16, "umd besatzung": 4.193825487358235e-16, "besatzung ver": 4.193825487358235e-16, "ver gekomm": 4.193825487358235e-16, "inn bei": 4.193825487358235e-16, "aufgearbeitet unni": 4.193825487358235e-16, "unni terbroch": 4.193825487358235e-16, "glaublich leesdel": 4.193825487358235e-16, "leesdel versteh": 4.193825487358235e-16, "versteh verdreht": 4.193825487358235e-16, "verdreht absichtlich": 4.193825487358235e-16, "absichtlich ihm's": 4.193825487358235e-16, "harding 9": 0.06359404650587355, "georg washington": 0.06359404650587355, "america 29": 0.04382154410097439, "1z.dez 21": 0.010955386025243912, "washington 13": 0.04382154410097439, "reesevelt zo": 4.193825487358235e-16, "feb southampton": 0.026045814046403725, "roosevelt 30": 0.026045814046403725, "30 novemb": 0.026045814046403725, "9 dezemb": 0.026045814046403725, "13 dezemb": 0.026045814046403725, "versenkt schiff": 4.193825487358235e-16, "schiff berlin": 4.193825487358235e-16, "berlin 15": 4.193825487358235e-16, "15 juni": 4.193825487358235e-16, "dampf 15": 4.193825487358235e-16, "15 2": 4.193825487358235e-16, "40 offizi": 4.193825487358235e-16, "offizi usich": 4.193825487358235e-16, "offizi mannau\\u00dferd": 4.193825487358235e-16, "ausenkung schiff": 4.193825487358235e-16, "schiff umd": 4.193825487358235e-16, "bei sitzung": 4.193825487358235e-16, "sitzung aufgearbeitet": 4.193825487358235e-16, "terbroch sitzung": 4.193825487358235e-16, "29 novemb": 0.026045814046403725, "dezemb georg": 0.026045814046403725, "6 jan": 0.010955386025243912, "president harding": 0.10764479908352988, "20 nov": 0.026045814046403725, "president roosevelt": 0.08495778616853751, "g.dez 17": 4.193825487358235e-16, "17 san": 4.193825487358235e-16, "washington 1z.dez": 0.010955386025243912, "novemb president": 0.08495778616853751, "17 jan": 0.010955386025243912, "28.000 bruttoregistertonn": 4.193825487358235e-16, "bruttoregistertonn dampf": 4.193825487358235e-16, "bewaffnet bruttoregistertonn": 4.193825487358235e-16, "5262 bruttoregistertonn": 4.193825487358235e-16, "bruttoregistertonn registertonneih": 4.193825487358235e-16, "13 dez": 0.010955386025243912, "zo nov": 0.010955386025243912, "nov 6": 0.010955386025243912, "america 20": 0.010955386025243912, "usich 20": 4.193825487358235e-16, "washlagt 13": 4.193825487358235e-16, "3 jan": 4.193825487358235e-16, "jan goorg": 4.193825487358235e-16, "20 offizi": 4.193825487358235e-16, "georg washlagt": 4.193825487358235e-16, "roosevelt 3o": 4.193825487358235e-16, "san georg": 4.193825487358235e-16, "dez 17": 4.193825487358235e-16, "goorg washington": 4.193825487358235e-16, "dez 21": 4.193825487358235e-16, "brem southampton": 4.193825487358235e-16, "cherbourg new": 4.193825487358235e-16, "abfahrt america": 4.193825487358235e-16, "jan president": 0.026045814046403725, "harding g.dez": 4.193825487358235e-16, "roosevelt zo": 4.193825487358235e-16, "9 17": 4.193825487358235e-16, "9 dez": 4.193825487358235e-16, "nov 3": 4.193825487358235e-16, "3o nov": 4.193825487358235e-16, "nov z.jan": 4.193825487358235e-16, "nov j.jan": 4.193825487358235e-16, "nov van": 4.193825487358235e-16, "dez georg": 4.193825487358235e-16, "dez southampton": 4.193825487358235e-16, "dezemb southampton": 4.193825487358235e-16, "harding dez": 4.193825487358235e-16, "jan georg": 4.193825487358235e-16, "29 nov": 4.193825487358235e-16, "nov president": 0.010955386025243912, "roosevelt nov": 4.193825487358235e-16, "polizei president": 4.193825487358235e-16, "president opem": 4.193825487358235e-16, "president reesevelt": 4.193825487358235e-16, "z.jan president": 4.193825487358235e-16, "president lincoln": 4.193825487358235e-16, "alung president": 4.193825487358235e-16, "president lineoln": 4.193825487358235e-16, "president glaublich": 4.193825487358235e-16, "j.jan president": 4.193825487358235e-16, "van president": 4.193825487358235e-16, "sitzung president": 4.193825487358235e-16, "bruttoregistertonn president": 4.193825487358235e-16, "overall": 0.10764479908352988}	2020-02-19 14:10:30.169159
+40	{"absolute_counts": {"l_oeuvre": {"1869": 0.0, "1870": 0.0, "1871": 0.0, "1872": 0.0, "1873": 0.0, "1874": 0.0, "1875": 0.0, "1876": 0.0, "1877": 0.0, "1878": 0.0, "1879": 0.0, "1880": 0.0, "1881": 0.0, "1882": 0.0, "1883": 0.0, "1884": 0.0, "1885": 0.0, "1886": 0.0, "1887": 0.0, "1888": 0.0, "1889": 0.0, "1890": 0.0, "1891": 0.0, "1892": 0.0, "1893": 0.0, "1894": 0.0, "1895": 0.0, "1896": 0.0, "1897": 0.0, "1898": 0.0, "1899": 0.0, "1900": 0.0, "1901": 0.0, "1902": 0.0, "1903": 0.0, "1904": 0.0, "1905": 0.0, "1906": 0.0, "1907": 0.0, "1908": 0.0, "1909": 0.0, "1910": 0.0, "1911": 0.0, "1912": 0.0, "1913": 0.0, "1914": 0.0, "1915": 2.0, "1931": 2.0, "1935": 2.0, "1941": 2.0, "min": 2.0, "max": 2.0, "avg": 2.0}, "uusi_suometar": {"1869": 84.0, "1870": 91.0, "1871": 76.0, "1872": 64.0, "1873": 75.0, "1874": 66.0, "1875": 84.0, "1876": 71.0, "1877": 121.0, "1878": 158.0, "1879": 134.0, "1880": 131.0, "1881": 222.0, "1882": 234.0, "1883": 255.0, "1884": 316.0, "1885": 280.0, "1886": 359.0, "1887": 390.0, "1888": 317.0, "1889": 319.0, "1890": 441.0, "1891": 442.0, "1892": 473.0, "1893": 521.0, "1894": 551.0, "1895": 516.0, "1896": 420.0, "1897": 432.0, "1898": 387.0, "1899": 365.0, "1900": 386.0, "1901": 486.0, "1902": 529.0, "1903": 577.0, "1904": 513.0, "1905": 407.0, "1906": 319.0, "1907": 464.0, "1908": 464.0, "1909": 405.0, "1910": 488.0, "1911": 496.0, "1912": 543.0, "1913": 638.0, "1914": 244.0, "1915": 17.0, "1931": 0.0, "1935": 0.0, "1941": 0.0, "min": 17.0, "max": 638.0, "avg": 327.0425531914894}}, "relative_counts": {"l_oeuvre": {"1869": 0.0, "1870": 0.0, "1871": 0.0, "1872": 0.0, "1873": 0.0, "1874": 0.0, "1875": 0.0, "1876": 0.0, "1877": 0.0, "1878": 0.0, "1879": 0.0, "1880": 0.0, "1881": 0.0, "1882": 0.0, "1883": 0.0, "1884": 0.0, "1885": 0.0, "1886": 0.0, "1887": 0.0, "1888": 0.0, "1889": 0.0, "1890": 0.0, "1891": 0.0, "1892": 0.0, "1893": 0.0, "1894": 0.0, "1895": 0.0, "1896": 0.0, "1897": 0.0, "1898": 0.0, "1899": 0.0, "1900": 0.0, "1901": 0.0, "1902": 0.0, "1903": 0.0, "1904": 0.0, "1905": 0.0, "1906": 0.0, "1907": 0.0, "1908": 0.0, "1909": 0.0, "1910": 0.0, "1911": 0.0, "1912": 0.0, "1913": 0.0, "1914": 0.0, "1915": 0.10526315789473684, "1931": 1.0, "1935": 1.0, "1941": 1.0, "min": 0.10526315789473684, "max": 1.0, "avg": 0.7763157894736842}, "uusi_suometar": {"1869": 1.0, "1870": 1.0, "1871": 1.0, "1872": 1.0, "1873": 1.0, "1874": 1.0, "1875": 1.0, "1876": 1.0, "1877": 1.0, "1878": 1.0, "1879": 1.0, "1880": 1.0, "1881": 1.0, "1882": 1.0, "1883": 1.0, "1884": 1.0, "1885": 1.0, "1886": 1.0, "1887": 1.0, "1888": 1.0, "1889": 1.0, "1890": 1.0, "1891": 1.0, "1892": 1.0, "1893": 1.0, "1894": 1.0, "1895": 1.0, "1896": 1.0, "1897": 1.0, "1898": 1.0, "1899": 1.0, "1900": 1.0, "1901": 1.0, "1902": 1.0, "1903": 1.0, "1904": 1.0, "1905": 1.0, "1906": 1.0, "1907": 1.0, "1908": 1.0, "1909": 1.0, "1910": 1.0, "1911": 1.0, "1912": 1.0, "1913": 1.0, "1914": 1.0, "1915": 0.8947368421052632, "1931": 0.0, "1935": 0.0, "1941": 0.0, "min": 0.8947368421052632, "max": 1.0, "avg": 0.9977603583426651}}}	{"l_oeuvre": [0.4385722675180027, {"1869": 4.452609491900354e-17, "1870": 4.452609491900354e-17, "1871": 4.452609491900354e-17, "1872": 4.452609491900354e-17, "1873": 4.452609491900354e-17, "1874": 4.452609491900354e-17, "1875": 4.452609491900354e-17, "1876": 4.452609491900354e-17, "1877": 4.452609491900354e-17, "1878": 4.452609491900354e-17, "1879": 4.452609491900354e-17, "1880": 4.452609491900354e-17, "1881": 4.452609491900354e-17, "1882": 4.452609491900354e-17, "1883": 4.452609491900354e-17, "1884": 4.452609491900354e-17, "1885": 4.452609491900354e-17, "1886": 4.452609491900354e-17, "1887": 4.452609491900354e-17, "1888": 4.452609491900354e-17, "1889": 4.452609491900354e-17, "1890": 4.452609491900354e-17, "1891": 4.452609491900354e-17, "1892": 4.452609491900354e-17, "1893": 4.452609491900354e-17, "1894": 4.452609491900354e-17, "1895": 4.452609491900354e-17, "1896": 4.452609491900354e-17, "1897": 4.452609491900354e-17, "1898": 4.452609491900354e-17, "1899": 4.452609491900354e-17, "1900": 4.452609491900354e-17, "1901": 4.452609491900354e-17, "1902": 4.452609491900354e-17, "1903": 4.452609491900354e-17, "1904": 4.452609491900354e-17, "1905": 4.452609491900354e-17, "1906": 4.452609491900354e-17, "1907": 4.452609491900354e-17, "1908": 4.452609491900354e-17, "1909": 4.452609491900354e-17, "1910": 4.452609491900354e-17, "1911": 4.452609491900354e-17, "1912": 4.452609491900354e-17, "1913": 4.452609491900354e-17, "1914": 4.452609491900354e-17, "1915": 0.021108179419525062, "1931": 0.20052770448548773, "1935": 0.20052770448548773, "1941": 0.20052770448548773, "min": 0.021108179419525062, "max": 0.20052770448548773, "avg": 0.15567282321899706}], "uusi_suometar": [0.9852679208905786, {"1869": 0.020085470085470087, "1870": 0.020085470085470087, "1871": 0.020085470085470087, "1872": 0.020085470085470087, "1873": 0.020085470085470087, "1874": 0.020085470085470087, "1875": 0.020085470085470087, "1876": 0.020085470085470087, "1877": 0.020085470085470087, "1878": 0.020085470085470087, "1879": 0.020085470085470087, "1880": 0.020085470085470087, "1881": 0.020085470085470087, "1882": 0.020085470085470087, "1883": 0.020085470085470087, "1884": 0.020085470085470087, "1885": 0.020085470085470087, "1886": 0.020085470085470087, "1887": 0.020085470085470087, "1888": 0.020085470085470087, "1889": 0.020085470085470087, "1890": 0.020085470085470087, "1891": 0.020085470085470087, "1892": 0.020085470085470087, "1893": 0.020085470085470087, "1894": 0.020085470085470087, "1895": 0.020085470085470087, "1896": 0.020085470085470087, "1897": 0.020085470085470087, "1898": 0.020085470085470087, "1899": 0.020085470085470087, "1900": 0.020085470085470087, "1901": 0.020085470085470087, "1902": 0.020085470085470087, "1903": 0.020085470085470087, "1904": 0.020085470085470087, "1905": 0.020085470085470087, "1906": 0.020085470085470087, "1907": 0.020085470085470087, "1908": 0.020085470085470087, "1909": 0.020085470085470087, "1910": 0.020085470085470087, "1911": 0.020085470085470087, "1912": 0.020085470085470087, "1913": 0.020085470085470087, "1914": 0.020085470085470087, "1915": 0.017971210076473235, "1931": 4.459870269861739e-18, "1935": 4.459870269861739e-18, "1941": 4.459870269861739e-18, "min": 0.017971210076473235, "max": 0.020085470085470087, "avg": 0.02004048582995951}], "overall": 0.9852679208905786}	2020-02-19 14:23:22.956236
+41	{"absolute_counts": {"l_oeuvre": {"1869": 0.0, "1870": 0.0, "1871": 0.0, "1872": 0.0, "1873": 0.0, "1874": 0.0, "1875": 0.0, "1876": 0.0, "1877": 0.0, "1878": 0.0, "1879": 0.0, "1880": 0.0, "1881": 0.0, "1882": 0.0, "1883": 0.0, "1884": 0.0, "1885": 0.0, "1886": 0.0, "1887": 0.0, "1888": 0.0, "1889": 0.0, "1890": 0.0, "1891": 0.0, "1892": 0.0, "1893": 0.0, "1894": 0.0, "1895": 0.0, "1896": 0.0, "1897": 0.0, "1898": 0.0, "1899": 0.0, "1900": 0.0, "1901": 0.0, "1902": 0.0, "1903": 0.0, "1904": 0.0, "1905": 0.0, "1906": 0.0, "1907": 0.0, "1908": 0.0, "1909": 0.0, "1910": 0.0, "1911": 0.0, "1912": 0.0, "1913": 0.0, "1914": 0.0, "1915": 2.0, "1931": 2.0, "1935": 2.0, "1941": 2.0, "min": 2.0, "max": 2.0, "avg": 2.0}, "uusi_suometar": {"1869": 84.0, "1870": 91.0, "1871": 76.0, "1872": 64.0, "1873": 75.0, "1874": 66.0, "1875": 84.0, "1876": 71.0, "1877": 121.0, "1878": 158.0, "1879": 134.0, "1880": 131.0, "1881": 222.0, "1882": 234.0, "1883": 255.0, "1884": 316.0, "1885": 280.0, "1886": 359.0, "1887": 390.0, "1888": 317.0, "1889": 319.0, "1890": 441.0, "1891": 442.0, "1892": 473.0, "1893": 521.0, "1894": 551.0, "1895": 516.0, "1896": 420.0, "1897": 432.0, "1898": 387.0, "1899": 365.0, "1900": 386.0, "1901": 486.0, "1902": 529.0, "1903": 577.0, "1904": 513.0, "1905": 407.0, "1906": 319.0, "1907": 464.0, "1908": 464.0, "1909": 405.0, "1910": 488.0, "1911": 496.0, "1912": 543.0, "1913": 638.0, "1914": 244.0, "1915": 17.0, "1931": 0.0, "1935": 0.0, "1941": 0.0, "min": 17.0, "max": 638.0, "avg": 327.0425531914894}}, "relative_counts": {"l_oeuvre": {"1869": 0.0, "1870": 0.0, "1871": 0.0, "1872": 0.0, "1873": 0.0, "1874": 0.0, "1875": 0.0, "1876": 0.0, "1877": 0.0, "1878": 0.0, "1879": 0.0, "1880": 0.0, "1881": 0.0, "1882": 0.0, "1883": 0.0, "1884": 0.0, "1885": 0.0, "1886": 0.0, "1887": 0.0, "1888": 0.0, "1889": 0.0, "1890": 0.0, "1891": 0.0, "1892": 0.0, "1893": 0.0, "1894": 0.0, "1895": 0.0, "1896": 0.0, "1897": 0.0, "1898": 0.0, "1899": 0.0, "1900": 0.0, "1901": 0.0, "1902": 0.0, "1903": 0.0, "1904": 0.0, "1905": 0.0, "1906": 0.0, "1907": 0.0, "1908": 0.0, "1909": 0.0, "1910": 0.0, "1911": 0.0, "1912": 0.0, "1913": 0.0, "1914": 0.0, "1915": 0.10526315789473684, "1931": 1.0, "1935": 1.0, "1941": 1.0, "min": 0.10526315789473684, "max": 1.0, "avg": 0.7763157894736842}, "uusi_suometar": {"1869": 1.0, "1870": 1.0, "1871": 1.0, "1872": 1.0, "1873": 1.0, "1874": 1.0, "1875": 1.0, "1876": 1.0, "1877": 1.0, "1878": 1.0, "1879": 1.0, "1880": 1.0, "1881": 1.0, "1882": 1.0, "1883": 1.0, "1884": 1.0, "1885": 1.0, "1886": 1.0, "1887": 1.0, "1888": 1.0, "1889": 1.0, "1890": 1.0, "1891": 1.0, "1892": 1.0, "1893": 1.0, "1894": 1.0, "1895": 1.0, "1896": 1.0, "1897": 1.0, "1898": 1.0, "1899": 1.0, "1900": 1.0, "1901": 1.0, "1902": 1.0, "1903": 1.0, "1904": 1.0, "1905": 1.0, "1906": 1.0, "1907": 1.0, "1908": 1.0, "1909": 1.0, "1910": 1.0, "1911": 1.0, "1912": 1.0, "1913": 1.0, "1914": 1.0, "1915": 0.8947368421052632, "1931": 0.0, "1935": 0.0, "1941": 0.0, "min": 0.8947368421052632, "max": 1.0, "avg": 0.9977603583426651}}}	{"l_oeuvre": [0.4385722675180027, {"1869": 4.452609491900354e-17, "1870": 4.452609491900354e-17, "1871": 4.452609491900354e-17, "1872": 4.452609491900354e-17, "1873": 4.452609491900354e-17, "1874": 4.452609491900354e-17, "1875": 4.452609491900354e-17, "1876": 4.452609491900354e-17, "1877": 4.452609491900354e-17, "1878": 4.452609491900354e-17, "1879": 4.452609491900354e-17, "1880": 4.452609491900354e-17, "1881": 4.452609491900354e-17, "1882": 4.452609491900354e-17, "1883": 4.452609491900354e-17, "1884": 4.452609491900354e-17, "1885": 4.452609491900354e-17, "1886": 4.452609491900354e-17, "1887": 4.452609491900354e-17, "1888": 4.452609491900354e-17, "1889": 4.452609491900354e-17, "1890": 4.452609491900354e-17, "1891": 4.452609491900354e-17, "1892": 4.452609491900354e-17, "1893": 4.452609491900354e-17, "1894": 4.452609491900354e-17, "1895": 4.452609491900354e-17, "1896": 4.452609491900354e-17, "1897": 4.452609491900354e-17, "1898": 4.452609491900354e-17, "1899": 4.452609491900354e-17, "1900": 4.452609491900354e-17, "1901": 4.452609491900354e-17, "1902": 4.452609491900354e-17, "1903": 4.452609491900354e-17, "1904": 4.452609491900354e-17, "1905": 4.452609491900354e-17, "1906": 4.452609491900354e-17, "1907": 4.452609491900354e-17, "1908": 4.452609491900354e-17, "1909": 4.452609491900354e-17, "1910": 4.452609491900354e-17, "1911": 4.452609491900354e-17, "1912": 4.452609491900354e-17, "1913": 4.452609491900354e-17, "1914": 4.452609491900354e-17, "1915": 0.021108179419525062, "1931": 0.20052770448548773, "1935": 0.20052770448548773, "1941": 0.20052770448548773, "min": 0.021108179419525062, "max": 0.20052770448548773, "avg": 0.15567282321899706}], "uusi_suometar": [0.9852679208905786, {"1869": 0.020085470085470087, "1870": 0.020085470085470087, "1871": 0.020085470085470087, "1872": 0.020085470085470087, "1873": 0.020085470085470087, "1874": 0.020085470085470087, "1875": 0.020085470085470087, "1876": 0.020085470085470087, "1877": 0.020085470085470087, "1878": 0.020085470085470087, "1879": 0.020085470085470087, "1880": 0.020085470085470087, "1881": 0.020085470085470087, "1882": 0.020085470085470087, "1883": 0.020085470085470087, "1884": 0.020085470085470087, "1885": 0.020085470085470087, "1886": 0.020085470085470087, "1887": 0.020085470085470087, "1888": 0.020085470085470087, "1889": 0.020085470085470087, "1890": 0.020085470085470087, "1891": 0.020085470085470087, "1892": 0.020085470085470087, "1893": 0.020085470085470087, "1894": 0.020085470085470087, "1895": 0.020085470085470087, "1896": 0.020085470085470087, "1897": 0.020085470085470087, "1898": 0.020085470085470087, "1899": 0.020085470085470087, "1900": 0.020085470085470087, "1901": 0.020085470085470087, "1902": 0.020085470085470087, "1903": 0.020085470085470087, "1904": 0.020085470085470087, "1905": 0.020085470085470087, "1906": 0.020085470085470087, "1907": 0.020085470085470087, "1908": 0.020085470085470087, "1909": 0.020085470085470087, "1910": 0.020085470085470087, "1911": 0.020085470085470087, "1912": 0.020085470085470087, "1913": 0.020085470085470087, "1914": 0.020085470085470087, "1915": 0.017971210076473235, "1931": 4.459870269861739e-18, "1935": 4.459870269861739e-18, "1941": 4.459870269861739e-18, "min": 0.017971210076473235, "max": 0.020085470085470087, "avg": 0.02004048582995951}], "overall": 0.9852679208905786}	2020-02-19 14:36:34.663641
+42	{"absolute_counts": {"l_oeuvre": {"1869": 0.0, "1870": 0.0, "1871": 0.0, "1872": 0.0, "1873": 0.0, "1874": 0.0, "1875": 0.0, "1876": 0.0, "1877": 0.0, "1878": 0.0, "1879": 0.0, "1880": 0.0, "1881": 0.0, "1882": 0.0, "1883": 0.0, "1884": 0.0, "1885": 0.0, "1886": 0.0, "1887": 0.0, "1888": 0.0, "1889": 0.0, "1890": 0.0, "1891": 0.0, "1892": 0.0, "1893": 0.0, "1894": 0.0, "1895": 0.0, "1896": 0.0, "1897": 0.0, "1898": 0.0, "1899": 0.0, "1900": 0.0, "1901": 0.0, "1902": 0.0, "1903": 0.0, "1904": 0.0, "1905": 0.0, "1906": 0.0, "1907": 0.0, "1908": 0.0, "1909": 0.0, "1910": 0.0, "1911": 0.0, "1912": 0.0, "1913": 0.0, "1914": 0.0, "1915": 2.0, "1931": 2.0, "1935": 2.0, "1941": 2.0, "min": 2.0, "max": 2.0, "avg": 2.0}, "uusi_suometar": {"1869": 84.0, "1870": 91.0, "1871": 76.0, "1872": 64.0, "1873": 75.0, "1874": 66.0, "1875": 84.0, "1876": 71.0, "1877": 121.0, "1878": 158.0, "1879": 134.0, "1880": 131.0, "1881": 222.0, "1882": 234.0, "1883": 255.0, "1884": 316.0, "1885": 280.0, "1886": 359.0, "1887": 390.0, "1888": 317.0, "1889": 319.0, "1890": 441.0, "1891": 442.0, "1892": 473.0, "1893": 521.0, "1894": 551.0, "1895": 516.0, "1896": 420.0, "1897": 432.0, "1898": 387.0, "1899": 365.0, "1900": 386.0, "1901": 486.0, "1902": 529.0, "1903": 577.0, "1904": 513.0, "1905": 407.0, "1906": 319.0, "1907": 464.0, "1908": 464.0, "1909": 405.0, "1910": 488.0, "1911": 496.0, "1912": 543.0, "1913": 638.0, "1914": 244.0, "1915": 17.0, "1931": 0.0, "1935": 0.0, "1941": 0.0, "min": 17.0, "max": 638.0, "avg": 327.0425531914894}}, "relative_counts": {"l_oeuvre": {"1869": 0.0, "1870": 0.0, "1871": 0.0, "1872": 0.0, "1873": 0.0, "1874": 0.0, "1875": 0.0, "1876": 0.0, "1877": 0.0, "1878": 0.0, "1879": 0.0, "1880": 0.0, "1881": 0.0, "1882": 0.0, "1883": 0.0, "1884": 0.0, "1885": 0.0, "1886": 0.0, "1887": 0.0, "1888": 0.0, "1889": 0.0, "1890": 0.0, "1891": 0.0, "1892": 0.0, "1893": 0.0, "1894": 0.0, "1895": 0.0, "1896": 0.0, "1897": 0.0, "1898": 0.0, "1899": 0.0, "1900": 0.0, "1901": 0.0, "1902": 0.0, "1903": 0.0, "1904": 0.0, "1905": 0.0, "1906": 0.0, "1907": 0.0, "1908": 0.0, "1909": 0.0, "1910": 0.0, "1911": 0.0, "1912": 0.0, "1913": 0.0, "1914": 0.0, "1915": 0.10526315789473684, "1931": 1.0, "1935": 1.0, "1941": 1.0, "min": 0.10526315789473684, "max": 1.0, "avg": 0.7763157894736842}, "uusi_suometar": {"1869": 1.0, "1870": 1.0, "1871": 1.0, "1872": 1.0, "1873": 1.0, "1874": 1.0, "1875": 1.0, "1876": 1.0, "1877": 1.0, "1878": 1.0, "1879": 1.0, "1880": 1.0, "1881": 1.0, "1882": 1.0, "1883": 1.0, "1884": 1.0, "1885": 1.0, "1886": 1.0, "1887": 1.0, "1888": 1.0, "1889": 1.0, "1890": 1.0, "1891": 1.0, "1892": 1.0, "1893": 1.0, "1894": 1.0, "1895": 1.0, "1896": 1.0, "1897": 1.0, "1898": 1.0, "1899": 1.0, "1900": 1.0, "1901": 1.0, "1902": 1.0, "1903": 1.0, "1904": 1.0, "1905": 1.0, "1906": 1.0, "1907": 1.0, "1908": 1.0, "1909": 1.0, "1910": 1.0, "1911": 1.0, "1912": 1.0, "1913": 1.0, "1914": 1.0, "1915": 0.8947368421052632, "1931": 0.0, "1935": 0.0, "1941": 0.0, "min": 0.8947368421052632, "max": 1.0, "avg": 0.9977603583426651}}}	{"l_oeuvre": [0.4385722675180027, {"1869": 4.452609491900354e-17, "1870": 4.452609491900354e-17, "1871": 4.452609491900354e-17, "1872": 4.452609491900354e-17, "1873": 4.452609491900354e-17, "1874": 4.452609491900354e-17, "1875": 4.452609491900354e-17, "1876": 4.452609491900354e-17, "1877": 4.452609491900354e-17, "1878": 4.452609491900354e-17, "1879": 4.452609491900354e-17, "1880": 4.452609491900354e-17, "1881": 4.452609491900354e-17, "1882": 4.452609491900354e-17, "1883": 4.452609491900354e-17, "1884": 4.452609491900354e-17, "1885": 4.452609491900354e-17, "1886": 4.452609491900354e-17, "1887": 4.452609491900354e-17, "1888": 4.452609491900354e-17, "1889": 4.452609491900354e-17, "1890": 4.452609491900354e-17, "1891": 4.452609491900354e-17, "1892": 4.452609491900354e-17, "1893": 4.452609491900354e-17, "1894": 4.452609491900354e-17, "1895": 4.452609491900354e-17, "1896": 4.452609491900354e-17, "1897": 4.452609491900354e-17, "1898": 4.452609491900354e-17, "1899": 4.452609491900354e-17, "1900": 4.452609491900354e-17, "1901": 4.452609491900354e-17, "1902": 4.452609491900354e-17, "1903": 4.452609491900354e-17, "1904": 4.452609491900354e-17, "1905": 4.452609491900354e-17, "1906": 4.452609491900354e-17, "1907": 4.452609491900354e-17, "1908": 4.452609491900354e-17, "1909": 4.452609491900354e-17, "1910": 4.452609491900354e-17, "1911": 4.452609491900354e-17, "1912": 4.452609491900354e-17, "1913": 4.452609491900354e-17, "1914": 4.452609491900354e-17, "1915": 0.021108179419525062, "1931": 0.20052770448548773, "1935": 0.20052770448548773, "1941": 0.20052770448548773, "min": 0.021108179419525062, "max": 0.20052770448548773, "avg": 0.15567282321899706}], "uusi_suometar": [0.9852679208905786, {"1869": 0.020085470085470087, "1870": 0.020085470085470087, "1871": 0.020085470085470087, "1872": 0.020085470085470087, "1873": 0.020085470085470087, "1874": 0.020085470085470087, "1875": 0.020085470085470087, "1876": 0.020085470085470087, "1877": 0.020085470085470087, "1878": 0.020085470085470087, "1879": 0.020085470085470087, "1880": 0.020085470085470087, "1881": 0.020085470085470087, "1882": 0.020085470085470087, "1883": 0.020085470085470087, "1884": 0.020085470085470087, "1885": 0.020085470085470087, "1886": 0.020085470085470087, "1887": 0.020085470085470087, "1888": 0.020085470085470087, "1889": 0.020085470085470087, "1890": 0.020085470085470087, "1891": 0.020085470085470087, "1892": 0.020085470085470087, "1893": 0.020085470085470087, "1894": 0.020085470085470087, "1895": 0.020085470085470087, "1896": 0.020085470085470087, "1897": 0.020085470085470087, "1898": 0.020085470085470087, "1899": 0.020085470085470087, "1900": 0.020085470085470087, "1901": 0.020085470085470087, "1902": 0.020085470085470087, "1903": 0.020085470085470087, "1904": 0.020085470085470087, "1905": 0.020085470085470087, "1906": 0.020085470085470087, "1907": 0.020085470085470087, "1908": 0.020085470085470087, "1909": 0.020085470085470087, "1910": 0.020085470085470087, "1911": 0.020085470085470087, "1912": 0.020085470085470087, "1913": 0.020085470085470087, "1914": 0.020085470085470087, "1915": 0.017971210076473235, "1931": 4.459870269861739e-18, "1935": 4.459870269861739e-18, "1941": 4.459870269861739e-18, "min": 0.017971210076473235, "max": 0.020085470085470087, "avg": 0.02004048582995951}], "overall": 0.9852679208905786}	2020-02-19 14:38:34.077917
+43	{"absolute_counts": {"l_oeuvre": {"1869": 0.0, "1870": 0.0, "1871": 0.0, "1872": 0.0, "1873": 0.0, "1874": 0.0, "1875": 0.0, "1876": 0.0, "1877": 0.0, "1878": 0.0, "1879": 0.0, "1880": 0.0, "1881": 0.0, "1882": 0.0, "1883": 0.0, "1884": 0.0, "1885": 0.0, "1886": 0.0, "1887": 0.0, "1888": 0.0, "1889": 0.0, "1890": 0.0, "1891": 0.0, "1892": 0.0, "1893": 0.0, "1894": 0.0, "1895": 0.0, "1896": 0.0, "1897": 0.0, "1898": 0.0, "1899": 0.0, "1900": 0.0, "1901": 0.0, "1902": 0.0, "1903": 0.0, "1904": 0.0, "1905": 0.0, "1906": 0.0, "1907": 0.0, "1908": 0.0, "1909": 0.0, "1910": 0.0, "1911": 0.0, "1912": 0.0, "1913": 0.0, "1914": 0.0, "1915": 2.0, "1931": 2.0, "1935": 2.0, "1941": 2.0, "min": 2.0, "max": 2.0, "avg": 2.0}, "uusi_suometar": {"1869": 84.0, "1870": 91.0, "1871": 76.0, "1872": 64.0, "1873": 75.0, "1874": 66.0, "1875": 84.0, "1876": 71.0, "1877": 121.0, "1878": 158.0, "1879": 134.0, "1880": 131.0, "1881": 222.0, "1882": 234.0, "1883": 255.0, "1884": 316.0, "1885": 280.0, "1886": 359.0, "1887": 390.0, "1888": 317.0, "1889": 319.0, "1890": 441.0, "1891": 442.0, "1892": 473.0, "1893": 521.0, "1894": 551.0, "1895": 516.0, "1896": 420.0, "1897": 432.0, "1898": 387.0, "1899": 365.0, "1900": 386.0, "1901": 486.0, "1902": 529.0, "1903": 577.0, "1904": 513.0, "1905": 407.0, "1906": 319.0, "1907": 464.0, "1908": 464.0, "1909": 405.0, "1910": 488.0, "1911": 496.0, "1912": 543.0, "1913": 638.0, "1914": 244.0, "1915": 17.0, "1931": 0.0, "1935": 0.0, "1941": 0.0, "min": 17.0, "max": 638.0, "avg": 327.0425531914894}}, "relative_counts": {"l_oeuvre": {"1869": 0.0, "1870": 0.0, "1871": 0.0, "1872": 0.0, "1873": 0.0, "1874": 0.0, "1875": 0.0, "1876": 0.0, "1877": 0.0, "1878": 0.0, "1879": 0.0, "1880": 0.0, "1881": 0.0, "1882": 0.0, "1883": 0.0, "1884": 0.0, "1885": 0.0, "1886": 0.0, "1887": 0.0, "1888": 0.0, "1889": 0.0, "1890": 0.0, "1891": 0.0, "1892": 0.0, "1893": 0.0, "1894": 0.0, "1895": 0.0, "1896": 0.0, "1897": 0.0, "1898": 0.0, "1899": 0.0, "1900": 0.0, "1901": 0.0, "1902": 0.0, "1903": 0.0, "1904": 0.0, "1905": 0.0, "1906": 0.0, "1907": 0.0, "1908": 0.0, "1909": 0.0, "1910": 0.0, "1911": 0.0, "1912": 0.0, "1913": 0.0, "1914": 0.0, "1915": 0.10526315789473684, "1931": 1.0, "1935": 1.0, "1941": 1.0, "min": 0.10526315789473684, "max": 1.0, "avg": 0.7763157894736842}, "uusi_suometar": {"1869": 1.0, "1870": 1.0, "1871": 1.0, "1872": 1.0, "1873": 1.0, "1874": 1.0, "1875": 1.0, "1876": 1.0, "1877": 1.0, "1878": 1.0, "1879": 1.0, "1880": 1.0, "1881": 1.0, "1882": 1.0, "1883": 1.0, "1884": 1.0, "1885": 1.0, "1886": 1.0, "1887": 1.0, "1888": 1.0, "1889": 1.0, "1890": 1.0, "1891": 1.0, "1892": 1.0, "1893": 1.0, "1894": 1.0, "1895": 1.0, "1896": 1.0, "1897": 1.0, "1898": 1.0, "1899": 1.0, "1900": 1.0, "1901": 1.0, "1902": 1.0, "1903": 1.0, "1904": 1.0, "1905": 1.0, "1906": 1.0, "1907": 1.0, "1908": 1.0, "1909": 1.0, "1910": 1.0, "1911": 1.0, "1912": 1.0, "1913": 1.0, "1914": 1.0, "1915": 0.8947368421052632, "1931": 0.0, "1935": 0.0, "1941": 0.0, "min": 0.8947368421052632, "max": 1.0, "avg": 0.9977603583426651}}}	{"l_oeuvre": [0.4385722675180027, {"1869": 4.452609491900354e-17, "1870": 4.452609491900354e-17, "1871": 4.452609491900354e-17, "1872": 4.452609491900354e-17, "1873": 4.452609491900354e-17, "1874": 4.452609491900354e-17, "1875": 4.452609491900354e-17, "1876": 4.452609491900354e-17, "1877": 4.452609491900354e-17, "1878": 4.452609491900354e-17, "1879": 4.452609491900354e-17, "1880": 4.452609491900354e-17, "1881": 4.452609491900354e-17, "1882": 4.452609491900354e-17, "1883": 4.452609491900354e-17, "1884": 4.452609491900354e-17, "1885": 4.452609491900354e-17, "1886": 4.452609491900354e-17, "1887": 4.452609491900354e-17, "1888": 4.452609491900354e-17, "1889": 4.452609491900354e-17, "1890": 4.452609491900354e-17, "1891": 4.452609491900354e-17, "1892": 4.452609491900354e-17, "1893": 4.452609491900354e-17, "1894": 4.452609491900354e-17, "1895": 4.452609491900354e-17, "1896": 4.452609491900354e-17, "1897": 4.452609491900354e-17, "1898": 4.452609491900354e-17, "1899": 4.452609491900354e-17, "1900": 4.452609491900354e-17, "1901": 4.452609491900354e-17, "1902": 4.452609491900354e-17, "1903": 4.452609491900354e-17, "1904": 4.452609491900354e-17, "1905": 4.452609491900354e-17, "1906": 4.452609491900354e-17, "1907": 4.452609491900354e-17, "1908": 4.452609491900354e-17, "1909": 4.452609491900354e-17, "1910": 4.452609491900354e-17, "1911": 4.452609491900354e-17, "1912": 4.452609491900354e-17, "1913": 4.452609491900354e-17, "1914": 4.452609491900354e-17, "1915": 0.021108179419525062, "1931": 0.20052770448548773, "1935": 0.20052770448548773, "1941": 0.20052770448548773, "min": 0.021108179419525062, "max": 0.20052770448548773, "avg": 0.15567282321899706}], "uusi_suometar": [0.9852679208905786, {"1869": 0.020085470085470087, "1870": 0.020085470085470087, "1871": 0.020085470085470087, "1872": 0.020085470085470087, "1873": 0.020085470085470087, "1874": 0.020085470085470087, "1875": 0.020085470085470087, "1876": 0.020085470085470087, "1877": 0.020085470085470087, "1878": 0.020085470085470087, "1879": 0.020085470085470087, "1880": 0.020085470085470087, "1881": 0.020085470085470087, "1882": 0.020085470085470087, "1883": 0.020085470085470087, "1884": 0.020085470085470087, "1885": 0.020085470085470087, "1886": 0.020085470085470087, "1887": 0.020085470085470087, "1888": 0.020085470085470087, "1889": 0.020085470085470087, "1890": 0.020085470085470087, "1891": 0.020085470085470087, "1892": 0.020085470085470087, "1893": 0.020085470085470087, "1894": 0.020085470085470087, "1895": 0.020085470085470087, "1896": 0.020085470085470087, "1897": 0.020085470085470087, "1898": 0.020085470085470087, "1899": 0.020085470085470087, "1900": 0.020085470085470087, "1901": 0.020085470085470087, "1902": 0.020085470085470087, "1903": 0.020085470085470087, "1904": 0.020085470085470087, "1905": 0.020085470085470087, "1906": 0.020085470085470087, "1907": 0.020085470085470087, "1908": 0.020085470085470087, "1909": 0.020085470085470087, "1910": 0.020085470085470087, "1911": 0.020085470085470087, "1912": 0.020085470085470087, "1913": 0.020085470085470087, "1914": 0.020085470085470087, "1915": 0.017971210076473235, "1931": 4.459870269861739e-18, "1935": 4.459870269861739e-18, "1941": 4.459870269861739e-18, "min": 0.017971210076473235, "max": 0.020085470085470087, "avg": 0.02004048582995951}], "overall": 0.9852679208905786}	2020-02-19 14:49:33.733471
+44	{"absolute_counts": {"l_oeuvre": {"1869": 0.0, "1870": 0.0, "1871": 0.0, "1872": 0.0, "1873": 0.0, "1874": 0.0, "1875": 0.0, "1876": 0.0, "1877": 0.0, "1878": 0.0, "1879": 0.0, "1880": 0.0, "1881": 0.0, "1882": 0.0, "1883": 0.0, "1884": 0.0, "1885": 0.0, "1886": 0.0, "1887": 0.0, "1888": 0.0, "1889": 0.0, "1890": 0.0, "1891": 0.0, "1892": 0.0, "1893": 0.0, "1894": 0.0, "1895": 0.0, "1896": 0.0, "1897": 0.0, "1898": 0.0, "1899": 0.0, "1900": 0.0, "1901": 0.0, "1902": 0.0, "1903": 0.0, "1904": 0.0, "1905": 0.0, "1906": 0.0, "1907": 0.0, "1908": 0.0, "1909": 0.0, "1910": 0.0, "1911": 0.0, "1912": 0.0, "1913": 0.0, "1914": 0.0, "1915": 2.0, "1931": 2.0, "1935": 2.0, "1941": 2.0, "min": 2.0, "max": 2.0, "avg": 2.0}, "uusi_suometar": {"1869": 84.0, "1870": 91.0, "1871": 76.0, "1872": 64.0, "1873": 75.0, "1874": 66.0, "1875": 84.0, "1876": 71.0, "1877": 121.0, "1878": 158.0, "1879": 134.0, "1880": 131.0, "1881": 222.0, "1882": 234.0, "1883": 255.0, "1884": 316.0, "1885": 280.0, "1886": 359.0, "1887": 390.0, "1888": 317.0, "1889": 319.0, "1890": 441.0, "1891": 442.0, "1892": 473.0, "1893": 521.0, "1894": 551.0, "1895": 516.0, "1896": 420.0, "1897": 432.0, "1898": 387.0, "1899": 365.0, "1900": 386.0, "1901": 486.0, "1902": 529.0, "1903": 577.0, "1904": 513.0, "1905": 407.0, "1906": 319.0, "1907": 464.0, "1908": 464.0, "1909": 405.0, "1910": 488.0, "1911": 496.0, "1912": 543.0, "1913": 638.0, "1914": 244.0, "1915": 17.0, "1931": 0.0, "1935": 0.0, "1941": 0.0, "min": 17.0, "max": 638.0, "avg": 327.0425531914894}}, "relative_counts": {"l_oeuvre": {"1869": 0.0, "1870": 0.0, "1871": 0.0, "1872": 0.0, "1873": 0.0, "1874": 0.0, "1875": 0.0, "1876": 0.0, "1877": 0.0, "1878": 0.0, "1879": 0.0, "1880": 0.0, "1881": 0.0, "1882": 0.0, "1883": 0.0, "1884": 0.0, "1885": 0.0, "1886": 0.0, "1887": 0.0, "1888": 0.0, "1889": 0.0, "1890": 0.0, "1891": 0.0, "1892": 0.0, "1893": 0.0, "1894": 0.0, "1895": 0.0, "1896": 0.0, "1897": 0.0, "1898": 0.0, "1899": 0.0, "1900": 0.0, "1901": 0.0, "1902": 0.0, "1903": 0.0, "1904": 0.0, "1905": 0.0, "1906": 0.0, "1907": 0.0, "1908": 0.0, "1909": 0.0, "1910": 0.0, "1911": 0.0, "1912": 0.0, "1913": 0.0, "1914": 0.0, "1915": 0.10526315789473684, "1931": 1.0, "1935": 1.0, "1941": 1.0, "min": 0.10526315789473684, "max": 1.0, "avg": 0.7763157894736842}, "uusi_suometar": {"1869": 1.0, "1870": 1.0, "1871": 1.0, "1872": 1.0, "1873": 1.0, "1874": 1.0, "1875": 1.0, "1876": 1.0, "1877": 1.0, "1878": 1.0, "1879": 1.0, "1880": 1.0, "1881": 1.0, "1882": 1.0, "1883": 1.0, "1884": 1.0, "1885": 1.0, "1886": 1.0, "1887": 1.0, "1888": 1.0, "1889": 1.0, "1890": 1.0, "1891": 1.0, "1892": 1.0, "1893": 1.0, "1894": 1.0, "1895": 1.0, "1896": 1.0, "1897": 1.0, "1898": 1.0, "1899": 1.0, "1900": 1.0, "1901": 1.0, "1902": 1.0, "1903": 1.0, "1904": 1.0, "1905": 1.0, "1906": 1.0, "1907": 1.0, "1908": 1.0, "1909": 1.0, "1910": 1.0, "1911": 1.0, "1912": 1.0, "1913": 1.0, "1914": 1.0, "1915": 0.8947368421052632, "1931": 0.0, "1935": 0.0, "1941": 0.0, "min": 0.8947368421052632, "max": 1.0, "avg": 0.9977603583426651}}}	{"l_oeuvre": [0.4385722675180027, {"1869": 4.452609491900354e-17, "1870": 4.452609491900354e-17, "1871": 4.452609491900354e-17, "1872": 4.452609491900354e-17, "1873": 4.452609491900354e-17, "1874": 4.452609491900354e-17, "1875": 4.452609491900354e-17, "1876": 4.452609491900354e-17, "1877": 4.452609491900354e-17, "1878": 4.452609491900354e-17, "1879": 4.452609491900354e-17, "1880": 4.452609491900354e-17, "1881": 4.452609491900354e-17, "1882": 4.452609491900354e-17, "1883": 4.452609491900354e-17, "1884": 4.452609491900354e-17, "1885": 4.452609491900354e-17, "1886": 4.452609491900354e-17, "1887": 4.452609491900354e-17, "1888": 4.452609491900354e-17, "1889": 4.452609491900354e-17, "1890": 4.452609491900354e-17, "1891": 4.452609491900354e-17, "1892": 4.452609491900354e-17, "1893": 4.452609491900354e-17, "1894": 4.452609491900354e-17, "1895": 4.452609491900354e-17, "1896": 4.452609491900354e-17, "1897": 4.452609491900354e-17, "1898": 4.452609491900354e-17, "1899": 4.452609491900354e-17, "1900": 4.452609491900354e-17, "1901": 4.452609491900354e-17, "1902": 4.452609491900354e-17, "1903": 4.452609491900354e-17, "1904": 4.452609491900354e-17, "1905": 4.452609491900354e-17, "1906": 4.452609491900354e-17, "1907": 4.452609491900354e-17, "1908": 4.452609491900354e-17, "1909": 4.452609491900354e-17, "1910": 4.452609491900354e-17, "1911": 4.452609491900354e-17, "1912": 4.452609491900354e-17, "1913": 4.452609491900354e-17, "1914": 4.452609491900354e-17, "1915": 0.021108179419525062, "1931": 0.20052770448548773, "1935": 0.20052770448548773, "1941": 0.20052770448548773, "min": 0.021108179419525062, "max": 0.20052770448548773, "avg": 0.15567282321899706}], "uusi_suometar": [0.9852679208905786, {"1869": 0.020085470085470087, "1870": 0.020085470085470087, "1871": 0.020085470085470087, "1872": 0.020085470085470087, "1873": 0.020085470085470087, "1874": 0.020085470085470087, "1875": 0.020085470085470087, "1876": 0.020085470085470087, "1877": 0.020085470085470087, "1878": 0.020085470085470087, "1879": 0.020085470085470087, "1880": 0.020085470085470087, "1881": 0.020085470085470087, "1882": 0.020085470085470087, "1883": 0.020085470085470087, "1884": 0.020085470085470087, "1885": 0.020085470085470087, "1886": 0.020085470085470087, "1887": 0.020085470085470087, "1888": 0.020085470085470087, "1889": 0.020085470085470087, "1890": 0.020085470085470087, "1891": 0.020085470085470087, "1892": 0.020085470085470087, "1893": 0.020085470085470087, "1894": 0.020085470085470087, "1895": 0.020085470085470087, "1896": 0.020085470085470087, "1897": 0.020085470085470087, "1898": 0.020085470085470087, "1899": 0.020085470085470087, "1900": 0.020085470085470087, "1901": 0.020085470085470087, "1902": 0.020085470085470087, "1903": 0.020085470085470087, "1904": 0.020085470085470087, "1905": 0.020085470085470087, "1906": 0.020085470085470087, "1907": 0.020085470085470087, "1908": 0.020085470085470087, "1909": 0.020085470085470087, "1910": 0.020085470085470087, "1911": 0.020085470085470087, "1912": 0.020085470085470087, "1913": 0.020085470085470087, "1914": 0.020085470085470087, "1915": 0.017971210076473235, "1931": 4.459870269861739e-18, "1935": 4.459870269861739e-18, "1941": 4.459870269861739e-18, "min": 0.017971210076473235, "max": 0.020085470085470087, "avg": 0.02004048582995951}], "overall": 0.9852679208905786}	2020-02-19 15:04:57.063661
+45	{"absolute_counts": {"l_oeuvre": {"1869": 0.0, "1870": 0.0, "1871": 0.0, "1872": 0.0, "1873": 0.0, "1874": 0.0, "1875": 0.0, "1876": 0.0, "1877": 0.0, "1878": 0.0, "1879": 0.0, "1880": 0.0, "1881": 0.0, "1882": 0.0, "1883": 0.0, "1884": 0.0, "1885": 0.0, "1886": 0.0, "1887": 0.0, "1888": 0.0, "1889": 0.0, "1890": 0.0, "1891": 0.0, "1892": 0.0, "1893": 0.0, "1894": 0.0, "1895": 0.0, "1896": 0.0, "1897": 0.0, "1898": 0.0, "1899": 0.0, "1900": 0.0, "1901": 0.0, "1902": 0.0, "1903": 0.0, "1904": 0.0, "1905": 0.0, "1906": 0.0, "1907": 0.0, "1908": 0.0, "1909": 0.0, "1910": 0.0, "1911": 0.0, "1912": 0.0, "1913": 0.0, "1914": 0.0, "1915": 2.0, "1931": 2.0, "1935": 2.0, "1941": 2.0, "min": 2.0, "max": 2.0, "avg": 2.0}, "uusi_suometar": {"1869": 84.0, "1870": 91.0, "1871": 76.0, "1872": 64.0, "1873": 75.0, "1874": 66.0, "1875": 84.0, "1876": 71.0, "1877": 121.0, "1878": 158.0, "1879": 134.0, "1880": 131.0, "1881": 222.0, "1882": 234.0, "1883": 255.0, "1884": 316.0, "1885": 280.0, "1886": 359.0, "1887": 390.0, "1888": 317.0, "1889": 319.0, "1890": 441.0, "1891": 442.0, "1892": 473.0, "1893": 521.0, "1894": 551.0, "1895": 516.0, "1896": 420.0, "1897": 432.0, "1898": 387.0, "1899": 365.0, "1900": 386.0, "1901": 486.0, "1902": 529.0, "1903": 577.0, "1904": 513.0, "1905": 407.0, "1906": 319.0, "1907": 464.0, "1908": 464.0, "1909": 405.0, "1910": 488.0, "1911": 496.0, "1912": 543.0, "1913": 638.0, "1914": 244.0, "1915": 17.0, "1931": 0.0, "1935": 0.0, "1941": 0.0, "min": 17.0, "max": 638.0, "avg": 327.0425531914894}}, "relative_counts": {"l_oeuvre": {"1869": 0.0, "1870": 0.0, "1871": 0.0, "1872": 0.0, "1873": 0.0, "1874": 0.0, "1875": 0.0, "1876": 0.0, "1877": 0.0, "1878": 0.0, "1879": 0.0, "1880": 0.0, "1881": 0.0, "1882": 0.0, "1883": 0.0, "1884": 0.0, "1885": 0.0, "1886": 0.0, "1887": 0.0, "1888": 0.0, "1889": 0.0, "1890": 0.0, "1891": 0.0, "1892": 0.0, "1893": 0.0, "1894": 0.0, "1895": 0.0, "1896": 0.0, "1897": 0.0, "1898": 0.0, "1899": 0.0, "1900": 0.0, "1901": 0.0, "1902": 0.0, "1903": 0.0, "1904": 0.0, "1905": 0.0, "1906": 0.0, "1907": 0.0, "1908": 0.0, "1909": 0.0, "1910": 0.0, "1911": 0.0, "1912": 0.0, "1913": 0.0, "1914": 0.0, "1915": 0.10526315789473684, "1931": 1.0, "1935": 1.0, "1941": 1.0, "min": 0.10526315789473684, "max": 1.0, "avg": 0.7763157894736842}, "uusi_suometar": {"1869": 1.0, "1870": 1.0, "1871": 1.0, "1872": 1.0, "1873": 1.0, "1874": 1.0, "1875": 1.0, "1876": 1.0, "1877": 1.0, "1878": 1.0, "1879": 1.0, "1880": 1.0, "1881": 1.0, "1882": 1.0, "1883": 1.0, "1884": 1.0, "1885": 1.0, "1886": 1.0, "1887": 1.0, "1888": 1.0, "1889": 1.0, "1890": 1.0, "1891": 1.0, "1892": 1.0, "1893": 1.0, "1894": 1.0, "1895": 1.0, "1896": 1.0, "1897": 1.0, "1898": 1.0, "1899": 1.0, "1900": 1.0, "1901": 1.0, "1902": 1.0, "1903": 1.0, "1904": 1.0, "1905": 1.0, "1906": 1.0, "1907": 1.0, "1908": 1.0, "1909": 1.0, "1910": 1.0, "1911": 1.0, "1912": 1.0, "1913": 1.0, "1914": 1.0, "1915": 0.8947368421052632, "1931": 0.0, "1935": 0.0, "1941": 0.0, "min": 0.8947368421052632, "max": 1.0, "avg": 0.9977603583426651}}}	{"l_oeuvre": [0.4385722675180027, {"1869": 4.452609491900354e-17, "1870": 4.452609491900354e-17, "1871": 4.452609491900354e-17, "1872": 4.452609491900354e-17, "1873": 4.452609491900354e-17, "1874": 4.452609491900354e-17, "1875": 4.452609491900354e-17, "1876": 4.452609491900354e-17, "1877": 4.452609491900354e-17, "1878": 4.452609491900354e-17, "1879": 4.452609491900354e-17, "1880": 4.452609491900354e-17, "1881": 4.452609491900354e-17, "1882": 4.452609491900354e-17, "1883": 4.452609491900354e-17, "1884": 4.452609491900354e-17, "1885": 4.452609491900354e-17, "1886": 4.452609491900354e-17, "1887": 4.452609491900354e-17, "1888": 4.452609491900354e-17, "1889": 4.452609491900354e-17, "1890": 4.452609491900354e-17, "1891": 4.452609491900354e-17, "1892": 4.452609491900354e-17, "1893": 4.452609491900354e-17, "1894": 4.452609491900354e-17, "1895": 4.452609491900354e-17, "1896": 4.452609491900354e-17, "1897": 4.452609491900354e-17, "1898": 4.452609491900354e-17, "1899": 4.452609491900354e-17, "1900": 4.452609491900354e-17, "1901": 4.452609491900354e-17, "1902": 4.452609491900354e-17, "1903": 4.452609491900354e-17, "1904": 4.452609491900354e-17, "1905": 4.452609491900354e-17, "1906": 4.452609491900354e-17, "1907": 4.452609491900354e-17, "1908": 4.452609491900354e-17, "1909": 4.452609491900354e-17, "1910": 4.452609491900354e-17, "1911": 4.452609491900354e-17, "1912": 4.452609491900354e-17, "1913": 4.452609491900354e-17, "1914": 4.452609491900354e-17, "1915": 0.021108179419525062, "1931": 0.20052770448548773, "1935": 0.20052770448548773, "1941": 0.20052770448548773, "min": 0.021108179419525062, "max": 0.20052770448548773, "avg": 0.15567282321899706}], "uusi_suometar": [0.9852679208905786, {"1869": 0.020085470085470087, "1870": 0.020085470085470087, "1871": 0.020085470085470087, "1872": 0.020085470085470087, "1873": 0.020085470085470087, "1874": 0.020085470085470087, "1875": 0.020085470085470087, "1876": 0.020085470085470087, "1877": 0.020085470085470087, "1878": 0.020085470085470087, "1879": 0.020085470085470087, "1880": 0.020085470085470087, "1881": 0.020085470085470087, "1882": 0.020085470085470087, "1883": 0.020085470085470087, "1884": 0.020085470085470087, "1885": 0.020085470085470087, "1886": 0.020085470085470087, "1887": 0.020085470085470087, "1888": 0.020085470085470087, "1889": 0.020085470085470087, "1890": 0.020085470085470087, "1891": 0.020085470085470087, "1892": 0.020085470085470087, "1893": 0.020085470085470087, "1894": 0.020085470085470087, "1895": 0.020085470085470087, "1896": 0.020085470085470087, "1897": 0.020085470085470087, "1898": 0.020085470085470087, "1899": 0.020085470085470087, "1900": 0.020085470085470087, "1901": 0.020085470085470087, "1902": 0.020085470085470087, "1903": 0.020085470085470087, "1904": 0.020085470085470087, "1905": 0.020085470085470087, "1906": 0.020085470085470087, "1907": 0.020085470085470087, "1908": 0.020085470085470087, "1909": 0.020085470085470087, "1910": 0.020085470085470087, "1911": 0.020085470085470087, "1912": 0.020085470085470087, "1913": 0.020085470085470087, "1914": 0.020085470085470087, "1915": 0.017971210076473235, "1931": 4.459870269861739e-18, "1935": 4.459870269861739e-18, "1941": 4.459870269861739e-18, "min": 0.017971210076473235, "max": 0.020085470085470087, "avg": 0.02004048582995951}], "overall": 0.9852679208905786}	2020-02-19 15:08:20.691345
+46	{"absolute_counts": {"l_oeuvre": {"1869": 0.0, "1870": 0.0, "1871": 0.0, "1872": 0.0, "1873": 0.0, "1874": 0.0, "1875": 0.0, "1876": 0.0, "1877": 0.0, "1878": 0.0, "1879": 0.0, "1880": 0.0, "1881": 0.0, "1882": 0.0, "1883": 0.0, "1884": 0.0, "1885": 0.0, "1886": 0.0, "1887": 0.0, "1888": 0.0, "1889": 0.0, "1890": 0.0, "1891": 0.0, "1892": 0.0, "1893": 0.0, "1894": 0.0, "1895": 0.0, "1896": 0.0, "1897": 0.0, "1898": 0.0, "1899": 0.0, "1900": 0.0, "1901": 0.0, "1902": 0.0, "1903": 0.0, "1904": 0.0, "1905": 0.0, "1906": 0.0, "1907": 0.0, "1908": 0.0, "1909": 0.0, "1910": 0.0, "1911": 0.0, "1912": 0.0, "1913": 0.0, "1914": 0.0, "1915": 2.0, "1931": 2.0, "1935": 2.0, "1941": 2.0, "min": 2.0, "max": 2.0, "avg": 2.0}, "uusi_suometar": {"1869": 84.0, "1870": 91.0, "1871": 76.0, "1872": 64.0, "1873": 75.0, "1874": 66.0, "1875": 84.0, "1876": 71.0, "1877": 121.0, "1878": 158.0, "1879": 134.0, "1880": 131.0, "1881": 222.0, "1882": 234.0, "1883": 255.0, "1884": 316.0, "1885": 280.0, "1886": 359.0, "1887": 390.0, "1888": 317.0, "1889": 319.0, "1890": 441.0, "1891": 442.0, "1892": 473.0, "1893": 521.0, "1894": 551.0, "1895": 516.0, "1896": 420.0, "1897": 432.0, "1898": 387.0, "1899": 365.0, "1900": 386.0, "1901": 486.0, "1902": 529.0, "1903": 577.0, "1904": 513.0, "1905": 407.0, "1906": 319.0, "1907": 464.0, "1908": 464.0, "1909": 405.0, "1910": 488.0, "1911": 496.0, "1912": 543.0, "1913": 638.0, "1914": 244.0, "1915": 17.0, "1931": 0.0, "1935": 0.0, "1941": 0.0, "min": 17.0, "max": 638.0, "avg": 327.0425531914894}}, "relative_counts": {"l_oeuvre": {"1869": 0.0, "1870": 0.0, "1871": 0.0, "1872": 0.0, "1873": 0.0, "1874": 0.0, "1875": 0.0, "1876": 0.0, "1877": 0.0, "1878": 0.0, "1879": 0.0, "1880": 0.0, "1881": 0.0, "1882": 0.0, "1883": 0.0, "1884": 0.0, "1885": 0.0, "1886": 0.0, "1887": 0.0, "1888": 0.0, "1889": 0.0, "1890": 0.0, "1891": 0.0, "1892": 0.0, "1893": 0.0, "1894": 0.0, "1895": 0.0, "1896": 0.0, "1897": 0.0, "1898": 0.0, "1899": 0.0, "1900": 0.0, "1901": 0.0, "1902": 0.0, "1903": 0.0, "1904": 0.0, "1905": 0.0, "1906": 0.0, "1907": 0.0, "1908": 0.0, "1909": 0.0, "1910": 0.0, "1911": 0.0, "1912": 0.0, "1913": 0.0, "1914": 0.0, "1915": 0.10526315789473684, "1931": 1.0, "1935": 1.0, "1941": 1.0, "min": 0.10526315789473684, "max": 1.0, "avg": 0.7763157894736842}, "uusi_suometar": {"1869": 1.0, "1870": 1.0, "1871": 1.0, "1872": 1.0, "1873": 1.0, "1874": 1.0, "1875": 1.0, "1876": 1.0, "1877": 1.0, "1878": 1.0, "1879": 1.0, "1880": 1.0, "1881": 1.0, "1882": 1.0, "1883": 1.0, "1884": 1.0, "1885": 1.0, "1886": 1.0, "1887": 1.0, "1888": 1.0, "1889": 1.0, "1890": 1.0, "1891": 1.0, "1892": 1.0, "1893": 1.0, "1894": 1.0, "1895": 1.0, "1896": 1.0, "1897": 1.0, "1898": 1.0, "1899": 1.0, "1900": 1.0, "1901": 1.0, "1902": 1.0, "1903": 1.0, "1904": 1.0, "1905": 1.0, "1906": 1.0, "1907": 1.0, "1908": 1.0, "1909": 1.0, "1910": 1.0, "1911": 1.0, "1912": 1.0, "1913": 1.0, "1914": 1.0, "1915": 0.8947368421052632, "1931": 0.0, "1935": 0.0, "1941": 0.0, "min": 0.8947368421052632, "max": 1.0, "avg": 0.9977603583426651}}}	{"l_oeuvre": [0.4385722675180027, {"1869": 4.452609491900354e-17, "1870": 4.452609491900354e-17, "1871": 4.452609491900354e-17, "1872": 4.452609491900354e-17, "1873": 4.452609491900354e-17, "1874": 4.452609491900354e-17, "1875": 4.452609491900354e-17, "1876": 4.452609491900354e-17, "1877": 4.452609491900354e-17, "1878": 4.452609491900354e-17, "1879": 4.452609491900354e-17, "1880": 4.452609491900354e-17, "1881": 4.452609491900354e-17, "1882": 4.452609491900354e-17, "1883": 4.452609491900354e-17, "1884": 4.452609491900354e-17, "1885": 4.452609491900354e-17, "1886": 4.452609491900354e-17, "1887": 4.452609491900354e-17, "1888": 4.452609491900354e-17, "1889": 4.452609491900354e-17, "1890": 4.452609491900354e-17, "1891": 4.452609491900354e-17, "1892": 4.452609491900354e-17, "1893": 4.452609491900354e-17, "1894": 4.452609491900354e-17, "1895": 4.452609491900354e-17, "1896": 4.452609491900354e-17, "1897": 4.452609491900354e-17, "1898": 4.452609491900354e-17, "1899": 4.452609491900354e-17, "1900": 4.452609491900354e-17, "1901": 4.452609491900354e-17, "1902": 4.452609491900354e-17, "1903": 4.452609491900354e-17, "1904": 4.452609491900354e-17, "1905": 4.452609491900354e-17, "1906": 4.452609491900354e-17, "1907": 4.452609491900354e-17, "1908": 4.452609491900354e-17, "1909": 4.452609491900354e-17, "1910": 4.452609491900354e-17, "1911": 4.452609491900354e-17, "1912": 4.452609491900354e-17, "1913": 4.452609491900354e-17, "1914": 4.452609491900354e-17, "1915": 0.021108179419525062, "1931": 0.20052770448548773, "1935": 0.20052770448548773, "1941": 0.20052770448548773, "min": 0.021108179419525062, "max": 0.20052770448548773, "avg": 0.15567282321899706}], "uusi_suometar": [0.9852679208905786, {"1869": 0.020085470085470087, "1870": 0.020085470085470087, "1871": 0.020085470085470087, "1872": 0.020085470085470087, "1873": 0.020085470085470087, "1874": 0.020085470085470087, "1875": 0.020085470085470087, "1876": 0.020085470085470087, "1877": 0.020085470085470087, "1878": 0.020085470085470087, "1879": 0.020085470085470087, "1880": 0.020085470085470087, "1881": 0.020085470085470087, "1882": 0.020085470085470087, "1883": 0.020085470085470087, "1884": 0.020085470085470087, "1885": 0.020085470085470087, "1886": 0.020085470085470087, "1887": 0.020085470085470087, "1888": 0.020085470085470087, "1889": 0.020085470085470087, "1890": 0.020085470085470087, "1891": 0.020085470085470087, "1892": 0.020085470085470087, "1893": 0.020085470085470087, "1894": 0.020085470085470087, "1895": 0.020085470085470087, "1896": 0.020085470085470087, "1897": 0.020085470085470087, "1898": 0.020085470085470087, "1899": 0.020085470085470087, "1900": 0.020085470085470087, "1901": 0.020085470085470087, "1902": 0.020085470085470087, "1903": 0.020085470085470087, "1904": 0.020085470085470087, "1905": 0.020085470085470087, "1906": 0.020085470085470087, "1907": 0.020085470085470087, "1908": 0.020085470085470087, "1909": 0.020085470085470087, "1910": 0.020085470085470087, "1911": 0.020085470085470087, "1912": 0.020085470085470087, "1913": 0.020085470085470087, "1914": 0.020085470085470087, "1915": 0.017971210076473235, "1931": 4.459870269861739e-18, "1935": 4.459870269861739e-18, "1941": 4.459870269861739e-18, "min": 0.017971210076473235, "max": 0.020085470085470087, "avg": 0.02004048582995951}], "overall": 0.9852679208905786}	2020-02-19 15:15:28.931662
+47	{"absolute_counts": {"l_oeuvre": {"1869": 0.0, "1870": 0.0, "1871": 0.0, "1872": 0.0, "1873": 0.0, "1874": 0.0, "1875": 0.0, "1876": 0.0, "1877": 0.0, "1878": 0.0, "1879": 0.0, "1880": 0.0, "1881": 0.0, "1882": 0.0, "1883": 0.0, "1884": 0.0, "1885": 0.0, "1886": 0.0, "1887": 0.0, "1888": 0.0, "1889": 0.0, "1890": 0.0, "1891": 0.0, "1892": 0.0, "1893": 0.0, "1894": 0.0, "1895": 0.0, "1896": 0.0, "1897": 0.0, "1898": 0.0, "1899": 0.0, "1900": 0.0, "1901": 0.0, "1902": 0.0, "1903": 0.0, "1904": 0.0, "1905": 0.0, "1906": 0.0, "1907": 0.0, "1908": 0.0, "1909": 0.0, "1910": 0.0, "1911": 0.0, "1912": 0.0, "1913": 0.0, "1914": 0.0, "1915": 2.0, "1931": 2.0, "1935": 2.0, "1941": 2.0, "min": 2.0, "max": 2.0, "avg": 2.0}, "uusi_suometar": {"1869": 84.0, "1870": 91.0, "1871": 76.0, "1872": 64.0, "1873": 75.0, "1874": 66.0, "1875": 84.0, "1876": 71.0, "1877": 121.0, "1878": 158.0, "1879": 134.0, "1880": 131.0, "1881": 222.0, "1882": 234.0, "1883": 255.0, "1884": 316.0, "1885": 280.0, "1886": 359.0, "1887": 390.0, "1888": 317.0, "1889": 319.0, "1890": 441.0, "1891": 442.0, "1892": 473.0, "1893": 521.0, "1894": 551.0, "1895": 516.0, "1896": 420.0, "1897": 432.0, "1898": 387.0, "1899": 365.0, "1900": 386.0, "1901": 486.0, "1902": 529.0, "1903": 577.0, "1904": 513.0, "1905": 407.0, "1906": 319.0, "1907": 464.0, "1908": 464.0, "1909": 405.0, "1910": 488.0, "1911": 496.0, "1912": 543.0, "1913": 638.0, "1914": 244.0, "1915": 17.0, "1931": 0.0, "1935": 0.0, "1941": 0.0, "min": 17.0, "max": 638.0, "avg": 327.0425531914894}}, "relative_counts": {"l_oeuvre": {"1869": 0.0, "1870": 0.0, "1871": 0.0, "1872": 0.0, "1873": 0.0, "1874": 0.0, "1875": 0.0, "1876": 0.0, "1877": 0.0, "1878": 0.0, "1879": 0.0, "1880": 0.0, "1881": 0.0, "1882": 0.0, "1883": 0.0, "1884": 0.0, "1885": 0.0, "1886": 0.0, "1887": 0.0, "1888": 0.0, "1889": 0.0, "1890": 0.0, "1891": 0.0, "1892": 0.0, "1893": 0.0, "1894": 0.0, "1895": 0.0, "1896": 0.0, "1897": 0.0, "1898": 0.0, "1899": 0.0, "1900": 0.0, "1901": 0.0, "1902": 0.0, "1903": 0.0, "1904": 0.0, "1905": 0.0, "1906": 0.0, "1907": 0.0, "1908": 0.0, "1909": 0.0, "1910": 0.0, "1911": 0.0, "1912": 0.0, "1913": 0.0, "1914": 0.0, "1915": 0.10526315789473684, "1931": 1.0, "1935": 1.0, "1941": 1.0, "min": 0.10526315789473684, "max": 1.0, "avg": 0.7763157894736842}, "uusi_suometar": {"1869": 1.0, "1870": 1.0, "1871": 1.0, "1872": 1.0, "1873": 1.0, "1874": 1.0, "1875": 1.0, "1876": 1.0, "1877": 1.0, "1878": 1.0, "1879": 1.0, "1880": 1.0, "1881": 1.0, "1882": 1.0, "1883": 1.0, "1884": 1.0, "1885": 1.0, "1886": 1.0, "1887": 1.0, "1888": 1.0, "1889": 1.0, "1890": 1.0, "1891": 1.0, "1892": 1.0, "1893": 1.0, "1894": 1.0, "1895": 1.0, "1896": 1.0, "1897": 1.0, "1898": 1.0, "1899": 1.0, "1900": 1.0, "1901": 1.0, "1902": 1.0, "1903": 1.0, "1904": 1.0, "1905": 1.0, "1906": 1.0, "1907": 1.0, "1908": 1.0, "1909": 1.0, "1910": 1.0, "1911": 1.0, "1912": 1.0, "1913": 1.0, "1914": 1.0, "1915": 0.8947368421052632, "1931": 0.0, "1935": 0.0, "1941": 0.0, "min": 0.8947368421052632, "max": 1.0, "avg": 0.9977603583426651}}}	{"l_oeuvre": [0.4385722675180027, {"1869": 4.452609491900354e-17, "1870": 4.452609491900354e-17, "1871": 4.452609491900354e-17, "1872": 4.452609491900354e-17, "1873": 4.452609491900354e-17, "1874": 4.452609491900354e-17, "1875": 4.452609491900354e-17, "1876": 4.452609491900354e-17, "1877": 4.452609491900354e-17, "1878": 4.452609491900354e-17, "1879": 4.452609491900354e-17, "1880": 4.452609491900354e-17, "1881": 4.452609491900354e-17, "1882": 4.452609491900354e-17, "1883": 4.452609491900354e-17, "1884": 4.452609491900354e-17, "1885": 4.452609491900354e-17, "1886": 4.452609491900354e-17, "1887": 4.452609491900354e-17, "1888": 4.452609491900354e-17, "1889": 4.452609491900354e-17, "1890": 4.452609491900354e-17, "1891": 4.452609491900354e-17, "1892": 4.452609491900354e-17, "1893": 4.452609491900354e-17, "1894": 4.452609491900354e-17, "1895": 4.452609491900354e-17, "1896": 4.452609491900354e-17, "1897": 4.452609491900354e-17, "1898": 4.452609491900354e-17, "1899": 4.452609491900354e-17, "1900": 4.452609491900354e-17, "1901": 4.452609491900354e-17, "1902": 4.452609491900354e-17, "1903": 4.452609491900354e-17, "1904": 4.452609491900354e-17, "1905": 4.452609491900354e-17, "1906": 4.452609491900354e-17, "1907": 4.452609491900354e-17, "1908": 4.452609491900354e-17, "1909": 4.452609491900354e-17, "1910": 4.452609491900354e-17, "1911": 4.452609491900354e-17, "1912": 4.452609491900354e-17, "1913": 4.452609491900354e-17, "1914": 4.452609491900354e-17, "1915": 0.021108179419525062, "1931": 0.20052770448548773, "1935": 0.20052770448548773, "1941": 0.20052770448548773, "min": 0.021108179419525062, "max": 0.20052770448548773, "avg": 0.15567282321899706}], "uusi_suometar": [0.9852679208905786, {"1869": 0.020085470085470087, "1870": 0.020085470085470087, "1871": 0.020085470085470087, "1872": 0.020085470085470087, "1873": 0.020085470085470087, "1874": 0.020085470085470087, "1875": 0.020085470085470087, "1876": 0.020085470085470087, "1877": 0.020085470085470087, "1878": 0.020085470085470087, "1879": 0.020085470085470087, "1880": 0.020085470085470087, "1881": 0.020085470085470087, "1882": 0.020085470085470087, "1883": 0.020085470085470087, "1884": 0.020085470085470087, "1885": 0.020085470085470087, "1886": 0.020085470085470087, "1887": 0.020085470085470087, "1888": 0.020085470085470087, "1889": 0.020085470085470087, "1890": 0.020085470085470087, "1891": 0.020085470085470087, "1892": 0.020085470085470087, "1893": 0.020085470085470087, "1894": 0.020085470085470087, "1895": 0.020085470085470087, "1896": 0.020085470085470087, "1897": 0.020085470085470087, "1898": 0.020085470085470087, "1899": 0.020085470085470087, "1900": 0.020085470085470087, "1901": 0.020085470085470087, "1902": 0.020085470085470087, "1903": 0.020085470085470087, "1904": 0.020085470085470087, "1905": 0.020085470085470087, "1906": 0.020085470085470087, "1907": 0.020085470085470087, "1908": 0.020085470085470087, "1909": 0.020085470085470087, "1910": 0.020085470085470087, "1911": 0.020085470085470087, "1912": 0.020085470085470087, "1913": 0.020085470085470087, "1914": 0.020085470085470087, "1915": 0.017971210076473235, "1931": 4.459870269861739e-18, "1935": 4.459870269861739e-18, "1941": 4.459870269861739e-18, "min": 0.017971210076473235, "max": 0.020085470085470087, "avg": 0.02004048582995951}], "overall": 0.9852679208905786}	2020-02-19 15:15:55.041146
+48	{"absolute_counts": {"arbeiter_zeitung": {"1898": 1, "1916": 1, "1918": 1, "1922": 7, "min": 1, "max": 7, "avg": 2.5}}, "relative_counts": {"arbeiter_zeitung": {"1898": 1.0, "1916": 1.0, "1918": 1.0, "1922": 1.0, "min": 1.0, "max": 1.0, "avg": 1.0}}}	{"arbeiter_zeitung": [1.0, {"1898": 0.14285714285714285, "1916": 0.14285714285714285, "1918": 0.14285714285714285, "1922": 0.14285714285714285, "min": 0.14285714285714285, "max": 0.14285714285714285, "avg": 0.14285714285714285}], "overall": 1.0}	2020-02-19 15:16:01.926473
+\.
+
+
+--
+-- Data for Name: solr_output; Type: TABLE DATA; Schema: public; Owner: newseye
+--
+
+COPY public.solr_output (id, output, retrieve, last_updated, solr_query_id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: solr_query; Type: TABLE DATA; Schema: public; Owner: newseye
+--
+
+COPY public.solr_query (id, search_query) FROM stdin;
+\.
+
+
+--
+-- Data for Name: task; Type: TABLE DATA; Schema: public; Owner: newseye
+--
+
+COPY public.task (id, processor_id, parameters, dataset_id, solr_query_id, input_data, uuid, user_id, force_refresh, task_status, status_message, task_started, task_finished) FROM stdin;
+\.
+
+
+--
+-- Data for Name: task_parent_child_relation; Type: TABLE DATA; Schema: public; Owner: newseye
+--
+
+COPY public.task_parent_child_relation (parent_id, child_id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: task_result_relation; Type: TABLE DATA; Schema: public; Owner: newseye
+--
+
+COPY public.task_result_relation (task_id, result_id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: user; Type: TABLE DATA; Schema: public; Owner: newseye
+--
+
+COPY public."user" (id, username, created_on, last_seen) FROM stdin;
+1	newseye	2020-02-13 08:02:23.28721	2020-02-19 15:31:46.685754
+\.
+
+
+--
+-- Name: investigator_run_id_seq; Type: SEQUENCE SET; Schema: public; Owner: newseye
+--
+
+SELECT pg_catalog.setval('public.investigator_run_id_seq', 201, true);
+
+
+--
+-- Name: result_id_seq; Type: SEQUENCE SET; Schema: public; Owner: newseye
+--
+
+SELECT pg_catalog.setval('public.result_id_seq', 48, true);
+
+
+--
+-- Name: user_id_seq; Type: SEQUENCE SET; Schema: public; Owner: newseye
+--
+
+SELECT pg_catalog.setval('public.user_id_seq', 1, true);
+
+
+--
+-- Name: alembic_version alembic_version_pkc; Type: CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.alembic_version
+    ADD CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num);
+
+
+--
+-- Name: dataset dataset_pkey; Type: CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.dataset
+    ADD CONSTRAINT dataset_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: document_dataset_relation document_dataset_relation_pkey; Type: CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.document_dataset_relation
+    ADD CONSTRAINT document_dataset_relation_pkey PRIMARY KEY (dataset_id, document_id);
+
+
+--
+-- Name: document document_pkey; Type: CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.document
+    ADD CONSTRAINT document_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: investigator_action investigator_action_pkey; Type: CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.investigator_action
+    ADD CONSTRAINT investigator_action_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: investigator_result investigator_result_pkey; Type: CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.investigator_result
+    ADD CONSTRAINT investigator_result_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: investigator_result investigator_result_uuid_key; Type: CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.investigator_result
+    ADD CONSTRAINT investigator_result_uuid_key UNIQUE (uuid);
+
+
+--
+-- Name: investigator_run investigator_run_pkey; Type: CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.investigator_run
+    ADD CONSTRAINT investigator_run_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: investigator_run investigator_run_uuid_key; Type: CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.investigator_run
+    ADD CONSTRAINT investigator_run_uuid_key UNIQUE (uuid);
+
+
+--
+-- Name: processor processor_pkey; Type: CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.processor
+    ADD CONSTRAINT processor_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: report report_pkey; Type: CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.report
+    ADD CONSTRAINT report_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: result result_pkey; Type: CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.result
+    ADD CONSTRAINT result_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: solr_output solr_output_pkey; Type: CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.solr_output
+    ADD CONSTRAINT solr_output_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: solr_query solr_query_pkey; Type: CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.solr_query
+    ADD CONSTRAINT solr_query_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: task_parent_child_relation task_parent_child_relation_pkey; Type: CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.task_parent_child_relation
+    ADD CONSTRAINT task_parent_child_relation_pkey PRIMARY KEY (parent_id, child_id);
+
+
+--
+-- Name: task task_pkey; Type: CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.task
+    ADD CONSTRAINT task_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: task_result_relation task_result_relation_pkey; Type: CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.task_result_relation
+    ADD CONSTRAINT task_result_relation_pkey PRIMARY KEY (task_id, result_id);
+
+
+--
+-- Name: task task_uuid_key; Type: CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.task
+    ADD CONSTRAINT task_uuid_key UNIQUE (uuid);
+
+
+--
+-- Name: document uniq_solr_id; Type: CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.document
+    ADD CONSTRAINT uniq_solr_id UNIQUE (solr_id);
+
+
+--
+-- Name: dataset uq_dataset_name; Type: CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.dataset
+    ADD CONSTRAINT uq_dataset_name UNIQUE (dataset_name);
+
+
+--
+-- Name: processor uq_processor_name_and_path; Type: CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.processor
+    ADD CONSTRAINT uq_processor_name_and_path UNIQUE (name, import_path);
+
+
+--
+-- Name: investigator_action uq_run_and_action; Type: CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.investigator_action
+    ADD CONSTRAINT uq_run_and_action UNIQUE (run_id, action_id);
+
+
+--
+-- Name: user user_pkey; Type: CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public."user"
+    ADD CONSTRAINT user_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: user user_username_key; Type: CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public."user"
+    ADD CONSTRAINT user_username_key UNIQUE (username);
+
+
+--
+-- Name: document_dataset_relation document_dataset_relation_dataset_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.document_dataset_relation
+    ADD CONSTRAINT document_dataset_relation_dataset_id_fkey FOREIGN KEY (dataset_id) REFERENCES public.dataset(id);
+
+
+--
+-- Name: document_dataset_relation document_dataset_relation_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.document_dataset_relation
+    ADD CONSTRAINT document_dataset_relation_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.document(id);
+
+
+--
+-- Name: investigator_action investigator_action_run_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.investigator_action
+    ADD CONSTRAINT investigator_action_run_id_fkey FOREIGN KEY (run_id) REFERENCES public.investigator_run(id);
+
+
+--
+-- Name: investigator_result investigator_result_run_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.investigator_result
+    ADD CONSTRAINT investigator_result_run_id_fkey FOREIGN KEY (run_id) REFERENCES public.investigator_run(id);
+
+
+--
+-- Name: investigator_result investigator_result_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.investigator_result
+    ADD CONSTRAINT investigator_result_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id);
+
+
+--
+-- Name: investigator_run investigator_run_root_dataset_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.investigator_run
+    ADD CONSTRAINT investigator_run_root_dataset_id_fkey FOREIGN KEY (root_dataset_id) REFERENCES public.dataset(id);
+
+
+--
+-- Name: investigator_run investigator_run_root_solr_query_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.investigator_run
+    ADD CONSTRAINT investigator_run_root_solr_query_id_fkey FOREIGN KEY (root_solr_query_id) REFERENCES public.solr_query(id);
+
+
+--
+-- Name: investigator_run investigator_run_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.investigator_run
+    ADD CONSTRAINT investigator_run_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id);
+
+
+--
+-- Name: report report_node_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.report
+    ADD CONSTRAINT report_node_id_fkey FOREIGN KEY (node_id) REFERENCES public.investigator_result(id);
+
+
+--
+-- Name: report report_result_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.report
+    ADD CONSTRAINT report_result_id_fkey FOREIGN KEY (result_id) REFERENCES public.result(id);
+
+
+--
+-- Name: report report_run_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.report
+    ADD CONSTRAINT report_run_id_fkey FOREIGN KEY (run_id) REFERENCES public.investigator_run(id);
+
+
+--
+-- Name: solr_output solr_output_solr_query_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.solr_output
+    ADD CONSTRAINT solr_output_solr_query_id_fkey FOREIGN KEY (solr_query_id) REFERENCES public.solr_query(id);
+
+
+--
+-- Name: task task_dataset_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.task
+    ADD CONSTRAINT task_dataset_id_fkey FOREIGN KEY (dataset_id) REFERENCES public.dataset(id);
+
+
+--
+-- Name: task_parent_child_relation task_parent_child_relation_child_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.task_parent_child_relation
+    ADD CONSTRAINT task_parent_child_relation_child_id_fkey FOREIGN KEY (child_id) REFERENCES public.task(id);
+
+
+--
+-- Name: task_parent_child_relation task_parent_child_relation_parent_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.task_parent_child_relation
+    ADD CONSTRAINT task_parent_child_relation_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.task(id);
+
+
+--
+-- Name: task task_processor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.task
+    ADD CONSTRAINT task_processor_id_fkey FOREIGN KEY (processor_id) REFERENCES public.processor(id);
+
+
+--
+-- Name: task_result_relation task_result_relation_result_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.task_result_relation
+    ADD CONSTRAINT task_result_relation_result_id_fkey FOREIGN KEY (result_id) REFERENCES public.result(id);
+
+
+--
+-- Name: task_result_relation task_result_relation_task_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.task_result_relation
+    ADD CONSTRAINT task_result_relation_task_id_fkey FOREIGN KEY (task_id) REFERENCES public.task(id);
+
+
+--
+-- Name: task task_solr_query_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.task
+    ADD CONSTRAINT task_solr_query_id_fkey FOREIGN KEY (solr_query_id) REFERENCES public.solr_query(id);
+
+
+--
+-- Name: task task_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: newseye
+--
+
+ALTER TABLE ONLY public.task
+    ADD CONSTRAINT task_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id);
+
+
+--
+-- PostgreSQL database dump complete
+--
+
