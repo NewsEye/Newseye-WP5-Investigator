@@ -287,7 +287,8 @@ class Documentset:
     def __init__(self, run, user):
         self.user = user
         if run.root_dataset_id is not None:
-            raise NotImplementedError
+            self.data_type = "dataset"
+            self.data = run.root_dataset.dataset_name
         elif run.root_solr_query_id is not None:
             self.data_type = "search_query"
             self.data = run.root_solr_query.search_query

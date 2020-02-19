@@ -80,7 +80,7 @@ def get_solr_query(search_query):
     return solr_query
 
 
-def commit(database_record, max_try=5):
+def check_uuid_and_commit(database_record, max_try=5):
     for i in range(max_try):
         try:
             db.session.add(database_record)
@@ -127,7 +127,7 @@ def generate_task(query, user=current_user, parent_id=None, return_task=False):
     #     source_instance = Task.query.filter_by(uuid=source_uuid).one_or_none()
     #     search_query = source_instance.search_query
 
-    commit(task)
+    check_uuid_and_commit(task)
     current_app.logger.debug("TASK %s" % task)
 
     if return_task:
@@ -141,19 +141,20 @@ def generate_investigator_run(args, user=current_user):
     Makes a new run and stores it in the database
     """
     verify_data(args)
+    investigator_run = InvestigatorRun(
+        user_parameters=args["parameters"],
+        run_status="created",
+        user_id=user.id,
+    )
+
     if args.get("dataset"):
-        raise NotImplementedError
-    elif args["search_query"] is not None:
-        investigator_run = InvestigatorRun(
-            root_solr_query=get_solr_query(args["search_query"]),
-            user_parameters=args["parameters"],
-            run_status="created",
-            user_id=user.id,
-        )
+        investigator_run.root_dataset=get_dataset(args["dataset"])
+    elif args.get("search_query"):
+        investigator_run.root_solr_query=get_solr_query(args["search_query"])
     else:
         raise NotImplementedError
-
-    commit(investigator_run)
+    check_uuid_and_commit(investigator_run)
+    
     return investigator_run.uuid
 
 
@@ -168,7 +169,7 @@ def generate_investigator_node(
         result=result,
         interestingness=interestingness,
     )
-    commit(investigator_result)
+    check_uuid_and_commit(investigator_result)
     return investigator_result
 
 
