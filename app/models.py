@@ -58,7 +58,7 @@ class Dataset(db.Model):
     documents = db.relationship(
         "DocumentDatasetRelation", back_populates="dataset"
     )
-    hash_value = db.Column(db.Integer, nullable=False)
+    hash_value = db.Column(db.String(255), nullable=False)
     created_on = db.Column(db.DateTime, default=datetime.utcnow)
     tasks = db.relationship("Task", back_populates="dataset")
 

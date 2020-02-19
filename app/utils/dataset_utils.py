@@ -38,7 +38,7 @@ def get_hash_value(dataset_name):
     response = requests.request("POST", url, data=payload, headers=headers, verify=False)
     for d in response.json():
         if d[0] == dataset_name:
-            return d[1]
+            return str(d[1])
     raise BadRequest("Dataset {} not found for {}".format(dataset_name, Config.DATASET_EMAIL))
 
                      
