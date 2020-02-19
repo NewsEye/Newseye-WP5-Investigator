@@ -5,8 +5,8 @@ ns = Namespace("investigator", description="Investigator")
 #### PROCESSOR SETS
 
 processorsets = {
-    "DESCRIPTION" : ["ExtractFacets", "ExtractWords", "ExtractBigrams", "GenerateTimeSeries"]
-    }
+    "DESCRIPTION": ["ExtractFacets", "ExtractWords", "ExtractBigrams", "GenerateTimeSeries"]
+}
 
 
 from app.investigator import routes

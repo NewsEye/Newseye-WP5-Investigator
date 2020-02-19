@@ -6,6 +6,7 @@ import asyncio
 
 from flask import current_app
 
+
 class AnalysisUtility(Processor):
     @classmethod
     def make_processor(cls):
@@ -47,17 +48,15 @@ class AnalysisUtility(Processor):
     async def make_result(self, task):
         return {"error": "This utility has not yet been implemented"}
 
-
     async def _estimate_interestingness(self):
         """
         Computes overall interestingness of the result as a single number.
         Currently: maximum of all numbers found in interestingness dictionary.
         """
         interestingness = await self.estimate_interestingness()
-        interestingness.update({"overall":assessment.recoursive_max(interestingness)})       
+        interestingness.update({"overall": assessment.recoursive_max(interestingness)})
         return interestingness
-        
-    
+
     async def estimate_interestingness(self):
         # convert all numerical lists and dict values into distributions (0-1)
         return assessment.recoursive_distribution(self.result)

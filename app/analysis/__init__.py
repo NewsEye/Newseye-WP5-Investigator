@@ -8,6 +8,7 @@ from app.analysis import routes
 from app.analysis.facet_processors import ExtractFacets, GenerateTimeSeries
 from app.analysis.word_processors import ExtractWords, ExtractBigrams
 
+
 def initialize_processors(app):
     # adding processors to the database (if they are not there already)
     with app.app_context():

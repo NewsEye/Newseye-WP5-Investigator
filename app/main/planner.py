@@ -39,14 +39,13 @@ class TaskPlanner(object):
 
             async_tasks.append(processor(task))
 
-        #current_app.logger.debug("ASYNC_TASKS: %s" %async_tasks)
+        # current_app.logger.debug("ASYNC_TASKS: %s" %async_tasks)
         # here tasks are actually executed asynchronously
         # returns list of results *or* exceptions if a task fail
         results = await asyncio.gather(*async_tasks, return_exceptions=(not current_app.debug))
 
-#        current_app.logger.debug("RESULTS:%s" %results)
+        #        current_app.logger.debug("RESULTS:%s" %results)
 
-        
         for t in tasks:
             current_app.logger.info("%s:%s finished, returning results" % (t.processor, t.uuid))
         return results
@@ -83,7 +82,7 @@ class TaskPlanner(object):
         task.task_started = datetime.utcnow()
         # to update data obtained in previous searches
 
-        #current_app.logger.debug("FORCE_REFRESH %s" % task.force_refresh)
+        # current_app.logger.debug("FORCE_REFRESH %s" % task.force_refresh)
 
         if not task.force_refresh:
             # search for similar tasks, reuse results

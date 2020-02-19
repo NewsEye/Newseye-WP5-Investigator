@@ -18,7 +18,7 @@ class Investigator(Resource):
         """
         Retrieve all investigator runs started by the user
         """
-        return {"error":"NotImplemented"}
+        return {"error": "NotImplemented"}
 
     # Define parser for the POST endpoint
     post_parser = AuthParser()
@@ -48,15 +48,14 @@ class Investigator(Resource):
         help="A JSON object containing some parameters.",
     )
 
-    
     ## TODO: force_refresh: what should be rerun and to which extend?
-###    post_parser.add_argument(
-###        "force_refresh",
-###        type=bool,
-###        default=False,
-###        location="json",
-###        help="Set to true to redo the analysis even if an older result exists",
-###    )
+    ###    post_parser.add_argument(
+    ###        "force_refresh",
+    ###        type=bool,
+    ###        default=False,
+    ###        location="json",
+    ###        help="Set to true to redo the analysis even if an older result exists",
+    ###    )
 
     @login_required
     @ns.expect(post_parser)
@@ -95,7 +94,7 @@ class Run(Resource):
         Retrieve results for investigator run
         """
         args = request.args
-        
+
         if "run" in args:
             uuid = args.get("run")
             Table = InvestigatorRun
@@ -104,7 +103,7 @@ class Run(Resource):
             Table = InvestigatorResult
         else:
             raise BadRequest("A 'run' or 'node' must be in a query")
-        
+
         try:
             uuid = UUID(uuid)
         except ValueError:
@@ -112,11 +111,5 @@ class Run(Resource):
         ret_value = Table.query.filter_by(uuid=uuid).first()
         if ret_value is None:
             raise NotFound("{} not found for user {}".format(uuid, current_user.username))
-        
+
         return ret_value.dict(style="result")
-
-
-
-
-
-    

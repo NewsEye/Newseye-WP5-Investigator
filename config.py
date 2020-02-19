@@ -9,9 +9,7 @@ class Config(object):
     SECRET_KEY = os.environ.get("SECRET_KEY") or "1234"
 
     # internal database for tasks and results
-    SQLALCHEMY_DATABASE_URI = (
-        os.environ.get("DATABASE_URL")
-    )
+    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # not used currently
@@ -24,15 +22,14 @@ class Config(object):
 
     # The URI for the Reporter API
     REPORTER_URI = "http://newseye-wp5.cs.helsinki.fi:4218/api"
-    #REPORTER_URI = "http://localhost:8080/api"
+    # REPORTER_URI = "http://localhost:8080/api"
     # This should contain the URI for the topic modelling tools
     TOPIC_MODEL_URI = "https://newseye-wp4.cs.helsinki.fi"
 
     HEADERS = {}
     COOKIES = {}
 
-
-    SOLR_URI = os.environ.get('SOLR_URI')
+    SOLR_URI = os.environ.get("SOLR_URI")
     SOLR_MAX_RETURN_VALUES = 100000
 
     # SOLR_URI = "http://localhost:9983/solr/hydra-development/select"
@@ -76,14 +73,12 @@ class Config(object):
             "fl": "nothing",  # non-existing field to retrun nothing; otherwise all text will be returned
             "defType": "edismax",
         },
-        'words' : {
-            'q' : '*:*',
-            'fl': '*,[child parentFilter=level:1. childFilter=level:4. limit=100000]',
-            'qf': 'id'
+        "words": {
+            "q": "*:*",
+            "fl": "*,[child parentFilter=level:1. childFilter=level:4. limit=100000]",
+            "qf": "id",
         },
-        'pages' : {
-            'fl' : 'member_ids_ssim'
-            },
+        "pages": {"fl": "member_ids_ssim"},
     }
 
     SUPPORTED_LANGUAGES = ["fi", "de", "fr"]

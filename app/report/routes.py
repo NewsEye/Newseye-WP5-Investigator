@@ -9,6 +9,7 @@ from werkzeug.exceptions import NotFound, BadRequest
 
 from flask import current_app
 
+
 @ns.route("/")
 @ns.param("task_uuid", "The UUID of the analysis task for which a report should be retrieved")
 class ReportTask(Resource):
@@ -17,21 +18,20 @@ class ReportTask(Resource):
         "language", default="en", help="The language the report should be written in."
     )
     parser.add_argument("format", default="p", help="The format of the body of the report.")
-    
+
     parser.add_argument("task", help="task uuid")
     parser.add_argument("node", help="node uuid")
-    parser.add_argument("run",  help="run uuid")
-    
+    parser.add_argument("run", help="run uuid")
+
     @login_required
     @ns.expect(parser)
     def get(self):
         """
         Retrieve a report generated from the task results.
-        """        
+        """
         args = self.parser.parse_args()
         report = make_report(args)
         return report
-        
 
 
 @ns.route("/languages")

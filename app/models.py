@@ -24,7 +24,7 @@ class User(UserMixin, db.Model):
     last_seen = db.Column(db.DateTime, default=datetime.utcnow)
     all_tasks = db.relationship("Task", back_populates="user")
     all_runs = db.relationship("InvestigatorRun", back_populates="user")
-    
+
     def __repr__(self):
         return "<User {}>".format(self.username)
 
@@ -159,10 +159,10 @@ class Processor(db.Model):
     @staticmethod
     def find_by_name(name):
         processors = Processor.query.filter_by(name=name).all()
-        if len(processors)>1:
-            raise NotImplementedError("More than one processor with name %s" %name)
+        if len(processors) > 1:
+            raise NotImplementedError("More than one processor with name %s" % name)
         return Processor.query.filter_by(name=name).one_or_none()
-        
+
 
 task_parent_child_relation = db.Table(
     "task_parent_child_relation",
@@ -244,7 +244,7 @@ class Task(db.Model):
             return {"dataset": self.dataset.dataset_name}
         elif self.solr_query:
             return {"search_query": self.solr_query.search_query}
-            
+
     def dict(self, style="status"):
         ret = {
             "uuid": str(self.uuid),
@@ -258,27 +258,24 @@ class Task(db.Model):
 
         if style == "status":
             pass
-                    
+
         elif style == "result":
-            ret.update({
-                "task_result": self.result_with_interestingness,
-            })
+            ret.update(
+                {"task_result": self.result_with_interestingness,}
+            )
 
         elif style == "reporter":
-            ret.update({
-                "task_result": self.result_with_interestingness,
-            })
+            ret.update(
+                {"task_result": self.result_with_interestingness,}
+            )
             ret.update(self.data_dict())
-                
+
         elif style == "investigator":
             if self.task_result:
-                ret.update({
-                    "interestingness":self.task_result.interestingness["overall"]
-                })
+                ret.update({"interestingness": self.task_result.interestingness["overall"]})
             ret.update(self.data_dict())
         return ret
 
-        
     @property
     def search_query(self):
         if self.dataset:
@@ -296,15 +293,11 @@ class Task(db.Model):
             else:
                 return self.task_results[0]
 
-            
-
     def report(self, language="en", format="p"):
         result = self.task_result
         if result:
             return get_report(result.result_reports, language=language, format=format)
 
-    
-            
     @property
     def result_with_interestingness(self):
         if self.task_result:
@@ -330,23 +323,26 @@ class Result(db.Model):
 
     def __repr__(self):
         return "<Result id: {} date: {} tasks: {} >".format(self.id, self.last_updated, self.tasks)
-    
+
+
 class Report(db.Model):
     __tablename__ = "report"
     id = db.Column(db.Integer, primary_key=True)
-    
+
     # result for a single task
     result_id = db.Column(db.Integer, db.ForeignKey("result.id"))
     result = db.relationship("Result", back_populates="result_reports", foreign_keys=[result_id])
-    
+
     # result for a set of tasks (investigator node)
     node_id = db.Column(db.Integer, db.ForeignKey("investigator_result.id"))
-    node = db.relationship("InvestigatorResult", back_populates="result_reports", foreign_keys=[node_id])
+    node = db.relationship(
+        "InvestigatorResult", back_populates="result_reports", foreign_keys=[node_id]
+    )
 
     # result for a whole investigator run
     run_id = db.Column(db.Integer, db.ForeignKey("investigator_run.id"))
     run = db.relationship("InvestigatorRun", back_populates="result_reports", foreign_keys=[run_id])
-    
+
     report_language = db.Column(db.String(255))
     report_format = db.Column(db.String(255))
     report_content = db.Column(db.JSON)
@@ -355,69 +351,69 @@ class Report(db.Model):
     def __repr__(self):
         return "<Report>"
 
+
 def get_report(reports, language="en", format="p"):
-    reports = [r for r in reports if r.report_language==language and r.report_format==format]
+    reports = [r for r in reports if r.report_language == language and r.report_format == format]
     if reports:
         return sorted(reports, key=lambda r: r.report_generated)[-1]
 
 
-    
 class InvestigatorRun(db.Model):
     # TODO: make explicit relations w other tables
     __tablename__ = "investigator_run"
     id = db.Column(db.Integer, primary_key=True)
     uuid = db.Column(UUID(as_uuid=True), unique=True, nullable=False, default=uuid.uuid4)
-    
+
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     user = db.relationship("User", back_populates="all_runs", foreign_keys=[user_id])
-    
+
     root_dataset_id = db.Column(db.Integer, db.ForeignKey("dataset.id"))
     root_dataset = db.relationship("Dataset", foreign_keys=[root_dataset_id])
 
     root_solr_query_id = db.Column(Integer, ForeignKey("solr_query.id"))
     root_solr_query = db.relationship("SolrQuery", foreign_keys=[root_solr_query_id])
-    
+
     user_parameters = db.Column(db.JSON)
     run_status = db.Column(db.String(255))
-    
+
     # list of tasks ready for report
     # replaced with updated results after each investigator's cycle
     result = db.Column(db.JSON, default=[])
-    result_reports = db.relationship("Report", back_populates="run")  
-    
-    
+    result_reports = db.relationship("Report", back_populates="run")
+
     # all done tasks
     # unlike result never replaced, just updated
     done_tasks = db.Column(db.JSON)
 
     nodes = db.Column(db.JSON, default=[])
-    
+
     root_action_id = db.Column(db.Integer)
 
     def data_dict(self):
         if self.root_dataset:
-            return {"dataset":self.root_dataset.dataset_name}
+            return {"dataset": self.root_dataset.dataset_name}
         elif self.root_solr_query:
-            return {"solr_query":self.root_solr_query.search_query}
-    
+            return {"solr_query": self.root_solr_query.search_query}
+
     def dict(self, style="status"):
-        ret = {"uuid":str(self.uuid),
-               "user_parameters":self.user_parameters,
-               "run_status":self.run_status}
+        ret = {
+            "uuid": str(self.uuid),
+            "user_parameters": self.user_parameters,
+            "run_status": self.run_status,
+        }
         ret.update(self.data_dict())
-        
+
         if style == "status":
             pass
         elif style == "result":
-            ret.update({"result":self.result,
-                        "nodes":self.nodes})
+            ret.update({"result": self.result, "nodes": self.nodes})
 
         return ret
 
     def report(self, language="en", format="p"):
         if self.result_reports:
             return get_report(self.result_reports, language=language, format=format)
-            
+
     def __repr__(self):
         if self.root_dataset:
             return "<InvestigatorRun id: {}, dataset: {}, status: {}>".format(
@@ -427,7 +423,7 @@ class InvestigatorRun(db.Model):
             return "<InvestigatorRun id: {}, solr_query: {}, status: {}>".format(
                 self.id, self.root_solr_query.search_query, self.run_status,
             )
-        
+
 
 class InvestigatorAction(db.Model):
     __tablename__ = "investigator_action"
@@ -453,15 +449,18 @@ class InvestigatorAction(db.Model):
     # UPDATE: all the modifications: add/remove/insert/permute
 
     output_queue = db.Column(ARRAY(db.Integer))
-    
+
     def __repr__(self):
-        return "<InvestigatorAction id: {} run_id: {} action_id: {} action_type: {} why: {}>".format(self.id, self.run_id, self.action_id, self.action_type, self.why)
-    
-        
+        return "<InvestigatorAction id: {} run_id: {} action_id: {} action_type: {} why: {}>".format(
+            self.id, self.run_id, self.action_id, self.action_type, self.why
+        )
+
+
 class InvestigatorResult(db.Model):
     """
     Single result node---a set of actions, that could be reported to a user 
-    """    
+    """
+
     __tablename__ = "investigator_result"
     id = db.Column(db.Integer, primary_key=True)
 
@@ -469,10 +468,10 @@ class InvestigatorResult(db.Model):
     uuid = db.Column(UUID(as_uuid=True), unique=True, nullable=False, default=uuid.uuid4)
     run_id = db.Column(db.Integer, db.ForeignKey("investigator_run.id"))
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-    user = db.relationship("User",  foreign_keys=[user_id])
-    
+    user = db.relationship("User", foreign_keys=[user_id])
+
     # results for actions from .. to ..
-    start_action_id  = db.Column(db.Integer)
+    start_action_id = db.Column(db.Integer)
     end_action_id = db.Column(db.Integer)
 
     interestingness = db.Column(db.Float, default=0.0)
@@ -483,15 +482,25 @@ class InvestigatorResult(db.Model):
         if self.result_reports:
             return get_report(self.result_reports, language=language, format=format)
 
-    
     def __repr__(self):
-        return "<InvestigatorResult id: {} node_id: {}, uuid: {} run_id: {} start_action_id: {} end_action_id: {} interestingness: {} result: {}".format(self.id, self.uuid, self.run_id, self.start_action_id, self.end_action_id, self.interestingness, self.result)
+        return "<InvestigatorResult id: {} node_id: {}, uuid: {} run_id: {} start_action_id: {} end_action_id: {} interestingness: {} result: {}".format(
+            self.id,
+            self.uuid,
+            self.run_id,
+            self.start_action_id,
+            self.end_action_id,
+            self.interestingness,
+            self.result,
+        )
 
     def dict(self, style="result"):
-        return {"uuid":str(self.uuid),
-                "result":self.result,
-                "interestingness":self.interestingness}
-    
+        return {
+            "uuid": str(self.uuid),
+            "result": self.result,
+            "interestingness": self.interestingness,
+        }
+
+
 # Needed by flask_login
 @login.user_loader
 def load_user(id):

@@ -3,14 +3,27 @@ from flask import current_app
 from sqlalchemy.exc import IntegrityError
 from flask_login import current_user
 from app import db
-from app.models import Task, Result, Dataset, Processor, SolrQuery, InvestigatorRun, InvestigatorResult
+from app.models import (
+    Task,
+    Result,
+    Dataset,
+    Processor,
+    SolrQuery,
+    InvestigatorRun,
+    InvestigatorResult,
+)
 from datetime import datetime
 from werkzeug.exceptions import BadRequest
 
-def verify_data(args):
-    current_app.logger.debug("ARGS: %s" %args)
 
-    if args.get("dataset") is None and args.get("search_query") is None and args.get("source_uuid") is None:
+def verify_data(args):
+    current_app.logger.debug("ARGS: %s" % args)
+
+    if (
+        args.get("dataset") is None
+        and args.get("search_query") is None
+        and args.get("source_uuid") is None
+    ):
         raise BadRequest("A 'dataset' or 'source_uuid' is missing for query:\n{}".format(query))
 
     if args.get("dataset") and args.get("search_query"):
@@ -20,8 +33,8 @@ def verify_data(args):
         if not Dataset.query.filter_by(dataset_name=args["dataset"]).one_or_none():
             # TODO: check dataset from Axel's api and insert it into the local db
             raise NotImplementedError("Dataset {} does not exist".format(args["dataset"]))
-    
-        
+
+
 def verify_analysis_parameters(args):
     """ 
     checks the correctness 
@@ -32,10 +45,9 @@ def verify_analysis_parameters(args):
         raise BadRequest("Required parameter 'processor' missing for query:\n{}".format(query))
 
     verify_data(args)
-    
+
     processor = Processor.find_by_name(name=args["processor"])
     current_app.logger.debug("PROCESSOR: %s" % processor)
-
 
     parameter_info = processor.parameter_info
     query_parameters = args["parameters"]
@@ -84,7 +96,7 @@ def commit(database_record, max_try=5):
             db.session.rollback()
             database_record.uuid = uuid.uuid4()
     else:
-        current_app.logger.error("Cannot store to the database %s" %database_record)
+        current_app.logger.error("Cannot store to the database %s" % database_record)
         raise error
 
 
@@ -99,17 +111,17 @@ def generate_task(query, user=current_user, parent_id=None, return_task=False):
 
     if task_parameters.get("dataset"):
         raise NotImplementedError
-###        dataset = Dataset.query.filter_by(dataset_name=task_parameters["dataset"]).first()
-###
-###        task = Task(
-###            processor_id=processor.id,
-###            force_refresh=bool(task_parameters.get("force_refresh", False)),
-###            user_id=user.id,
-###            input_data="dataset",
-###            task_status="created",
-###            parameters=task_parameters.get("parameters", {}),
-###            dataset_id=dataset.id,
-###        )
+    ###        dataset = Dataset.query.filter_by(dataset_name=task_parameters["dataset"]).first()
+    ###
+    ###        task = Task(
+    ###            processor_id=processor.id,
+    ###            force_refresh=bool(task_parameters.get("force_refresh", False)),
+    ###            user_id=user.id,
+    ###            input_data="dataset",
+    ###            task_status="created",
+    ###            parameters=task_parameters.get("parameters", {}),
+    ###            dataset_id=dataset.id,
+    ###        )
 
     elif task_parameters["search_query"]:
 
@@ -147,31 +159,33 @@ def generate_investigator_run(args, user=current_user):
         raise NotImplementedError
     elif args["search_query"] is not None:
         investigator_run = InvestigatorRun(
-            root_solr_query = get_solr_query(args["search_query"]),
-            user_parameters = args["parameters"],
-            run_status = "created",
-            user_id = user.id,
+            root_solr_query=get_solr_query(args["search_query"]),
+            user_parameters=args["parameters"],
+            run_status="created",
+            user_id=user.id,
         )
     else:
         raise NotImplementedError
 
     commit(investigator_run)
     return investigator_run.uuid
-        
 
-def generate_investigator_node(run, start_action, end_action, result, interestingness,  user=current_user):    
-    investigator_result = InvestigatorResult(run_id = run.id,
-                                             user_id = user.id,
-                                             start_action_id = start_action,
-                                             end_action_id = end_action,
-                                             result = result,
-                                             interestingness = interestingness)
+
+def generate_investigator_node(
+    run, start_action, end_action, result, interestingness, user=current_user
+):
+    investigator_result = InvestigatorResult(
+        run_id=run.id,
+        user_id=user.id,
+        start_action_id=start_action,
+        end_action_id=end_action,
+        result=result,
+        interestingness=interestingness,
+    )
     commit(investigator_result)
     return investigator_result
-           
-                                              
 
-    
+
 def store_results(tasks, task_results, set_to_finished=True, interestingness=0.0):
     # Store the new results to the database after everything has been finished
     # TODO: Should we offer the option to store results as soon as they are ready? Or do that by default?

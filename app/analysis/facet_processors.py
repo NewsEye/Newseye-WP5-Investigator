@@ -35,7 +35,7 @@ class ExtractFacets(AnalysisUtility):
         # seems nobody is using these constants
         # except for this processor --- get read of them???
         facets = {}
-        available_facets = {v:k for k,v in AVAILABLE_FACETS.items()}
+        available_facets = {v: k for k, v in AVAILABLE_FACETS.items()}
         for feature in self.input_data[FACETS_KEY]:
             values = {}
             for item in feature[FACET_ITEMS_KEY]:
@@ -132,7 +132,7 @@ class GenerateTimeSeries(AnalysisUtility):
         )
         info.columns = ["min", "max", "avg"]
         info_dict = info.to_dict(orient="index")
-        
+
         out_dict = {f: {**count_dict[f], **info_dict[f]} for f in count_dict}
 
         return out_dict

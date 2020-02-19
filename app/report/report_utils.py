@@ -9,6 +9,7 @@ from pprint import pprint
 from uuid import UUID
 from werkzeug.exceptions import NotFound, BadRequest
 
+
 def make_report(args):
 
     report_language = args["language"]
@@ -29,19 +30,19 @@ def make_report(args):
         uuid = UUID(uuid)
     except ValueError:
         raise NotFound
-    
+
     record = Table.query.filter_by(uuid=uuid, user_id=current_user.id).first()
     if record is None:
-        raise NotFound("{} {} not found for user {}".format(Table.__name__, uuid, current_user.username))
+        raise NotFound(
+            "{} {} not found for user {}".format(Table.__name__, uuid, current_user.username)
+        )
     report = record.report(report_language, report_format)
     if report:
         current_app.logger.info("Report exists, not generating")
     else:
         report = generate_report(record, report_language, report_format)
-        current_app.logger.debug("GENERATE: report_content: %s" %report.report_content)
+        current_app.logger.debug("GENERATE: report_content: %s" % report.report_content)
     return report.report_content
-    
-    
 
 
 def generate_report(record, report_language, report_format):
@@ -51,24 +52,22 @@ def generate_report(record, report_language, report_format):
     else:
         task_uuids = [task["uuid"] for task in record.result]
         tasks = Task.query.filter(Task.uuid.in_(task_uuids)).all()
-                                                   
+
     data = [t.dict("reporter") for t in tasks]
-    
+
     payload = {
         "language": report_language,
         "format": report_format,
-        "data": json.dumps(data),  
+        "data": json.dumps(data),
     }
 
     response = requests.post(Config.REPORTER_URI + "/report", data=payload)
 
-#    current_app.logger.debug("RESPONSE %s" % response.text)
+    #    current_app.logger.debug("RESPONSE %s" % response.text)
 
     report_content = response.json()
 
-
-    
-    if isinstance(record, Task):   
+    if isinstance(record, Task):
         report = Report(
             report_language=report_language,
             report_format=report_format,
@@ -89,15 +88,12 @@ def generate_report(record, report_language, report_format):
             report_content=report_content,
             node_id=record.id,
         )
-  
 
-
-    
     db.session.add(report)
     db.session.commit()
 
-    current_app.logger.debug("Report_Content: %s" %report.report_content)
-    
+    current_app.logger.debug("Report_Content: %s" % report.report_content)
+
     return report
 
 
@@ -132,7 +128,7 @@ def get_history(make_tree=True):
 
 def get_parents(tasks):
     raise NotImplementedError("Need to update get_parents function for new data structures")
-    
+
     if not isinstance(tasks, list):
         tasks = [tasks]
     required_tasks = set(tasks)

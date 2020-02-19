@@ -42,7 +42,6 @@ def task_thread(app, user_id, task_uuid):
         asyncio.run(planner.execute_user_task(task_uuid))
 
 
-
 def investigator_run(args):
     """
     Currently works exactly the same as the previous function (for the single task).
@@ -50,21 +49,24 @@ def investigator_run(args):
     """
 
     run_uuid = generate_investigator_run(args)
-    
+
     t = threading.Thread(
-        target=run_thread,
-        args=[current_app._get_current_object(), current_user.id, run_uuid],
+        target=run_thread, args=[current_app._get_current_object(), current_user.id, run_uuid],
     )
     t.setDaemon(False)
     t.start()
 
     i = 0
-    while InvestigatorRun.query.filter(InvestigatorRun.uuid == run_uuid, InvestigatorRun.run_status == "created").count() > 0:
+    while (
+        InvestigatorRun.query.filter(
+            InvestigatorRun.uuid == run_uuid, InvestigatorRun.run_status == "created"
+        ).count()
+        > 0
+    ):
         time.sleep(1)
 
     return InvestigatorRun.query.filter(InvestigatorRun.uuid == run_uuid).one_or_none()
 
-    
 
 def run_thread(app, user_id, run_uuid):
     with app.app_context():
@@ -72,4 +74,3 @@ def run_thread(app, user_id, run_uuid):
         investigator = Investigator(run_uuid, planner)
         asyncio.run(investigator.initialize_run())
         asyncio.run(investigator.act())
-    
