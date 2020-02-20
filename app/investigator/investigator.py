@@ -7,7 +7,7 @@ from copy import copy
 from app.investigator import processorsets
 from flask import current_app
 import asyncio
-
+from datetime import datetime
 
 class Investigator:
     def __init__(self, run_uuid, planner):
@@ -86,6 +86,7 @@ class Investigator:
             action=action,
             input_queue=input_q,
             output_queue=self.queue_state,
+            timestamp=datetime.utcnow()
         )
 
         current_app.logger.debug("DB_ACTION: %s" % db_action)
@@ -203,6 +204,8 @@ class Investigator:
 
     def update_status(self, status):
         self.run.run_status = status
+        if status == "finished":
+            self.run_finished = datetime.utcnow()
         db.session.commit()
 
     def make_tasks(self, processorset, documentset):

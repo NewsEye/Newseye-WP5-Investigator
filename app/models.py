@@ -365,6 +365,10 @@ class InvestigatorRun(db.Model):
     user_parameters = db.Column(db.JSON)
     run_status = db.Column(db.String(255))
 
+    # timestamps
+    run_started = db.Column(db.DateTime, default=datetime.utcnow)
+    run_finished = db.Column(db.DateTime)
+    
     # list of tasks ready for report
     # replaced with updated results after each investigator's cycle
     result = db.Column(db.JSON, default=[])
@@ -389,9 +393,12 @@ class InvestigatorRun(db.Model):
             "uuid": str(self.uuid),
             "user_parameters": self.user_parameters,
             "run_status": self.run_status,
+            "run_started": http_date(self.run_started),
         }
         ret.update(self.data_dict())
-
+        if self.run_status=="finished":
+            ret.update({"run_finished":http_date(self.run_finished)})        
+        
         if style == "status":
             pass
         elif style == "result":
@@ -427,9 +434,9 @@ class InvestigatorAction(db.Model):
     )
 
     input_queue = db.Column(ARRAY(db.Integer))  # task ids
-
+    output_queue = db.Column(ARRAY(db.Integer))
+    
     why = db.Column(db.JSON)
-
     action = db.Column(db.JSON)  # might be assosiated with some tasks
     # INITIALIZE: list of initial tasks
     # SELECT: action contains list of selected tasks and their place in the input, output_queue
@@ -437,8 +444,8 @@ class InvestigatorAction(db.Model):
     # REPORT: selection of actions to report
     # UPDATE: all the modifications: add/remove/insert/permute
 
-    output_queue = db.Column(ARRAY(db.Integer))
-
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow())
+    
     def __repr__(self):
         return "<InvestigatorAction id: {} run_id: {} action_id: {} action_type: {} why: {}>".format(
             self.id, self.run_id, self.action_id, self.action_type, self.why
