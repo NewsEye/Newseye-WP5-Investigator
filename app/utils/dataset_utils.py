@@ -8,10 +8,12 @@ from app import db
 from flask import current_app
 import json
 
-def get_dataset(dataset_name):
-    dataset = Dataset.query.filter_by(dataset_name=dataset_name).one_or_none()
+def get_dataset(dataset):
+    current_app.logger.debug("DATASET: %s type: %s" %(dataset, type(dataset)))
+    dataset_name, user = dataset["name"], dataset["user"]
+    dataset = Dataset.query.filter_by(dataset_name=dataset_name, user=user).one_or_none()
     if not dataset or not uptodate(dataset):
-        request_dataset(dataset_name)
+        request_dataset(dataset_name, user)
     return Dataset.query.filter_by(dataset_name=dataset_name).first()
 
 
@@ -42,23 +44,24 @@ def get_hash_value(dataset_name):
     raise BadRequest("Dataset {} not found for {}".format(dataset_name, Config.DATASET_EMAIL))
 
                      
-def request_dataset(dataset_name):
+def request_dataset(dataset_name, user):
     url = os.path.join(Config.DATASET_URI, "get_dataset_content")
-    payload = json.dumps({"email":Config.DATASET_EMAIL, "dataset_name":dataset_name})
+    payload = json.dumps({"email":user, "dataset_name":dataset_name})
     headers = {
     'content-type': "application/json",
     'authorization': get_token()
     }
 
     response = requests.request("POST", url, data=payload, headers=headers, verify=False)
-    make_dataset(dataset_name, response.json())
+    make_dataset(dataset_name, user, response.json())
 
-def make_dataset(dataset_name, document_list):
-    dataset = Dataset.query.filter_by(dataset_name=dataset_name).one_or_none()
+def make_dataset(dataset_name, user, document_list):
+    dataset = Dataset.query.filter_by(dataset_name=dataset_name, user=user).one_or_none()
     if dataset:
-        DocumentDatasetRelation.query.filter_by(dataset_id = dataset.id).delete()
+        DocumentDatasetRelation.query.filter_by(dataset_id = dataset.id, name=name).delete()
     else:
         dataset = Dataset(dataset_name=dataset_name,
+                          user=user,
                           hash_value=get_hash_value(dataset_name))
         db.session.add(dataset)
     db.session.commit()

@@ -288,7 +288,8 @@ class Documentset:
         self.user = user
         if run.root_dataset_id is not None:
             self.data_type = "dataset"
-            self.data = run.root_dataset.dataset_name
+            self.data = {"name":run.root_dataset.dataset_name,
+                         "user":run.root_dataset.user}
         elif run.root_solr_query_id is not None:
             self.data_type = "search_query"
             self.data = run.root_solr_query.search_query
@@ -296,6 +297,7 @@ class Documentset:
             raise Exception("Unknown documentset for run %s" % run)
 
     def make_task(self, processor_name, task_parameters={}):
+        current_app.logger.debug("PARAMETERS: %s" %task_parameters)
         return generate_task(
             {"processor": processor_name, self.data_type: self.data, "parameters": task_parameters},
             user=self.user,

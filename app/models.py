@@ -54,7 +54,8 @@ class Dataset(db.Model):
     __tablename__ = "dataset"
     id = db.Column(db.Integer, primary_key=True)
     dataset_name = db.Column(db.String(255))
-    __table_args__ = (UniqueConstraint("dataset_name", name="uq_dataset_name"),)
+    user = db.Column(db.String(255))
+    __table_args__ = (UniqueConstraint("dataset_name", "user", name="uq_dataset_name_and_user"),)
     documents = db.relationship(
         "DocumentDatasetRelation", back_populates="dataset"
     )

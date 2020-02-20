@@ -104,22 +104,23 @@ def generate_task(query, user=current_user, parent_id=None, return_task=False):
     stores them in the database
     returns task objects or task ids
     """
-    # TODO: current_user doesn't work
+    current_app.logger.debug("QUERYYYYYYYYYYYYY: %s" %query)
     task_parameters, processor = verify_analysis_parameters(query)
     task = Task(
             processor_id=processor.id,
             force_refresh=bool(task_parameters.get("force_refresh", False)),
             user_id=user.id,
-            input_data="solr_query",
             task_status="created",
             parameters=task_parameters.get("parameters", {})
         )
-
+    
 
     
     if task_parameters.get("dataset"):
-        task.dataset = get_dataset(task_parameters["dataset"])
+        input_data="dataset"
+        task.dataset_id = get_dataset(task_parameters["dataset"]).id
     elif task_parameters.get("search_query"):
+        input_data="solr_query"
         task.solr_query = get_solr_query(task_parameters["search_query"])
     else:
         raise NotImplementedError("Taking a source_uuid as an input is not ready yet")

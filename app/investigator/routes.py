@@ -24,7 +24,7 @@ class Investigator(Resource):
     post_parser = AuthParser()
 
     post_parser.add_argument(
-        "dataset", location="json", help="The name of the dataset to apply processor",
+        "dataset", type=dict, location="json", help="The name of the dataset to apply processor",
     )
 
     post_parser.add_argument(
