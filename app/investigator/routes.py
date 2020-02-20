@@ -102,7 +102,7 @@ class Run(Resource):
             uuid = args.get("node")
             Table = InvestigatorResult
         else:
-            raise BadRequest("A 'run' or 'node' must be in a query")
+            raise BadRequest("Wrong query args: %s. A 'run' or 'node' must be in a query" %args)
 
         try:
             uuid = UUID(uuid)

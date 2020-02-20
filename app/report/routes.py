@@ -10,7 +10,7 @@ from werkzeug.exceptions import NotFound, BadRequest
 from flask import current_app
 
 
-@ns.route("/")
+@ns.route("/report")
 @ns.param("task_uuid", "The UUID of the analysis task for which a report should be retrieved")
 class ReportTask(Resource):
     parser = AuthParser()
