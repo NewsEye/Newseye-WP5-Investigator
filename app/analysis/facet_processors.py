@@ -4,6 +4,7 @@ from app.utils.search_utils import search_database
 from app.analysis import assessment
 import pandas as pd
 from flask import current_app
+from copy import copy
 
 FACETS_KEY = "facets"
 FACET_ID_KEY = "name"
@@ -89,30 +90,38 @@ class GenerateTimeSeries(AnalysisUtility):
 
         original_search = self.task.search_query
 
-        if self.task.solr_query:
-            queries = [{"fq": "{}:{}".format(year_facet, item)} for item in years_in_data]
-            for q in queries:
-                q.update(original_search)
-        elif self.task.dataset:
-            queries = [{"q" : item, "qf" : year_facet, 'fq':original_search["fq"]} for item in years_in_data]
-        else:
-            raise NotImplementedError
+        
+        fq = original_search.get("fq", [])
+        if isinstance(fq, str):
+            fq = [fq]
+        current_app.logger.debug("FQQQQQQQQQQQQQQ: %s" %fq)
+        
+        queries = []
+        years = []
+        for year in years_in_data:
+            q = copy(original_search)
+            q["fq"]=[*fq, "{}:{}".format(year_facet, year)]
+            queries.append(q)
+            years.append(year)
+       #
+       #
+       # if self.task.solr_query:
+       #     queries = [{"fq": "{}:{}".format(year_facet, item)} for item in years_in_data]
+       #     for q in queries:
+       #         q.update(original_search) 
+       # elif self.task.dataset:
+       #     queries = [{"q" : item, "qf" : year_facet, 'fq':original_search["fq"]} for item in years_in_data]
+       # else:
+       #     raise NotImplementedError
         
           
         query_results = await search_database(queries, retrieve="facets")
 
         f_counts = []
-        for query, result in zip(queries, query_results):
+        for year, result in zip(years, query_results):
             if result is None:
                 current_app.logger.error("Empty query result in generate_time_series")
                 continue
-            if self.task.solr_query:
-                year = query["fq"].split(":")[1]
-            elif self.task.dataset:
-                current_app.logger.debug("QUERY: %s" %query)
-                year = query["q"]
-            else:
-                raise NotImplementedError
             
             total_hits = result["numFound"]
             for facet in result[FACETS_KEY]:

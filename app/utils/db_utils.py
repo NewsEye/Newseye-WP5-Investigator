@@ -104,7 +104,6 @@ def generate_task(query, user=current_user, parent_id=None, return_task=False):
     stores them in the database
     returns task objects or task ids
     """
-    current_app.logger.debug("QUERYYYYYYYYYYYYY: %s" %query)
     task_parameters, processor = verify_analysis_parameters(query)
     task = Task(
             processor_id=processor.id,
@@ -113,9 +112,6 @@ def generate_task(query, user=current_user, parent_id=None, return_task=False):
             task_status="created",
             parameters=task_parameters.get("parameters", {})
         )
-    
-
-    
     if task_parameters.get("dataset"):
         input_data="dataset"
         task.dataset_id = get_dataset(task_parameters["dataset"]).id
