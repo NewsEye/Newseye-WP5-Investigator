@@ -72,10 +72,10 @@ class Investigator(Resource):
 
         try:
             run = controller.investigator_run(args)
-
+            current_app.logger.debug("STATUS %s" %run.run_status)
             if run.run_status == "finished":
                 return InvestigatorRun.query.filter_by(uuid=run.uuid).first().dict(style="result")
-            elif run.run_status == "running":
+            elif run.run_status in ["running", "initializing"]:
                 return run.dict(), 202
             else:
                 raise InternalServerError

@@ -29,9 +29,9 @@ def verify_data(args):
     if args.get("dataset") and args.get("search_query"):
         raise BadREquest("You cannot specify 'dataset' and 'search query' in the same time")
 
-    if args.get("dataset"):
-        get_dataset(args.get("dataset")) # this will raise an exeption if something is wrong
-
+#    if args.get("dataset"):
+#        get_dataset(args.get("dataset")) # this will raise an exeption if something is wrong
+#
 
 def verify_analysis_parameters(args):
     """ 

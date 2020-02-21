@@ -8,6 +8,8 @@ from app.investigator import processorsets
 from flask import current_app
 import asyncio
 from datetime import datetime
+from app.utils.db_utils import get_solr_query
+from app.utils.dataset_utils import get_dataset
 
 class Investigator:
     def __init__(self, run_uuid, planner):
@@ -30,10 +32,14 @@ class Investigator:
     def queue_state(self):
         return self.task_queue.queue_state()
 
-    async def initialize_run(self, continue_from_node=None):
+    async def initialize_run(self, user_args, continue_from_node=None):
         """
         run initialization:
-        """
+        """        
+        self.update_status("initializing")
+
+        await self.get_data(user_args)
+        
         if continue_from_node:
             # continue investigations from a given node
             raise NotImplementedError
@@ -194,7 +200,15 @@ class Investigator:
         return why, action
 
     # HELPERS
+    async def get_data(self, user_args):
+        if user_args.get("dataset"):
+            self.run.root_dataset=get_dataset(user_args["dataset"])
+        elif user_args.get("search_query"):
+            self.run.root_solr_query=get_solr_query(user_args["search_query"])
+        else:
+            raise NotImplementedError
 
+    
     def check_for_stop(self):
         if self.run.user_parameters["describe"]:
             self.to_stop = {"user_parameters": "describe"}

@@ -27,9 +27,8 @@ def execute_task(args):
     t.start()
 
     # Wait until the thread has started the tasks before responding to the user
-    i = 0
     while Task.query.filter(Task.uuid == task_uuid, Task.task_status == "created").count() > 0:
-        time.sleep(1)
+        time.sleep(0.1)
 
     current_app.logger.debug(Task.query.filter(Task.uuid == task_uuid).one_or_none())
 
@@ -51,26 +50,25 @@ def investigator_run(args):
     run_uuid = generate_investigator_run(args)
 
     t = threading.Thread(
-        target=run_thread, args=[current_app._get_current_object(), current_user.id, run_uuid],
+        target=run_thread, args=[current_app._get_current_object(), current_user.id, run_uuid, args],
     )
     t.setDaemon(False)
     t.start()
 
-    i = 0
     while (
         InvestigatorRun.query.filter(
             InvestigatorRun.uuid == run_uuid, InvestigatorRun.run_status == "created"
         ).count()
         > 0
     ):
-        time.sleep(1)
+        time.sleep(0.1)
 
     return InvestigatorRun.query.filter(InvestigatorRun.uuid == run_uuid).one_or_none()
 
 
-def run_thread(app, user_id, run_uuid):
+def run_thread(app, user_id, run_uuid, user_args):
     with app.app_context():
         planner = TaskPlanner(User.query.get(user_id))
         investigator = Investigator(run_uuid, planner)
-        asyncio.run(investigator.initialize_run())
+        asyncio.run(investigator.initialize_run(user_args))
         asyncio.run(investigator.act())

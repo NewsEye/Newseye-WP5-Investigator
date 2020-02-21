@@ -169,6 +169,7 @@ task_result_relation = db.Table(
 )
 
 
+
 class Task(db.Model):
     __tablename__ = "task"
     id = db.Column(db.Integer, primary_key=True)

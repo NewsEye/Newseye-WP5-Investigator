@@ -9,6 +9,7 @@ from pprint import pprint
 from uuid import UUID
 from werkzeug.exceptions import NotFound, BadRequest
 
+# TODO: async reports
 
 def make_report(args):
 
@@ -37,13 +38,19 @@ def make_report(args):
             "{} {} not found for user {}".format(Table.__name__, uuid, current_user.username)
         )
     report = record.report(report_language, report_format)
-    if report:
+    if valid_report(report):
         current_app.logger.info("Report exists, not generating")
+        current_app.logger.debug("REPORT: %s" %report.report_content)
     else:
         report = generate_report(record, report_language, report_format)
         current_app.logger.debug("GENERATE: report_content: %s" % report.report_content)
     return report.report_content
 
+def valid_report(report):
+    if report:
+        if report.report_content["header"] == "<p>Reporter is unable to produce a report on your selection.</p>":
+            return False
+        return True
 
 def generate_report(record, report_language, report_format):
 
@@ -55,6 +62,8 @@ def generate_report(record, report_language, report_format):
 
     data = [t.dict("reporter") for t in tasks]
 
+    current_app.logger.debug("DATA: %s" %data)
+    
     payload = {
         "language": report_language,
         "format": report_format,

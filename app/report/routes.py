@@ -29,6 +29,7 @@ class ReportTask(Resource):
         Retrieve a report generated from the task results.
         """
         args = self.parser.parse_args()
+        current_app.logger.debug("ARGS: %s" %args)
         report = make_report(args)
         return report
 
