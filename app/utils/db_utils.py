@@ -145,13 +145,13 @@ def generate_investigator_run(args, user=current_user):
     )
 
     if args.get("dataset"):
+        current_app.logger.debug("DDDDDDDDDDDDDDDDDDDATASET: %s" %args.get("dataset"))
         investigator_run.root_dataset=get_dataset(args["dataset"])
     elif args.get("search_query"):
         investigator_run.root_solr_query=get_solr_query(args["search_query"])
     else:
         raise NotImplementedError
-    check_uuid_and_commit(investigator_run)
-    
+    check_uuid_and_commit(investigator_run)    
     return investigator_run.uuid
 
 
