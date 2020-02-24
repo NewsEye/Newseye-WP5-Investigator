@@ -310,7 +310,7 @@ class Result(db.Model):
     interestingness = db.Column(db.JSON)
     last_updated = db.Column(db.DateTime, default=datetime.utcnow)
     result_reports = db.relationship("Report", back_populates="result")
-
+   
     def __repr__(self):
         return "<Result id: {} date: {} tasks: {} >".format(self.id, self.last_updated, self.tasks)
 
@@ -336,7 +336,15 @@ class Report(db.Model):
     report_language = db.Column(db.String(255))
     report_format = db.Column(db.String(255))
     report_content = db.Column(db.JSON)
+    head_generation_error = db.Column(db.String(255))
+    body_generation_error = db.Column(db.String(255))
+
     report_generated = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def dict(self):
+        ret = self.report_content
+        ret.update({"language" : self.report_language})
+        return ret
 
     def __repr__(self):
         return "<Report>"

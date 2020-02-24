@@ -43,14 +43,16 @@ def make_report(args):
         current_app.logger.debug("REPORT: %s" %report.report_content)
     else:
         report = generate_report(record, report_language, report_format)
-        current_app.logger.debug("GENERATE: report_content: %s" % report.report_content)
-    return report.report_content
+        current_app.logger.debug("GENERATE: %s")
+    try:
+        return report.report_content
+    except:
+        current_app.logger.debug("REPORT: %s type %s" %(report, type(report)))
+        return report
 
 def valid_report(report):
     if report:
-        if report.report_content["header"] == "<p>Reporter is unable to produce a report on your selection.</p>":
-            return False
-        return True
+        return not (report.head_generation_error or report.body_generation_error)
 
 def generate_report(record, report_language, report_format):
 
@@ -62,7 +64,7 @@ def generate_report(record, report_language, report_format):
 
     data = [t.dict("reporter") for t in tasks]
 
-    current_app.logger.debug("DATA: %s" %data)
+    # current_app.logger.debug("DATA: %s" %data)
     
     payload = {
         "language": report_language,
@@ -70,34 +72,29 @@ def generate_report(record, report_language, report_format):
         "data": json.dumps(data),
     }
 
+    # current_app.logger.debug("PAYLOAD: %s" %payload)  
     response = requests.post(Config.REPORTER_URI + "/report", data=payload)
 
-    #    current_app.logger.debug("RESPONSE %s" % response.text)
+    try:
+        report = response.json()
+    except:
+        return {"error" : "%s: %s" %(response.status_code, response.reason)}
 
-    report_content = response.json()
-
+    report = Report( 
+        report_language = report.get("language", report_language),
+        report_format = report_format,
+        report_content = {"header" : report.get("header"),
+                          "body" : report.get("body")},
+        head_generation_error = report.get("head_generation_error"),
+        body_generation_error = report.get("body_generation_error"))
+        
     if isinstance(record, Task):
-        report = Report(
-            report_language=report_language,
-            report_format=report_format,
-            report_content=report_content,
-            result_id=record.task_result.id,
-        )
+        report.result_id=record.task_result.id
     elif isinstance(record, InvestigatorRun):
-        report = Report(
-            report_language=report_language,
-            report_format=report_format,
-            report_content=report_content,
-            run_id=record.id,
-        )
+        report.run_id=record.id
     elif isinstance(record, InvestigatorResult):
-        report = Report(
-            report_language=report_language,
-            report_format=report_format,
-            report_content=report_content,
-            node_id=record.id,
-        )
-
+        report.node_id=record.id
+        
     db.session.add(report)
     db.session.commit()
 
