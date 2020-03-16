@@ -29,6 +29,23 @@ Clone the Repository and Create Virtual Environment
 PyICU from the requirements may need some manual configuration to
 install correctly.
 
+PyICU requires libicu-dev Ubuntu package to work => if installing PyICU causes an error message, do
+
+>> sudo apt-get install libicu-dev
+
+and THEN
+
+pip install -r requirements.txt
+
+
+Summarization requires additional models:
+see app/analysis/summarization/readme.txt
+
+python -m spacy download en
+python -m spacy download fr
+python -m spacy download xx_ent_wiki_sm
+
+
 Install PostgreSQL
 ------------------
 

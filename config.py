@@ -27,7 +27,7 @@ class Config(object):
     TOPIC_MODEL_URI = "https://newseye-wp4.cs.helsinki.fi"
 
     # credentials for the dataset API
-    DATASET_URI = "https://platform2.newseye.eu"
+    DATASET_URI = "https://platform.newseye.eu"
     DATASET_EMAIL = "pra@newseye.eu"
     DATASET_PASSWORD = os.environ.get("DATASET_PASSWORD")
     
@@ -48,7 +48,7 @@ class Config(object):
             "qf": "all_text_tfr_siv all_text_tfi_siv all_text_tde_siv all_text_tse_siv",
         },
         "all": {
-            "fl": "system_create_dtsi, system_modified_dtsi, has_model_ssim, id, title_ssi, date_created_dtsi, date_created_ssim, language_ssi, original_uri_ss, nb_pages_isi, thumbnail_url_ss, member_ids_ssim, object_ids_ssim, member_of_collection_ids_ssim, timestamp, year_isi, _version_, all_text_tfi_siv, score",
+            "fl": "system_create_dtsi, system_modified_dtsi, has_model_ssim, id, title_ssi, date_created_dtsi, date_created_ssim, language_ssi, original_uri_ss, nb_pages_isi, thumbnail_url_ss, member_ids_ssim, object_ids_ssim, member_of_collection_ids_ssim, timestamp, year_isi, _version_, all_text_tfr_siv, all_text_tfi_siv, all_text_tde_siv, all_text_tse_siv, score",
             "facet.field": [
                 "year_isi",
                 "language_ssi",

@@ -9,7 +9,7 @@ from flask import current_app
 import json
 
 def get_dataset(dataset):
-    current_app.logger.debug("DATASET!!!!!!: %s type: %s" %(dataset, type(dataset)))
+    # current_app.logger.debug("DATASET!!!!!!: %s type: %s" %(dataset, type(dataset)))
     dataset_name, user = dataset["name"], dataset["user"]
     dataset = Dataset.query.filter_by(dataset_name=dataset_name, user=user).one_or_none()
     if not dataset or not uptodate(dataset):
@@ -39,6 +39,8 @@ def get_hash_value(dataset_name,  user):
     'authorization': get_token()
     }
     response = requests.request("POST", url, data=payload, headers=headers, verify=False)
+    #current_app.logger.debug("PAYLOAD: %s" %payload)
+    #current_app.logger.debug("RESPONSE: %s" %response)
     for d in response.json():
         if d[0] == dataset_name:
             return str(d[1])
@@ -53,17 +55,17 @@ def request_dataset(dataset_name, user):
     'content-type': "application/json",
     'authorization': get_token()
     }
-    current_app.logger.debug("PAYLOAD: %s" %payload)
+    #current_app.logger.debug("PAYLOAD: %s" %payload)
     
     response = requests.request("POST", url, data=payload, headers=headers, verify=False)
-    current_app.logger.debug("RESPONSE: %s" %response.json())
+    #current_app.logger.debug("RESPONSE: %s" %response.json())
     make_dataset(dataset_name, user, response.json())
 
 def make_dataset(dataset_name, user, document_list):
     dataset = Dataset.query.filter_by(dataset_name=dataset_name, user=user).one_or_none()
-    current_app.logger.debug("make_dataset: %s" %dataset)
+    #current_app.logger.debug("make_dataset: %s" %dataset)
     if dataset:
-        DocumentDatasetRelation.query.filter_by(dataset_id = dataset.id, name=name).delete()
+        DocumentDatasetRelation.query.filter_by(dataset_id = dataset.id).delete()
     else:
         dataset = Dataset(dataset_name=dataset_name,
                           user=user,
@@ -71,11 +73,11 @@ def make_dataset(dataset_name, user, document_list):
         current_app.logger.debug("else: %s" %dataset)
         db.session.add(dataset)
     db.session.commit()
-    current_app.logger.debug("made_dataset: %s" %dataset)
+    #current_app.logger.debug("made_dataset: %s" %dataset)
     relations = []
     for d in document_list:
         if d["type"] != "article":
-            # TODO: add all documents from this issues?
+            # TODO: add all documents from these issues?
             # for now: skip
             continue
         document = get_document(d["id"])
