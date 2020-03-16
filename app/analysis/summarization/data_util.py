@@ -3,7 +3,7 @@
 # author_email = elvyslpontes@gmail.com
 # Description =
 # version = 0.0.1
-
+from flask import current_app
 import spacy, os
 from sklearn.metrics.pairwise import cosine_similarity
 import fasttext

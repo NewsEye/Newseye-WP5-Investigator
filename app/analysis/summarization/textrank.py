@@ -1,6 +1,7 @@
 import numpy as np
 import networkx as nx
 from sklearn.metrics.pairwise import cosine_similarity
+from flask import current_app
 
 def textrank(sentences):
     current_app.logger.info("TextRank method ...")

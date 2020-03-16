@@ -2,6 +2,7 @@ import app.analysis.summarization.data_util as data_util
 from math import *
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
+from flask import current_app
 
 def mmr(sentences_emb, summary_indices, document_indices, lambd):
     weights = 0.0
