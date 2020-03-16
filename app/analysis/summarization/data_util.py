@@ -23,11 +23,11 @@ def load_document(path):
 def download_decompress(filename,language):
     if not os.path.exists("data"):
         os.mkdir("data")
-        print("Directory 'data' created ")
+        current_app.logger.info("Directory 'data' created ")
 
-    print("Word embeddings file does not exist.\nDownloading file cc."+language+".300.bin.gz...")
+    current_app.logger.info("Word embeddings file does not exist.\nDownloading file cc."+language+".300.bin.gz...")
     urllib.request.urlretrieve('https://dl.fbaipublicfiles.com/fasttext/vectors-crawl/cc.'+language+'.300.bin.gz', filename+'.gz')
-    print("Extracting file ...")
+    current_app.logger.info("Extracting file ...")
     with gzip.open(filename + '.gz', 'r') as f_in, open(filename, 'wb') as f_out:
         shutil.copyfileobj(f_in, f_out)
     os.remove(filename + '.gz')

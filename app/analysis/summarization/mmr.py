@@ -19,7 +19,7 @@ def mmr(sentences_emb, summary_indices, document_indices, lambd):
     return lambd * weights - (1 - lambd) * penalty
 
 def maximal_marginal_relevance(sentences, sentences_emb, lambd=2, r=0.6, budget=400):
-    print("Maximal Marginal Relevance ...")
+    current_app.logger.info("Maximal Marginal Relevance ...")
     # All sentences together
     document = [ i for i in range(len(sentences)) ]
     G = []

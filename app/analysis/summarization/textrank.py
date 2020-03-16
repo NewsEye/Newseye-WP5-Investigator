@@ -3,7 +3,7 @@ import networkx as nx
 from sklearn.metrics.pairwise import cosine_similarity
 
 def textrank(sentences):
-    print("TextRank method ...")
+    current_app.logger.info("TextRank method ...")
     # Similarity matrix
     sim_mat = np.zeros([len(sentences), len(sentences)])
     for i in range(len(sentences)):
