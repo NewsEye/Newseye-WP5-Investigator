@@ -90,14 +90,17 @@ def similar_to_summary(sentences, candidate, summary, similarity_threshold):
 
 def summary_generation(document, sentences, ranked_sentences, summary_length, similarity_threshold, type_summary):
     summary = []
+    scores = []
     for score, indice in ranked_sentences:
         if type_summary == 'ai':
             if not similar_to_summary(sentences, indice, summary, similarity_threshold):
                 if summary_length >= len(document[indice].split()):
                     summary.append(indice)
+                    scores.append(score)
                     summary_length -= len(document[indice].split())
         else:
             if summary_length >= len(document[indice].split()):
                 summary.append(indice)
+                scores.append(score)
                 summary_length -= len(document[indice].split())
-    return [ document[i] for i in summary ]
+    return [ document[i] for i in summary ], scores

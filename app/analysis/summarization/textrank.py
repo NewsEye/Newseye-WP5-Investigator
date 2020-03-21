@@ -16,4 +16,6 @@ def textrank(sentences):
     scores = nx.pagerank(nx_graph)
     # Sort sentences
     ranked_sentences = sorted(((scores[i],i) for i,s in enumerate(sentences)), reverse=True)
+    scores_ = [ s for (s,i) in ranked_sentences ]
+    ranked_sentences = [ (s/max(scores_),i) for (s,i) in ranked_sentences ]
     return ranked_sentences

@@ -48,6 +48,7 @@ def maximal_marginal_relevance(sentences, sentences_emb, lambd=2, r=0.6, budget=
                 singleton = s
 
     if mmr(sentences_emb, G, document, lambd) > values:
-        return [ (1.0/(pos+1), indice) for pos, indice in enumerate(G) ] + [ (1.0/(len(G)+pos+1), indice) for pos, indice in enumerate(document) if indice not in G ]
+        return [ (1.0/(pos+1), indice) for pos, indice in enumerate(G) ] + [ (1.0/(10*len(G)), indice) for pos, indice in enumerate(document) if indice not in G ]
     else:
-        return [ (1.0, singleton) ] + [ (1.0/(len(G)+pos+1), indice) for pos, indice in enumerate(document) if indice != singleton ]
+        return [ (1.0, singleton) ] + [ (1.0/(10*len(G)), indice) for pos, indice in enumerate(document) if indice != singleton ]
+

@@ -105,21 +105,28 @@ class Summarization(AnalysisUtility):
             
             # -------- Lin and Bilmes -------- #
             lb_sentences = maximal_marginal_relevance(document, document_embeddings, lambd=2, r=0.6, budget=self.task.parameters["summary_length"]) # output: [(pagerank_value, sentence_index)]
+
+            #current_app.logger.debug("LB_SENTENCES: %s" %lb_sentences)
+            
             summary = data_util.summary_generation(document, document_embeddings, lb_sentences, self.task.parameters["summary_length"], self.task.parameters["similarity_threshold"], self.task.parameters["type_summary"])
             
         elif self.task.parameters["ts_approach"] == 'textrank':
             # -------- TextRank -------- #
             textrank_sentences = textrank(document_embeddings) # output: [(pagerank_value, sentence_index)]
-            summary = data_util.summary_generation(document, document_embeddings, textrank_sentences, self.task.parameters["summary_length"], self.task.parameters["similarity_threshold"], self.task.parameters["type_summary"])
 
+            #current_app.logger.debug("TEXTRANK_SENTENCES: %s" %textrank_sentences)
+            
+            summary, scores = data_util.summary_generation(document, document_embeddings, textrank_sentences, self.task.parameters["summary_length"], self.task.parameters["similarity_threshold"], self.task.parameters["type_summary"])
 
-        # current_app.logger.debug("SUMMARY: %s" %summary)
+        self.scores = scores
+        #current_app.logger.debug("SUMMARY: %s" %summary)
+        #current_app.logger.debug("scores: %s" %scores)
             
             
         return {"summary":summary}
 
     async def estimate_interestingness(self):
         #TODO:
-        return {"summary":1.0}
+        return {"sentence_scores":self.scores}
             
 
