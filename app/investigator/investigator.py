@@ -2,7 +2,13 @@ import heapq
 import itertools
 from app import db
 from app.utils.db_utils import generate_task, generate_investigator_node
-from app.models import Task, Processor, InvestigatorRun, InvestigatorAction, InvestigatorResult
+from app.models import (
+    Task,
+    Processor,
+    InvestigatorRun,
+    InvestigatorAction,
+    InvestigatorResult,
+)
 from copy import copy
 from app.investigator import processorsets
 from flask import current_app
@@ -10,6 +16,7 @@ import asyncio
 from datetime import datetime
 from app.utils.db_utils import get_solr_query
 from app.utils.dataset_utils import get_dataset
+
 
 class Investigator:
     def __init__(self, run_uuid, planner):
@@ -35,11 +42,11 @@ class Investigator:
     async def initialize_run(self, user_args, continue_from_node=None):
         """
         run initialization:
-        """        
+        """
         self.update_status("initializing")
 
         await self.get_data(user_args)
-        
+
         if continue_from_node:
             # continue investigations from a given node
             raise NotImplementedError
@@ -92,7 +99,7 @@ class Investigator:
             action=action,
             input_queue=input_q,
             output_queue=self.queue_state,
-            timestamp=datetime.utcnow()
+            timestamp=datetime.utcnow(),
         )
 
         current_app.logger.debug("DB_ACTION: %s" % db_action)
@@ -136,7 +143,9 @@ class Investigator:
         self.done_tasks += self.task_list(tasks)
         self.run.done_tasks = self.done_tasks
 
-        self.executed_tasks = [t for t in tasks if t.task_status == "finished"]  # maybe "failed"
+        self.executed_tasks = [
+            t for t in tasks if t.task_status == "finished"
+        ]  # maybe "failed"
         why = {"status": "finished"}
         action = {"execute_tasks": self.task_list(self.executed_tasks)}
 
@@ -202,13 +211,12 @@ class Investigator:
     # HELPERS
     async def get_data(self, user_args):
         if user_args.get("dataset"):
-            self.run.root_dataset=get_dataset(user_args["dataset"])
+            self.run.root_dataset = get_dataset(user_args["dataset"])
         elif user_args.get("search_query"):
-            self.run.root_solr_query=get_solr_query(user_args["search_query"])
+            self.run.root_solr_query = get_solr_query(user_args["search_query"])
         else:
             raise NotImplementedError
 
-    
     def check_for_stop(self):
         if self.run.user_parameters["describe"]:
             self.to_stop = {"user_parameters": "describe"}
@@ -224,7 +232,9 @@ class Investigator:
 
     def make_tasks(self, processorset, documentset):
         # TODO: processor parameters
-        return [documentset.make_task(processor_name) for processor_name in processorset]
+        return [
+            documentset.make_task(processor_name) for processor_name in processorset
+        ]
 
     def estimate_node_interestingness(self, results):
         # self is currently not used but might be useful to estimate interestingness
@@ -305,8 +315,10 @@ class Documentset:
         self.user = user
         if run.root_dataset_id is not None:
             self.data_type = "dataset"
-            self.data = {"name":run.root_dataset.dataset_name,
-                         "user":run.root_dataset.user}
+            self.data = {
+                "name": run.root_dataset.dataset_name,
+                "user": run.root_dataset.user,
+            }
         elif run.root_solr_query_id is not None:
             self.data_type = "search_query"
             self.data = run.root_solr_query.search_query
@@ -314,9 +326,13 @@ class Documentset:
             raise Exception("Unknown documentset for run %s" % run)
 
     def make_task(self, processor_name, task_parameters={}):
-        current_app.logger.debug("PARAMETERS: %s" %task_parameters)
+        current_app.logger.debug("PARAMETERS: %s" % task_parameters)
         return generate_task(
-            {"processor": processor_name, self.data_type: self.data, "parameters": task_parameters},
+            {
+                "processor": processor_name,
+                self.data_type: self.data,
+                "parameters": task_parameters,
+            },
             user=self.user,
             return_task=True,
         )

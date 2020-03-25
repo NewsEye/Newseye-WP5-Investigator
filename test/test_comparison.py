@@ -14,10 +14,16 @@ class TestComparison(TestUtility):
 
     headers, url = read_config()
     response1 = requests.request(
-        "POST", url=url, data=payload1, headers={"content-type": "application/json", **headers},
+        "POST",
+        url=url,
+        data=payload1,
+        headers={"content-type": "application/json", **headers},
     )
     response2 = requests.request(
-        "POST", url=url, data=payload2, headers={"content-type": "application/json", **headers},
+        "POST",
+        url=url,
+        data=payload2,
+        headers={"content-type": "application/json", **headers},
     )
     responses = [response1, response2]
 

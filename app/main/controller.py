@@ -21,13 +21,17 @@ def execute_task(args):
     # TODO: allow user to cancel task
     # currently each user query starts  a new thred (why?) and it's impossible to call tasks that are already running
     t = threading.Thread(
-        target=task_thread, args=[current_app._get_current_object(), current_user.id, task_uuid],
+        target=task_thread,
+        args=[current_app._get_current_object(), current_user.id, task_uuid],
     )
     t.setDaemon(False)
     t.start()
 
     # Wait until the thread has started the tasks before responding to the user
-    while Task.query.filter(Task.uuid == task_uuid, Task.task_status == "created").count() > 0:
+    while (
+        Task.query.filter(Task.uuid == task_uuid, Task.task_status == "created").count()
+        > 0
+    ):
         time.sleep(0.1)
 
     current_app.logger.debug(Task.query.filter(Task.uuid == task_uuid).one_or_none())
@@ -50,7 +54,8 @@ def investigator_run(args):
     run_uuid = generate_investigator_run(args)
 
     t = threading.Thread(
-        target=run_thread, args=[current_app._get_current_object(), current_user.id, run_uuid, args],
+        target=run_thread,
+        args=[current_app._get_current_object(), current_user.id, run_uuid, args],
     )
     t.setDaemon(False)
     t.start()

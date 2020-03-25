@@ -5,7 +5,9 @@ from app.analysis import assessment
 from textprocessing.textprocessing import Corpus
 
 
-def tf_idf(subcorpus, reference, item="token", default_df=0.1, normalization=True, alpha=0.4):
+def tf_idf(
+    subcorpus, reference, item="token", default_df=0.1, normalization=True, alpha=0.4
+):
     # assumed that reference corpus is much bigger and general in
     # terms of topics and word distributions
     # subcorpus in principle can be taken from smth else than
@@ -22,12 +24,15 @@ def tf_idf(subcorpus, reference, item="token", default_df=0.1, normalization=Tru
         tf = subcorpus.lemma_tf()
         df = reference.lemma_df()
 
-    N = len(reference.docid_to_date)  # total number of documents in the reference corpus
+    N = len(
+        reference.docid_to_date
+    )  # total number of documents in the reference corpus
 
     # in case word is not found in the reference it's df set to 0.1
     # there could be other ways to weight/smooth idf
     frame = pd.DataFrame.from_dict(
-        [{"w": w, "tf": tf[w], "df": df[w] if w in df else default_df} for w in tf], dtype=float,
+        [{"w": w, "tf": tf[w], "df": df[w] if w in df else default_df} for w in tf],
+        dtype=float,
     )
 
     frame.idf = np.log(N / frame.df)
@@ -83,4 +88,6 @@ def fr_comparison(corpus1, corpus2, item="token", weights=None, zero_value=0.1):
     else:
         weights = weights
 
-    return assessment.weighted_frequency_ratio(ipm1, ipm2, weights, weight_func=lambda x: x)
+    return assessment.weighted_frequency_ratio(
+        ipm1, ipm2, weights, weight_func=lambda x: x
+    )

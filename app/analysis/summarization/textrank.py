@@ -3,6 +3,7 @@ import networkx as nx
 from sklearn.metrics.pairwise import cosine_similarity
 from flask import current_app
 
+
 def textrank(sentences):
     current_app.logger.info("TextRank method ...")
     # Similarity matrix
@@ -10,12 +11,17 @@ def textrank(sentences):
     for i in range(len(sentences)):
         for j in range(len(sentences)):
             if i != j:
-                sim_mat[i][j] = cosine_similarity(sentences[i].reshape(1,len(sentences[i])), sentences[j].reshape(1,len(sentences[j])))[0,0]
+                sim_mat[i][j] = cosine_similarity(
+                    sentences[i].reshape(1, len(sentences[i])),
+                    sentences[j].reshape(1, len(sentences[j])),
+                )[0, 0]
     # Pagerank algorithm
     nx_graph = nx.from_numpy_array(sim_mat)
     scores = nx.pagerank(nx_graph)
     # Sort sentences
-    ranked_sentences = sorted(((scores[i],i) for i,s in enumerate(sentences)), reverse=True)
-    scores_ = [ s for (s,i) in ranked_sentences ]
-    ranked_sentences = [ (s/max(scores_),i) for (s,i) in ranked_sentences ]
+    ranked_sentences = sorted(
+        ((scores[i], i) for i, s in enumerate(sentences)), reverse=True
+    )
+    scores_ = [s for (s, i) in ranked_sentences]
+    ranked_sentences = [(s / max(scores_), i) for (s, i) in ranked_sentences]
     return ranked_sentences

@@ -16,7 +16,9 @@ async def search_database(queries, **kwargs):
         # if queries: current_app.logger.info("Log, appending searches: {}".format(queries))
         for query in queries:
             tasks.append(query_solr(session, query, **kwargs))
-        results = await asyncio.gather(*tasks, return_exceptions=(not current_app.debug))
+        results = await asyncio.gather(
+            *tasks, return_exceptions=(not current_app.debug)
+        )
         # if results: current_app.logger.info("Searches finished, returning results")
     if return_list:
         return results
@@ -52,7 +54,9 @@ async def query_solr(
     solr_uri = Config.SOLR_URI + solr_index
 
     # First read the default parameters for the query
-    parameters = {key: value for key, value in Config.SOLR_PARAMETERS["default"].items()}
+    parameters = {
+        key: value for key, value in Config.SOLR_PARAMETERS["default"].items()
+    }
     # If parameters specific to the chosen retrieve value are found, they override the defaults
     if retrieve in Config.SOLR_PARAMETERS.keys():
         for key, value in Config.SOLR_PARAMETERS[retrieve].items():
@@ -80,7 +84,9 @@ async def query_solr(
         # Set a limit for the maximum number of documents to fetch at one go to 100000
         parameters["rows"] = min(num_results, max_return_value)
         if num_results > max_return_value:
-            current_app.logger.debug("TOO MANY RAWS TO RETURN, returnung %d" % max_return_value)
+            current_app.logger.debug(
+                "TOO MANY RAWS TO RETURN, returnung %d" % max_return_value
+            )
 
         async with session.get(solr_uri, json={"params": parameters}) as response:
             if response.status == 401:

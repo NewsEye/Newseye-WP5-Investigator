@@ -36,7 +36,10 @@ class AnalysisTaskList(Resource):
     )
 
     post_parser.add_argument(
-        "dataset", type=dict, location="json", help="The name of the dataset to apply processor",
+        "dataset",
+        type=dict,
+        location="json",
+        help="The name of the dataset to apply processor",
     )
 
     post_parser.add_argument(
@@ -69,7 +72,9 @@ class AnalysisTaskList(Resource):
 
     @login_required
     @ns.expect(post_parser)
-    @ns.response(200, "The task has been executed, and the results are ready for retrieval")
+    @ns.response(
+        200, "The task has been executed, and the results are ready for retrieval"
+    )
     @ns.response(202, "The task has been accepted, and is still running.")
     def post(self):
         """
@@ -95,7 +100,9 @@ class AnalysisTaskList(Resource):
 
 
 @ns.route("/<string:task_uuid>")
-@ns.param("task_uuid", "The UUID of the analysis task for which results should be retrieved")
+@ns.param(
+    "task_uuid", "The UUID of the analysis task for which results should be retrieved"
+)
 class AnalysisTask(Resource):
     @login_required
     @ns.expect(AuthParser())
@@ -109,7 +116,9 @@ class AnalysisTask(Resource):
             raise NotFound
         task = Task.query.filter_by(uuid=task_uuid).first()
         if task is None:
-            raise NotFound("Task {} not found for user {}".format(task_uuid, current_user.username))
+            raise NotFound(
+                "Task {} not found for user {}".format(task_uuid, current_user.username)
+            )
         return task.dict(style="result")
 
 

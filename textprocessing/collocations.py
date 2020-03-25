@@ -32,7 +32,10 @@ class Bigrams(object):
         for m in sorted(measure_dict, key=measure_dict.get, reverse=reverse):
             if measure_dict[m] < min_value:
                 break
-            print("%s %s\t%0.2f\t%0.2f" % (m[0], m[1], measure_dict[m], self.bigram_dict[m]))
+            print(
+                "%s %s\t%0.2f\t%0.2f"
+                % (m[0], m[1], measure_dict[m], self.bigram_dict[m])
+            )
 
     def print_dice(self, min_value=0.5):
         self.print_measure(self.dice, min_value=min_value)

@@ -23,7 +23,9 @@ class TestUtility(unittest.TestCase):
         self.assertIn("uuid", self.response, "Response has no uuid")
 
     def expected_result(self):
-        with open(os.path.join(os.path.dirname(__file__), "task_result", self.task_result)) as js:
+        with open(
+            os.path.join(os.path.dirname(__file__), "task_result", self.task_result)
+        ) as js:
             return json.load(js, strict=False)
 
     def test_task_result(self, max_try=10):
@@ -60,10 +62,14 @@ class TestUtilityList(TestUtility):
     task_result = "utility_list_task_result.json"
 
     def setUp(self):
-        self.response = requests.request("GET", self.url, data="", headers=self.headers).json()
+        self.response = requests.request(
+            "GET", self.url, data="", headers=self.headers
+        ).json()
 
     def test_query(self):
-        self.assertEquals(self.response, self.expected_result(), "Unexpected task result")
+        self.assertEquals(
+            self.response, self.expected_result(), "Unexpected task result"
+        )
 
     @unittest.skip("not available for this utility")
     def test_task_result(self):

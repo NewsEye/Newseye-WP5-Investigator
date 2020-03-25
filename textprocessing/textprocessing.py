@@ -19,7 +19,9 @@ class Corpus(object):
 
         self.default_query = {
             "fq": "language_ssi:{}".format(self.lang_id),
-            "fl": "id, language_ssi, date_created_ssim, all_text_t{}_siv".format(self.lang_id),
+            "fl": "id, language_ssi, date_created_ssim, all_text_t{}_siv".format(
+                self.lang_id
+            ),
         }
 
         self.target_query = self.default_query
@@ -62,7 +64,9 @@ class Corpus(object):
             return self.token_bi_to_docids
         elif item == "lemma":
             if not self.lemma_to_docids:
-                raise NotImplementedError("Lemmas are not available for %s." % self.lang_id.upper())
+                raise NotImplementedError(
+                    "Lemmas are not available for %s." % self.lang_id.upper()
+                )
             elif ngram == "1":
                 return self.lemma_to_docids
             elif ngram == "2":
@@ -70,9 +74,13 @@ class Corpus(object):
         raise ValueError("item must be token-X or lemma-X with X=1 or 2")
 
     # TIMESERIES
-    def timeseries(self, item="token-1", granularity="year", min_count=10, word_list=None):
+    def timeseries(
+        self, item="token-1", granularity="year", min_count=10, word_list=None
+    ):
         if not (item in self._timeseries and granularity in self._timeseries[item]):
-            self.build_timeseries(item=item, granularity=granularity, min_count=min_count)
+            self.build_timeseries(
+                item=item, granularity=granularity, min_count=min_count
+            )
         elif not min_count in self._timeseries[item][granularity]:
             # let's see if there is timeseries with smaller min_count, that's would be fine as well
             smaller_min_counts = [
@@ -91,7 +99,9 @@ class Corpus(object):
                     if len(self.find_word_to_doc_dict(item)[w]) >= min_count
                 }
             else:
-                self.build_timeseries(item=item, granularity=granularity, min_count=min_count)
+                self.build_timeseries(
+                    item=item, granularity=granularity, min_count=min_count
+                )
 
         timeseries = self._timeseries[item][granularity][min_count]
         if word_list:
@@ -122,7 +132,9 @@ class Corpus(object):
         total = defaultdict(int)
         timeseries = defaultdict(lambda: defaultdict(int))
 
-        pb = ProgressBar("Building timeseries", total=len(word_to_docids), verbose=self.verbose)
+        pb = ProgressBar(
+            "Building timeseries", total=len(word_to_docids), verbose=self.verbose
+        )
         for (w, docids) in word_to_docids.items():
             pb.next()
             if isinstance(w, tuple):
@@ -176,10 +188,14 @@ class Corpus(object):
     def find_tokens_by_suffix(self, suffix):
         # assume that user would type word in a normal left-to-right form and wants to see result in the same form
         # so we first flip the suffix, than search it in flipped dictionary than flip back the results
-        return [(k[::-1]) for k in self.suffix_token_vocabulary.keys(prefix=suffix[::-1])]
+        return [
+            (k[::-1]) for k in self.suffix_token_vocabulary.keys(prefix=suffix[::-1])
+        ]
 
     def find_lemmas_by_suffix(self, suffix):
-        return [(k[::-1]) for k in self.suffix_lemma_vocabulary.keys(prefix=suffix[::-1])]
+        return [
+            (k[::-1]) for k in self.suffix_lemma_vocabulary.keys(prefix=suffix[::-1])
+        ]
 
     def _find_group_by_affix(self, affix, item):
         if affix[0] == "suffix":

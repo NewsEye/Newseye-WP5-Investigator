@@ -24,7 +24,10 @@ class Investigator(Resource):
     post_parser = AuthParser()
 
     post_parser.add_argument(
-        "dataset", type=dict, location="json", help="The name of the dataset to apply processor",
+        "dataset",
+        type=dict,
+        location="json",
+        help="The name of the dataset to apply processor",
     )
 
     post_parser.add_argument(
@@ -59,7 +62,9 @@ class Investigator(Resource):
 
     @login_required
     @ns.expect(post_parser)
-    @ns.response(200, "The task has been executed, and the results are ready for retrieval")
+    @ns.response(
+        200, "The task has been executed, and the results are ready for retrieval"
+    )
     @ns.response(202, "The task has been accepted, and is still running.")
     def post(self):
         """
@@ -72,9 +77,13 @@ class Investigator(Resource):
 
         try:
             run = controller.investigator_run(args)
-            current_app.logger.debug("STATUS %s" %run.run_status)
+            current_app.logger.debug("STATUS %s" % run.run_status)
             if run.run_status == "finished":
-                return InvestigatorRun.query.filter_by(uuid=run.uuid).first().dict(style="result")
+                return (
+                    InvestigatorRun.query.filter_by(uuid=run.uuid)
+                    .first()
+                    .dict(style="result")
+                )
             elif run.run_status in ["running", "initializing"]:
                 return run.dict(), 202
             else:
@@ -102,7 +111,9 @@ class Run(Resource):
             uuid = args.get("node")
             Table = InvestigatorResult
         else:
-            raise BadRequest("Wrong query args: %s. A 'run' or 'node' must be in a query" %args)
+            raise BadRequest(
+                "Wrong query args: %s. A 'run' or 'node' must be in a query" % args
+            )
 
         try:
             uuid = UUID(uuid)
@@ -110,6 +121,8 @@ class Run(Resource):
             raise NotFound
         ret_value = Table.query.filter_by(uuid=uuid).first()
         if ret_value is None:
-            raise NotFound("{} not found for user {}".format(uuid, current_user.username))
+            raise NotFound(
+                "{} not found for user {}".format(uuid, current_user.username)
+            )
 
         return ret_value.dict(style="result")

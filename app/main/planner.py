@@ -42,12 +42,16 @@ class TaskPlanner(object):
         # current_app.logger.debug("ASYNC_TASKS: %s" %async_tasks)
         # here tasks are actually executed asynchronously
         # returns list of results *or* exceptions if a task fail
-        results = await asyncio.gather(*async_tasks, return_exceptions=(not current_app.debug))
+        results = await asyncio.gather(
+            *async_tasks, return_exceptions=(not current_app.debug)
+        )
 
         #        current_app.logger.debug("RESULTS:%s" %results)
 
         for t in tasks:
-            current_app.logger.info("%s:%s finished, returning results" % (t.processor, t.uuid))
+            current_app.logger.info(
+                "%s:%s finished, returning results" % (t.processor, t.uuid)
+            )
         return results
 
     async def execute_and_store_tasks(self, tasks):
@@ -87,7 +91,9 @@ class TaskPlanner(object):
         if not task.force_refresh:
             # search for similar tasks, reuse results
             if await self.result_exists(task):
-                current_app.logger.debug("NOT RUNNING %s, result exists" % task.processor.name)
+                current_app.logger.debug(
+                    "NOT RUNNING %s, result exists" % task.processor.name
+                )
                 task.task_status = "finished"
                 task.task_finished = datetime.utcnow()
         else:
@@ -119,7 +125,8 @@ class TaskPlanner(object):
             source_utilities = [
                 key
                 for key, value in UTILITY_MAP.items()
-                if key != utility.utility_name and value.output_type == utility.input_type
+                if key != utility.utility_name
+                and value.output_type == utility.input_type
             ]
             if source_utilities:
                 if len(source_utilities) > 1:

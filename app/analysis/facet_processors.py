@@ -80,41 +80,41 @@ class GenerateTimeSeries(AnalysisUtility):
             )
 
         year_facet = AVAILABLE_FACETS["PUB_YEAR"]
-        
+
         for facet in self.input_data[FACETS_KEY]:
             if facet[FACET_ID_KEY] == year_facet:
                 years_in_data = [item["value"] for item in facet["items"]]
                 break
         else:
-            raise TypeError("Search results don't contain required facet {}".format(year_facet))
+            raise TypeError(
+                "Search results don't contain required facet {}".format(year_facet)
+            )
 
         original_search = self.task.search_query
 
-        
         fq = original_search.get("fq", [])
         if isinstance(fq, str):
             fq = [fq]
-        current_app.logger.debug("FQQQQQQQQQQQQQQ: %s" %fq)
-        
+        current_app.logger.debug("FQQQQQQQQQQQQQQ: %s" % fq)
+
         queries = []
         years = []
         for year in years_in_data:
             q = copy(original_search)
-            q["fq"]=[*fq, "{}:{}".format(year_facet, year)]
+            q["fq"] = [*fq, "{}:{}".format(year_facet, year)]
             queries.append(q)
             years.append(year)
-       #
-       #
-       # if self.task.solr_query:
-       #     queries = [{"fq": "{}:{}".format(year_facet, item)} for item in years_in_data]
-       #     for q in queries:
-       #         q.update(original_search) 
-       # elif self.task.dataset:
-       #     queries = [{"q" : item, "qf" : year_facet, 'fq':original_search["fq"]} for item in years_in_data]
-       # else:
-       #     raise NotImplementedError
-        
-          
+        #
+        #
+        # if self.task.solr_query:
+        #     queries = [{"fq": "{}:{}".format(year_facet, item)} for item in years_in_data]
+        #     for q in queries:
+        #         q.update(original_search)
+        # elif self.task.dataset:
+        #     queries = [{"q" : item, "qf" : year_facet, 'fq':original_search["fq"]} for item in years_in_data]
+        # else:
+        #     raise NotImplementedError
+
         query_results = await search_database(queries, retrieve="facets")
 
         f_counts = []
@@ -122,13 +122,18 @@ class GenerateTimeSeries(AnalysisUtility):
             if result is None:
                 current_app.logger.error("Empty query result in generate_time_series")
                 continue
-            
+
             total_hits = result["numFound"]
             for facet in result[FACETS_KEY]:
                 if facet[FACET_ID_KEY] == facet_string:
                     f_counts.extend(
                         [
-                            [year, item["value"], item["hits"], item["hits"] / total_hits]
+                            [
+                                year,
+                                item["value"],
+                                item["hits"],
+                                item["hits"] / total_hits,
+                            ]
                             for item in facet["items"]
                         ]
                     )
@@ -138,8 +143,12 @@ class GenerateTimeSeries(AnalysisUtility):
         # TODO: get all years available in the database
 
         df = pd.DataFrame(f_counts, columns=["year", facet_name, "count", "rel_count"])
-        abs_counts = df.pivot(index=facet_name, columns="year", values="count").fillna(0)
-        rel_counts = df.pivot(index=facet_name, columns="year", values="rel_count").fillna(0)
+        abs_counts = df.pivot(index=facet_name, columns="year", values="count").fillna(
+            0
+        )
+        rel_counts = df.pivot(
+            index=facet_name, columns="year", values="rel_count"
+        ).fillna(0)
         analysis_results = {
             "absolute_counts": self.make_dict(abs_counts),
             "relative_counts": self.make_dict(rel_counts),
@@ -150,7 +159,11 @@ class GenerateTimeSeries(AnalysisUtility):
     def make_dict(counts):
         count_dict = counts.to_dict(orient="index")
         info = pd.concat(
-            [counts[counts > 0].min(axis=1), counts.max(axis=1), counts[counts > 0].mean(axis=1)],
+            [
+                counts[counts > 0].min(axis=1),
+                counts.max(axis=1),
+                counts[counts > 0].mean(axis=1),
+            ],
             axis=1,
         )
         info.columns = ["min", "max", "avg"]
@@ -168,5 +181,6 @@ class GenerateTimeSeries(AnalysisUtility):
         }
         interestingness = assessment.recoursive_distribution(rel_counts)
         return {
-            k: (assessment.normalized_entropy(v.values()), v) for k, v in interestingness.items()
+            k: (assessment.normalized_entropy(v.values()), v)
+            for k, v in interestingness.items()
         }

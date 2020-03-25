@@ -4,6 +4,7 @@ from app.models import User, Result, Task, Report
 app = create_app()
 
 from app.analysis import initialize_processors
+
 initialize_processors(app)
 
 

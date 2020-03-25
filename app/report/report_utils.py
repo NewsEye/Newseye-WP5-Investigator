@@ -11,6 +11,7 @@ from werkzeug.exceptions import NotFound, BadRequest
 
 # TODO: async reports
 
+
 def make_report(args):
 
     report_language = args["language"]
@@ -35,24 +36,28 @@ def make_report(args):
     record = Table.query.filter_by(uuid=uuid, user_id=current_user.id).first()
     if record is None:
         raise NotFound(
-            "{} {} not found for user {}".format(Table.__name__, uuid, current_user.username)
+            "{} {} not found for user {}".format(
+                Table.__name__, uuid, current_user.username
+            )
         )
     report = record.report(report_language, report_format)
     if valid_report(report):
         current_app.logger.info("Report exists, not generating")
-        current_app.logger.debug("REPORT: %s" %report.report_content)
+        current_app.logger.debug("REPORT: %s" % report.report_content)
     else:
         report = generate_report(record, report_language, report_format)
         current_app.logger.debug("GENERATE: %s")
     try:
         return report.report_content
     except:
-        current_app.logger.debug("REPORT: %s type %s" %(report, type(report)))
+        current_app.logger.debug("REPORT: %s type %s" % (report, type(report)))
         return report
+
 
 def valid_report(report):
     if report:
         return not (report.head_generation_error or report.body_generation_error)
+
 
 def generate_report(record, report_language, report_format):
 
@@ -61,40 +66,40 @@ def generate_report(record, report_language, report_format):
     else:
         task_uuids = [task["uuid"] for task in record.result]
         tasks = Task.query.filter(Task.uuid.in_(task_uuids)).all()
-
+      
     data = [t.dict("reporter") for t in tasks]
 
     # current_app.logger.debug("DATA: %s" %data)
-    
+
     payload = {
         "language": report_language,
         "format": report_format,
         "data": json.dumps(data),
     }
 
-    # current_app.logger.debug("PAYLOAD: %s" %payload)  
+    # current_app.logger.debug("PAYLOAD: %s" %payload)
     response = requests.post(Config.REPORTER_URI + "/report", data=payload)
 
     try:
         report = response.json()
     except:
-        return {"error" : "%s: %s" %(response.status_code, response.reason)}
+        return {"error": "%s: %s" % (response.status_code, response.reason)}
 
-    report = Report( 
-        report_language = report.get("language", report_language),
-        report_format = report_format,
-        report_content = {"header" : report.get("header"),
-                          "body" : report.get("body")},
-        head_generation_error = report.get("head_generation_error"),
-        body_generation_error = report.get("body_generation_error"))
-        
+    report = Report(
+        report_language=report.get("language", report_language),
+        report_format=report_format,
+        report_content={"header": report.get("header"), "body": report.get("body")},
+        head_generation_error=report.get("head_generation_error"),
+        body_generation_error=report.get("body_generation_error"),
+    )
+
     if isinstance(record, Task):
-        report.result_id=record.task_result.id
+        report.result_id = record.task_result.id
     elif isinstance(record, InvestigatorRun):
-        report.run_id=record.id
+        report.run_id = record.id
     elif isinstance(record, InvestigatorResult):
-        report.node_id=record.id
-        
+        report.node_id = record.id
+
     db.session.add(report)
     db.session.commit()
 
@@ -133,7 +138,9 @@ def get_history(make_tree=True):
 
 
 def get_parents(tasks):
-    raise NotImplementedError("Need to update get_parents function for new data structures")
+    raise NotImplementedError(
+        "Need to update get_parents function for new data structures"
+    )
 
     if not isinstance(tasks, list):
         tasks = [tasks]

@@ -27,7 +27,9 @@ class WordProcessor(AnalysisUtility):
         )
 
     async def get_input_data(self):
-        return await search_database(self.task.search_query, retrieve=self.task.parameters["unit"])
+        return await search_database(
+            self.task.search_query, retrieve=self.task.parameters["unit"]
+        )
 
 
 class ExtractWords(WordProcessor):
@@ -60,12 +62,14 @@ class ExtractWords(WordProcessor):
                 total += info["tf"]
                 # abs      rel                     tf-idf
         result = {
-            word: (tf[word], tf[word] / total, tf[word] * log(total / df[word])) for word in tf
+            word: (tf[word], tf[word] / total, tf[word] * log(total / df[word]))
+            for word in tf
         }
         return {
             "total": int(total),
             "vocabulary": {  # sort by tf-idf:
-                k: result[k] for k in sorted(result, key=lambda x: (result[x][2], x), reverse=True)
+                k: result[k]
+                for k in sorted(result, key=lambda x: (result[x][2], x), reverse=True)
             },
         }
 
@@ -94,7 +98,10 @@ class ExtractBigrams(WordProcessor):
         bigram_count = defaultdict(int)
         total = 0.0
         for doc_processing in asyncio.as_completed(
-            [self.collect_document_counts(doc_dict) for doc_dict in self.input_data.values()]
+            [
+                self.collect_document_counts(doc_dict)
+                for doc_dict in self.input_data.values()
+            ]
         ):
             doc_word_count, doc_bigram_count = await doc_processing
 
@@ -105,7 +112,8 @@ class ExtractBigrams(WordProcessor):
                 bigram_count[bigram] += doc_bigram_count[bigram]
 
         dice_score = {
-            b: 2.0 * bigram_count[b] / (word_count[b[0]] + word_count[b[1]]) for b in bigram_count
+            b: 2.0 * bigram_count[b] / (word_count[b[0]] + word_count[b[1]])
+            for b in bigram_count
         }
 
         return {

@@ -10,7 +10,10 @@ from time import sleep
 
 def make_response(url, payload, headers, max_try):
     response = requests.request(
-        "POST", url, data=payload, headers={"content-type": "application/json", **headers},
+        "POST",
+        url,
+        data=payload,
+        headers={"content-type": "application/json", **headers},
     ).json()
     url = url + response["uuid"]
 
@@ -29,7 +32,10 @@ def make_report_response(payload, max_try):
     # if task execution is too slow may need to do it in a sleeping loop
     headers, url = read_config()
     response = requests.request(
-        "POST", url, data=payload, headers={"content-type": "application/json", **headers},
+        "POST",
+        url,
+        data=payload,
+        headers={"content-type": "application/json", **headers},
     )
     response = response.json()
     headers, url = read_config("report")
@@ -47,7 +53,10 @@ def make_comparison_response(*payloads, max_try):
     headers, url = read_config()
     responses = [
         requests.request(
-            "POST", url, data=payload, headers={"content-type": "application/json", **headers},
+            "POST",
+            url,
+            data=payload,
+            headers={"content-type": "application/json", **headers},
         ).json()
         for payload in payloads
     ]
@@ -101,9 +110,7 @@ def make_test_response(utility_name, max_try=10):
         task_result = make_analysis_response(payload, max_try=max_try)
 
     elif utility_name == "extract_facets":
-        payload = (
-            '{"search_query": {"q": "maito"},"utility": "extract_facets","force_refresh": "T"}'
-        )
+        payload = '{"search_query": {"q": "maito"},"utility": "extract_facets","force_refresh": "T"}'
         task_result = make_analysis_response(payload, max_try=max_try)
 
     elif utility_name == "generate_timeseries":

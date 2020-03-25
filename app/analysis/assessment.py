@@ -65,7 +65,9 @@ def kl_distance(p, q):
 
 def js_divergence(p, q):
     p, q = ensure_distributions(p, q)
-    M = ensure_distributions([(p.dist[i] + q.dist[i]) / 2 for i in range(len(p.dist))])[0]
+    M = ensure_distributions([(p.dist[i] + q.dist[i]) / 2 for i in range(len(p.dist))])[
+        0
+    ]
     return kl_divergence(p, M) / 2 + kl_divergence(q, M) / 2
 
 
@@ -190,7 +192,10 @@ def recoursive_distribution(data):
     if isinstance(data, dict):
         if all([type(i) in [float, int] for i in data.values()]):
             return {
-                k: v for (k, v) in zip(data.keys(), recoursive_distribution(list(data.values())))
+                k: v
+                for (k, v) in zip(
+                    data.keys(), recoursive_distribution(list(data.values()))
+                )
             }
         return {k: recoursive_distribution(v) for k, v in data.items()}
     if type(data) in [list, tuple, set]:

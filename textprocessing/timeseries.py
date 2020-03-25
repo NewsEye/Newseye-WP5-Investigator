@@ -21,7 +21,9 @@ def sum_up(timeseries):
     return sum_ts
 
 
-def compare_word_to_group(corpus, word, group, item="lemma", granularity="month", min_count=10):
+def compare_word_to_group(
+    corpus, word, group, item="lemma", granularity="month", min_count=10
+):
     # output of this function is a timeseries, where key is a date
     # and value is a funciton that takes as an input word and group distributions
     # this means that an output might be sent to timeseries
@@ -58,7 +60,9 @@ def find_group_kl(corpus, group, item="lemma", granularity="month", min_count=10
 
     for w in ts_ipm:
         assessment.align_dicts_from_to(total, ts_ipm[w])
-    return {w: assessment.kl_divergence(ts_to_dist(ts_ipm[w]), group_dist) for w in ts_ipm}
+    return {
+        w: assessment.kl_divergence(ts_to_dist(ts_ipm[w]), group_dist) for w in ts_ipm
+    }
 
 
 def find_group_outliers(
@@ -79,4 +83,6 @@ def normalized_entropy_for_aligned_ts_ipm(
     for w in ts_ipm:
         assessment.align_dicts_from_to(total, ts_ipm[w])
 
-    return {w: ts_to_dist(ts_ipm[w], smoothing=smoothing).normalized_entropy for w in ts_ipm}
+    return {
+        w: ts_to_dist(ts_ipm[w], smoothing=smoothing).normalized_entropy for w in ts_ipm
+    }

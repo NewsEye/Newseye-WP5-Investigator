@@ -45,4 +45,7 @@ if __name__ == "__main__":
         failures += len(result.failures)
         skipped += len(result.skipped)
         total += result.testsRun
-    print("Total: %d, errors: %d, failures: %d, skipped: %d" % (total, errors, failures, skipped))
+    print(
+        "Total: %d, errors: %d, failures: %d, skipped: %d"
+        % (total, errors, failures, skipped)
+    )

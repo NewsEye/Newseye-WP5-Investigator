@@ -14,7 +14,13 @@ class ProgressBar(object):
 
     ##Construct a progress bar object
     def __init__(
-        self, message, verbose=True, total=None, barLength=30, printPeriod=0.5, out=sys.stderr,
+        self,
+        message,
+        verbose=True,
+        total=None,
+        barLength=30,
+        printPeriod=0.5,
+        out=sys.stderr,
     ):
         self.progressCount = 0
         self.progressStart = 0
@@ -40,7 +46,8 @@ class ProgressBar(object):
         ret = self.message
         if self.total is None:
             ret += " ({0} {1:.2f}/s".format(
-                self.progressCount, self.progressCount / (self.prevTime - self.progressStart),
+                self.progressCount,
+                self.progressCount / (self.prevTime - self.progressStart),
             )
         else:
             try:
@@ -50,7 +57,9 @@ class ProgressBar(object):
             except ZeroDivisionError:
                 remainingTime = 0
             try:
-                barDone = int(round((float(self.progressCount) / self.total) * self.barLength))
+                barDone = int(
+                    round((float(self.progressCount) / self.total) * self.barLength)
+                )
             except ZeroDivisionError:
                 barDone = 0
             try:

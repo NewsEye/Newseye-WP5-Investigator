@@ -18,7 +18,9 @@ class AnalysisUtility(Processor):
 
     @classmethod
     def _make_processor(cls):
-        return Processor(name=cls.__name__, import_path=cls.__module__, parameter_info=[])
+        return Processor(
+            name=cls.__name__, import_path=cls.__module__, parameter_info=[]
+        )
 
     def __init__(self, initialize=False):
         if initialize:
@@ -27,16 +29,25 @@ class AnalysisUtility(Processor):
             processor = Processor.query.filter_by(name=self.__class__.__name__).all()
             if len(processor) > 1:
                 raise NotImplementedError(
-                    "More than one processor with the same name %s" % self.__class__.__name__
+                    "More than one processor with the same name %s"
+                    % self.__class__.__name__
                 )
             processor = processor[0]
             self.processor = processor
 
     async def __call__(self, task):
         self.task = task
+        current_app.logger.debug("START TASK %s" %task)
+
         self.input_data = await self.get_input_data()
+        current_app.logger.debug("GOT INPUT DATA TASK %s" %task)
+
         self.result = await self.make_result()
+        current_app.logger.debug("RESULT MADE %s" %task)        
+
         self.interestingness = await self._estimate_interestingness()
+        current_app.logger.debug("INTERESTINGNESS MADE %s" %task)
+
         return {"result": self.result, "interestingness": self.interestingness}
 
     async def get_input_data(self):

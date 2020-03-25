@@ -45,13 +45,21 @@ def store_corpus_to_pickle(corpus, filename):
         pickle.dump(corpus.lemma_to_docids, f, protocol=pickle.HIGHEST_PROTOCOL)
     with open("{}_token_to_docids.pickle".format(picklepath + filename), "wb") as f:
         pickle.dump(corpus.token_to_docids, f, protocol=pickle.HIGHEST_PROTOCOL)
-    with open("{}_prefix_lemma_vocabulary.pickle".format(picklepath + filename), "wb") as f:
+    with open(
+        "{}_prefix_lemma_vocabulary.pickle".format(picklepath + filename), "wb"
+    ) as f:
         pickle.dump(corpus.prefix_lemma_vocabulary, f, protocol=pickle.HIGHEST_PROTOCOL)
-    with open("{}_suffix_lemma_vocabulary.pickle".format(picklepath + filename), "wb") as f:
+    with open(
+        "{}_suffix_lemma_vocabulary.pickle".format(picklepath + filename), "wb"
+    ) as f:
         pickle.dump(corpus.suffix_lemma_vocabulary, f, protocol=pickle.HIGHEST_PROTOCOL)
-    with open("{}_prefix_token_vocabulary.pickle".format(picklepath + filename), "wb") as f:
+    with open(
+        "{}_prefix_token_vocabulary.pickle".format(picklepath + filename), "wb"
+    ) as f:
         pickle.dump(corpus.prefix_token_vocabulary, f, protocol=pickle.HIGHEST_PROTOCOL)
-    with open("{}_suffix_token_vocabulary.pickle".format(picklepath + filename), "wb") as f:
+    with open(
+        "{}_suffix_token_vocabulary.pickle".format(picklepath + filename), "wb"
+    ) as f:
         pickle.dump(corpus.suffix_token_vocabulary, f, protocol=pickle.HIGHEST_PROTOCOL)
     with open("{}_token_bi_to_docids.pickle".format(picklepath + filename), "wb") as f:
         pickle.dump(corpus.token_bi_to_docids, f, protocol=pickle.HIGHEST_PROTOCOL)
@@ -69,18 +77,30 @@ def load_corpus_from_pickle(filename):
         corpus.lemma_to_docids = pickle.load(f)
     with open("{}_token_to_docids.pickle".format(picklepath + filename), "rb") as f:
         corpus.token_to_docids = pickle.load(f)
-    with open("{}_prefix_lemma_vocabulary.pickle".format(picklepath + filename), "rb") as f:
+    with open(
+        "{}_prefix_lemma_vocabulary.pickle".format(picklepath + filename), "rb"
+    ) as f:
         corpus.prefix_lemma_vocabulary = pickle.load(f)
-    with open("{}_suffix_lemma_vocabulary.pickle".format(picklepath + filename), "rb") as f:
+    with open(
+        "{}_suffix_lemma_vocabulary.pickle".format(picklepath + filename), "rb"
+    ) as f:
         corpus.suffix_lemma_vocabulary = pickle.load(f)
-    with open("{}_prefix_token_vocabulary.pickle".format(picklepath + filename), "rb") as f:
+    with open(
+        "{}_prefix_token_vocabulary.pickle".format(picklepath + filename), "rb"
+    ) as f:
         corpus.prefix_token_vocabulary = pickle.load(f)
-    with open("{}_suffix_token_vocabulary.pickle".format(picklepath + filename), "rb") as f:
+    with open(
+        "{}_suffix_token_vocabulary.pickle".format(picklepath + filename), "rb"
+    ) as f:
         corpus.suffix_token_vocabulary = pickle.load(f)
     try:
-        with open("{}_token_bi_to_docids.pickle".format(picklepath + filename), "rb") as f:
+        with open(
+            "{}_token_bi_to_docids.pickle".format(picklepath + filename), "rb"
+        ) as f:
             corpus.token_bi_to_docids = pickle.load(f)
-        with open("{}_lemma_bi_to_docids.pickle".format(picklepath + filename), "rb") as f:
+        with open(
+            "{}_lemma_bi_to_docids.pickle".format(picklepath + filename), "rb"
+        ) as f:
             corpus.lemma_bi_to_docids = pickle.load(f)
     except FileNotFoundError:
         pass
@@ -256,7 +276,12 @@ def get_step_sizes(array, indices, window=1000):
 
 
 def step_analysis(
-    keyword, corpus=None, df=None, item="token-1", fill_na="interpolate", use_relative_values=True,
+    keyword,
+    corpus=None,
+    df=None,
+    item="token-1",
+    fill_na="interpolate",
+    use_relative_values=True,
 ):
     if corpus:
         ts, ts_ipm = corpus.timeseries(word_list=[keyword], item=item)
@@ -317,7 +342,12 @@ def prepare_timeseries(ts, fill_na="interpolate"):
 
 
 def plot_wavelets(
-    keyword, corpus=None, df=None, item="token-1", fill_na="interpolate", use_relative_values=True,
+    keyword,
+    corpus=None,
+    df=None,
+    item="token-1",
+    fill_na="interpolate",
+    use_relative_values=True,
 ):
     if corpus:
         df, filled_indices = dataframe_from_corpus(
@@ -342,7 +372,12 @@ def plot_wavelets(
 
 
 def plot_step_locations(
-    keyword, corpus=None, df=None, item="token-1", fill_na="interpolate", use_relative_values=True,
+    keyword,
+    corpus=None,
+    df=None,
+    item="token-1",
+    fill_na="interpolate",
+    use_relative_values=True,
 ):
     prod, steps, step_sizes = step_analysis(
         keyword, corpus=corpus, df=df, item=item, fill_na=fill_na
@@ -360,7 +395,9 @@ def plot_step_locations(
     idx = df.index
     threshold = 4 * np.var(prod)
     max_freq = df[keyword].max()
-    f, (ax1, ax2) = plt.subplots(2, 1, sharex=True, gridspec_kw={"height_ratios": [3, 1]})
+    f, (ax1, ax2) = plt.subplots(
+        2, 1, sharex=True, gridspec_kw={"height_ratios": [3, 1]}
+    )
     # Plot the word frequency
     ax1.plot(idx, df[keyword], c="gray")
     ax1.set_title(
@@ -399,7 +436,12 @@ def plot_step_locations(
 
 
 def plot_estimate(
-    keyword, corpus=None, df=None, item="token-1", fill_na="interpolate", use_relative_values=True,
+    keyword,
+    corpus=None,
+    df=None,
+    item="token-1",
+    fill_na="interpolate",
+    use_relative_values=True,
 ):
     prod, steps, step_sizes = step_analysis(
         keyword, corpus=corpus, df=df, item=item, fill_na=fill_na
@@ -441,7 +483,10 @@ def research_steps(
 ):
     if corpus:
         df, filled_indices = dataframe_from_corpus(
-            corpus=corpus, item=item, fill_na=fill_na, use_relative_values=use_relative_values,
+            corpus=corpus,
+            item=item,
+            fill_na=fill_na,
+            use_relative_values=use_relative_values,
         )
     if df is None:
         return
@@ -469,7 +514,11 @@ def research_steps(
 
 
 def dataframe_from_corpus(
-    corpus, wordlist=None, item="token-1", fill_na="interpolate", use_relative_values=True,
+    corpus,
+    wordlist=None,
+    item="token-1",
+    fill_na="interpolate",
+    use_relative_values=True,
 ):
     ts, ts_ipm = corpus.timeseries(item=item, word_list=wordlist)
     if use_relative_values:
@@ -498,7 +547,11 @@ def print_group_count(corpus, item, group):
 
 
 def ism(
-    corpus, word="patriotisme", affix=("suffix", "isme"), item="lemma", granularity="month",
+    corpus,
+    word="patriotisme",
+    affix=("suffix", "isme"),
+    item="lemma",
+    granularity="month",
 ):
     # TODO: make impressive example, add plots
     print("\n******************************************************")
@@ -526,7 +579,11 @@ def ism(
     )
     print(
         "'%s': averaged count %3.2f, averaged relative count (ipm) %3.2f"
-        % (affix[1], np.mean(list(group_ts.values())), np.mean(list(group_ts_ipm.values())),)
+        % (
+            affix[1],
+            np.mean(list(group_ts.values())),
+            np.mean(list(group_ts_ipm.values())),
+        )
     )
 
     spikes = assessment.find_large_numbers(wfr)
@@ -534,7 +591,15 @@ def ism(
     for k in sorted(spikes, key=spikes.get, reverse=True):
         print(
             "%s: '%s': %d (%2.2f ipm), '%s': %d (%2.2f ipm)"
-            % (k, word, ts[word][k], ts_ipm[word][k], affix[1], group_ts[k], group_ts_ipm[k],)
+            % (
+                k,
+                word,
+                ts[word][k],
+                ts_ipm[word][k],
+                affix[1],
+                group_ts[k],
+                group_ts_ipm[k],
+            )
         )
 
     stay_tuned()
@@ -550,7 +615,10 @@ def group_outliers(
     # TODO: add smoothing
 
     print("\n******************************************************")
-    print("Corpus: %s, group: all words with '%s' '%s'" % (corpus.lang_id, affix[0], affix[1]))
+    print(
+        "Corpus: %s, group: all words with '%s' '%s'"
+        % (corpus.lang_id, affix[0], affix[1])
+    )
 
     group = corpus.find_group_by_affix(affix, item)
     if not group:
@@ -587,7 +655,11 @@ def find_interesting_words(
     # when smoothing is used (highly recommended) min_count is needed
     # only to speed up comutations
     normalized_entropy = timeseries.normalized_entropy_for_aligned_ts_ipm(
-        corpus=corpus, item=item, granularity=granularity, min_count=min_count, smoothing=smoothing,
+        corpus=corpus,
+        item=item,
+        granularity=granularity,
+        min_count=min_count,
+        smoothing=smoothing,
     )
 
     ts, ts_ipm = corpus.timeseries(item, granularity, min_count=min_count)
@@ -615,7 +687,9 @@ def find_interesting_words(
         assessment.align_dicts_from_to(total, ts_ipm[w])
         assessment.align_dicts_from_to(total, ts[w])
 
-        interesting_dates = assessment.find_large_numbers(ts_ipm[w], coefficient=coefficient)
+        interesting_dates = assessment.find_large_numbers(
+            ts_ipm[w], coefficient=coefficient
+        )
         for date in sorted(interesting_dates):
             print("%s: %d (%2.2f ipm)" % (date, ts[w][date], ts_ipm[w][date]))
 
@@ -623,7 +697,9 @@ def find_interesting_words(
             "average count in other dates: %2.2f (%2.2fipm)"
             % (
                 np.mean([ts[w][d] for d in ts[w] if d not in interesting_dates]),
-                np.mean([ts_ipm[w][d] for d in ts_ipm[w] if d not in interesting_dates]),
+                np.mean(
+                    [ts_ipm[w][d] for d in ts_ipm[w] if d not in interesting_dates]
+                ),
             )
         )
         print("total count: %d" % len(word_to_docid[w]))
@@ -643,7 +719,8 @@ def print_top_counts(counts_dict, min_count=0, top=1000, form=(0, 2)):
 
 def print_top(dict_of_mentions, min_count=1, top=1000):
     print_top_counts(
-        {k: len(v) for k, v in dict_of_mentions.items() if len(v) >= min_count}, min_count,
+        {k: len(v) for k, v in dict_of_mentions.items() if len(v) >= min_count},
+        min_count,
     )
 
 

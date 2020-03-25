@@ -156,7 +156,9 @@ class FinProcessor_CG3(TextProcessor):
             else:
                 # more than one reading
                 readings = [r for r in output[1]]
-                if readings[0].morphology[-1] == "Cmpnd" and readings[1].lemma.startswith('"'):
+                if readings[0].morphology[-1] == "Cmpnd" and readings[
+                    1
+                ].lemma.startswith('"'):
                     # compounds, example:
                     # >>> cg.disambiguate(['presidenttivaaleissa'])
                     # [('presidenttivaaleissa', [<vaalea - N, Pl, Ine, <W:0.000000>, Cmpnd>, <"presidentti - N, Sg, Nom, <W:0.000000>>, <vaali - N, Pl, Ine, <W:0.000000>, Cmpnd>, <"presidentti - N, Sg, Nom, <W:0.000000>>])]
@@ -194,7 +196,9 @@ class FinProcessor_CG3(TextProcessor):
 #         return "".join(self.omorfi.analyse(token)[-1].lemmas)
 
 
-LANG_PROCESSOR_MAP = defaultdict(TextProcessor, {"fr": FrProcessor(), "fi": FinProcessor()})
+LANG_PROCESSOR_MAP = defaultdict(
+    TextProcessor, {"fr": FrProcessor(), "fi": FinProcessor()}
+)
 
 
 class Document(object):
@@ -293,7 +297,12 @@ class Document_DB(Document):
 
 class Corpus(object):
     def __init__(
-        self, lang_id, debug_count=10e100, verbose=True, input_dir=None, input_format=None,
+        self,
+        lang_id,
+        debug_count=10e100,
+        verbose=True,
+        input_dir=None,
+        input_format=None,
     ):
         self.lang_id = lang_id
         self.text_processor = LANG_PROCESSOR_MAP[lang_id]
@@ -305,7 +314,9 @@ class Corpus(object):
 
         self.default_query = {
             "fq": "language_ssi:{}".format(self.lang_id),
-            "fl": "id, language_ssi, date_created_ssim, all_text_t{}_siv".format(self.lang_id),
+            "fl": "id, language_ssi, date_created_ssim, all_text_t{}_siv".format(
+                self.lang_id
+            ),
         }
 
         self.target_query = self.default_query
@@ -387,12 +398,18 @@ class Corpus(object):
                 title_line = None
                 if os.path.splitext(f)[1] == ".docx":
                     pb.next()
-                    text = textract.process(os.path.join(self.input_dir, f)).decode("utf-8")
+                    text = textract.process(os.path.join(self.input_dir, f)).decode(
+                        "utf-8"
+                    )
                     for line in text.split("\n"):
                         if re.search("\d{8}", line):
                             if title_line:
                                 doc = Document_Format1(
-                                    title_line, text, self.text_processor, self.lang_id, process,
+                                    title_line,
+                                    text,
+                                    self.text_processor,
+                                    self.lang_id,
+                                    process,
                                 )
                                 yield (doc)
                             title_line = line
@@ -412,7 +429,9 @@ class Corpus(object):
             for f in os.listdir(self.input_dir):
                 with open(os.path.join(self.input_dir, f), "rb") as inp:
                     text = inp.read().decode(errors="ignore")
-                yield Document_Format2(f, text, self.text_processor, self.lang_id, process)
+                yield Document_Format2(
+                    f, text, self.text_processor, self.lang_id, process
+                )
                 pb.next()
             pb.end()
 
@@ -454,15 +473,21 @@ class Corpus(object):
             return self.token_to_docids
         elif item == "lemma":
             if not self.text_processor.output_lemmas:
-                raise NotImplementedError("Lemmas are not available for %s." % self.lang_id.upper())
+                raise NotImplementedError(
+                    "Lemmas are not available for %s." % self.lang_id.upper()
+                )
             return self.lemma_to_docids
         else:
             raise ValueError("item must be token or lemma")
 
     # TIMESERIES
-    def timeseries(self, item="token", granularity="year", min_count=10, word_list=None):
+    def timeseries(
+        self, item="token", granularity="year", min_count=10, word_list=None
+    ):
         if not (item in self._timeseries and granularity in self._timeseries[item]):
-            self.build_timeseries(item=item, granularity=granularity, min_count=min_count)
+            self.build_timeseries(
+                item=item, granularity=granularity, min_count=min_count
+            )
         elif not min_count in self._timeseries[item][granularity]:
             # let's see if there is timeseries with smaller min_count, that's would be fine as well
             smaller_min_counts = [
@@ -481,7 +506,9 @@ class Corpus(object):
                     if len(self.find_word_to_doc_dict(item)[w]) >= min_count
                 }
             else:
-                self.build_timeseries(item=item, granularity=granularity, min_count=min_count)
+                self.build_timeseries(
+                    item=item, granularity=granularity, min_count=min_count
+                )
 
         timeseries = self._timeseries[item][granularity][min_count]
         if word_list:
@@ -515,7 +542,9 @@ class Corpus(object):
         total = defaultdict(int)
         timeseries = defaultdict(lambda: defaultdict(int))
 
-        pb = ProgressBar("Building timeseries", total=len(word_to_docids), verbose=self.verbose)
+        pb = ProgressBar(
+            "Building timeseries", total=len(word_to_docids), verbose=self.verbose
+        )
         for (w, docids) in word_to_docids.items():
             pb.next()
             for docid in docids:
@@ -579,7 +608,11 @@ class Corpus(object):
     @staticmethod
     def build_tries_from_dict(item_to_doc, min_count):
         prefix_trie = Trie(
-            {item: None for item in item_to_doc.keys() if len(item_to_doc[item]) >= min_count}
+            {
+                item: None
+                for item in item_to_doc.keys()
+                if len(item_to_doc[item]) >= min_count
+            }
         )
         suffix_trie = Trie({item[::-1]: None for item in prefix_trie.keys()})
         return prefix_trie, suffix_trie
@@ -592,12 +625,14 @@ class Corpus(object):
         print("Building prefix/suffix search structures")
 
         # Tries are slow so we build indexes first and use frequency threshold to store only most frequent tokens
-        (self.prefix_token_vocabulary, self.suffix_token_vocabulary,) = self.build_tries_from_dict(
-            self.token_to_docids, token_min_count
-        )
-        (self.prefix_lemma_vocabulary, self.suffix_lemma_vocabulary,) = self.build_tries_from_dict(
-            self.lemma_to_docids, lemma_min_count
-        )
+        (
+            self.prefix_token_vocabulary,
+            self.suffix_token_vocabulary,
+        ) = self.build_tries_from_dict(self.token_to_docids, token_min_count)
+        (
+            self.prefix_lemma_vocabulary,
+            self.suffix_lemma_vocabulary,
+        ) = self.build_tries_from_dict(self.lemma_to_docids, lemma_min_count)
 
     def find_tokens_by_prefix(self, prefix):
         return self.prefix_token_vocabulary.keys(prefix=prefix)
@@ -608,10 +643,14 @@ class Corpus(object):
     def find_tokens_by_suffix(self, suffix):
         # assume that user would type word in a normal left-to-right form and wants to see result in the same form
         # so we first flip the suffix, than search it in flipped dictionary than flip back the results
-        return [(k[::-1]) for k in self.suffix_token_vocabulary.keys(prefix=suffix[::-1])]
+        return [
+            (k[::-1]) for k in self.suffix_token_vocabulary.keys(prefix=suffix[::-1])
+        ]
 
     def find_lemmas_by_suffix(self, suffix):
-        return [(k[::-1]) for k in self.suffix_lemma_vocabulary.keys(prefix=suffix[::-1])]
+        return [
+            (k[::-1]) for k in self.suffix_lemma_vocabulary.keys(prefix=suffix[::-1])
+        ]
 
     def _find_group_by_affix(self, affix, item):
         if affix[0] == "suffix":

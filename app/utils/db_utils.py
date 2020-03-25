@@ -16,6 +16,7 @@ from datetime import datetime
 from werkzeug.exceptions import BadRequest
 from app.utils.dataset_utils import get_dataset
 
+
 def verify_data(args):
     current_app.logger.debug("ARGS: %s" % args)
 
@@ -24,14 +25,20 @@ def verify_data(args):
         and args.get("search_query") is None
         and args.get("source_uuid") is None
     ):
-        raise BadRequest("A 'dataset' or 'source_uuid' is missing for query:\n{}".format(query))
+        raise BadRequest(
+            "A 'dataset' or 'source_uuid' is missing for query:\n{}".format(query)
+        )
 
     if args.get("dataset") and args.get("search_query"):
-        raise BadREquest("You cannot specify 'dataset' and 'search query' in the same time")
+        raise BadREquest(
+            "You cannot specify 'dataset' and 'search query' in the same time"
+        )
+
 
 #    if args.get("dataset"):
 #        get_dataset(args.get("dataset")) # this will raise an exeption if something is wrong
 #
+
 
 def verify_analysis_parameters(args):
     """ 
@@ -40,7 +47,9 @@ def verify_analysis_parameters(args):
     """
 
     if args["processor"] is None:
-        raise BadRequest("Required parameter 'processor' missing for query:\n{}".format(query))
+        raise BadRequest(
+            "Required parameter 'processor' missing for query:\n{}".format(query)
+        )
 
     verify_data(args)
 
@@ -89,7 +98,9 @@ def check_uuid_and_commit(database_record, max_try=5):
         except IntegrityError as e:
             error = e
             current_app.logger.error(
-                "Got a UUID collision? Trying with different UUIDs. Exception: {}".format(e)
+                "Got a UUID collision? Trying with different UUIDs. Exception: {}".format(
+                    e
+                )
             )
             db.session.rollback()
             database_record.uuid = uuid.uuid4()
@@ -106,17 +117,17 @@ def generate_task(query, user=current_user, parent_id=None, return_task=False):
     """
     task_parameters, processor = verify_analysis_parameters(query)
     task = Task(
-            processor_id=processor.id,
-            force_refresh=bool(task_parameters.get("force_refresh", False)),
-            user_id=user.id,
-            task_status="created",
-            parameters=task_parameters.get("parameters", {})
-        )
+        processor_id=processor.id,
+        force_refresh=bool(task_parameters.get("force_refresh", False)),
+        user_id=user.id,
+        task_status="created",
+        parameters=task_parameters.get("parameters", {}),
+    )
     if task_parameters.get("dataset"):
-        input_data="dataset"
+        input_data = "dataset"
         task.dataset_id = get_dataset(task_parameters["dataset"]).id
     elif task_parameters.get("search_query"):
-        input_data="solr_query"
+        input_data = "solr_query"
         task.solr_query = get_solr_query(task_parameters["search_query"])
     else:
         raise NotImplementedError("Taking a source_uuid as an input is not ready yet")
@@ -139,19 +150,17 @@ def generate_investigator_run(args, user=current_user):
     """
     verify_data(args)
     investigator_run = InvestigatorRun(
-        user_parameters=args["parameters"],
-        run_status="created",
-        user_id=user.id,
+        user_parameters=args["parameters"], run_status="created", user_id=user.id,
     )
 
     if args.get("dataset"):
-        current_app.logger.debug("DDDDDDDDDDDDDDDDDDDATASET: %s" %args.get("dataset"))
-        investigator_run.root_dataset=get_dataset(args["dataset"])
+        current_app.logger.debug("DDDDDDDDDDDDDDDDDDDATASET: %s" % args.get("dataset"))
+        investigator_run.root_dataset = get_dataset(args["dataset"])
     elif args.get("search_query"):
-        investigator_run.root_solr_query=get_solr_query(args["search_query"])
+        investigator_run.root_solr_query = get_solr_query(args["search_query"])
     else:
         raise NotImplementedError
-    check_uuid_and_commit(investigator_run)    
+    check_uuid_and_commit(investigator_run)
     return investigator_run.uuid
 
 
@@ -205,7 +214,9 @@ def store_results(tasks, task_results, set_to_finished=True, interestingness=0.0
             db.session.add(res)
             db.session.commit()
 
-    current_app.logger.info("Storing results into database %s" % [str(task.uuid) for task in tasks])
+    current_app.logger.info(
+        "Storing results into database %s" % [str(task.uuid) for task in tasks]
+    )
     db.session.commit()
 
 
