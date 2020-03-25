@@ -145,7 +145,7 @@ class QueryTopicModel(TopicProcessor):
                 key: (json.loads(value) if isinstance(value, str) else value)
                 for key, value in response_data.items()
             }
-        response_data["model_name"] = model_name
+        response_data["model_name"] = self.task.parameters["model_name"]
         return response_data
 
     async def estimate_interestingness(self):
