@@ -74,7 +74,7 @@ class Config(object):
         },
         "tokens": {
             "tv.all": True,
-            "tv.fl": "all_text_unstemmed_tfr_siv all_text_unstemmed_tfi_siv all_text_unstemmed_tde_siv all_text_unstemmed_tse_siv",
+            "tv.fl": "all_text_unstemmed_tfr_iv all_text_unstemmed_tfi_iv all_text_unstemmed_tde_iv all_text_unstemmed_tse_iv",
             "fl": "nothing",  # non-existing field to retrun nothing; otherwise all text will be returned
             "defType": "edismax",
         },
