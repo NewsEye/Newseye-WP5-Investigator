@@ -95,7 +95,6 @@ class GenerateTimeSeries(AnalysisUtility):
         fq = original_search.get("fq", [])
         if isinstance(fq, str):
             fq = [fq]
-        current_app.logger.debug("FQQQQQQQQQQQQQQ: %s" % fq)
 
         queries = []
         years = []
@@ -139,9 +138,6 @@ class GenerateTimeSeries(AnalysisUtility):
                     )
                     break
 
-        # TODO: count the number of items with no value defined for the desired facet
-        # TODO: get all years available in the database
-
         df = pd.DataFrame(f_counts, columns=["year", facet_name, "count", "rel_count"])
         abs_counts = df.pivot(index=facet_name, columns="year", values="count").fillna(
             0
@@ -149,6 +145,7 @@ class GenerateTimeSeries(AnalysisUtility):
         rel_counts = df.pivot(
             index=facet_name, columns="year", values="rel_count"
         ).fillna(0)
+
         analysis_results = {
             "absolute_counts": self.make_dict(abs_counts),
             "relative_counts": self.make_dict(rel_counts),
@@ -158,6 +155,12 @@ class GenerateTimeSeries(AnalysisUtility):
     @staticmethod
     def make_dict(counts):
         count_dict = counts.to_dict(orient="index")
+        years = [int(y) for c_dict in count_dict.values() for y in c_dict]
+        for d in count_dict:
+            for y in range(min(years), max(years)):
+                if str(y) not in count_dict[d]:
+                    count_dict[d][str(y)] = 0
+
         info = pd.concat(
             [
                 counts[counts > 0].min(axis=1),

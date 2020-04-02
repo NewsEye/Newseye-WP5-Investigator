@@ -66,7 +66,7 @@ def generate_report(record, report_language, report_format):
     else:
         task_uuids = [task["uuid"] for task in record.result]
         tasks = Task.query.filter(Task.uuid.in_(task_uuids)).all()
-      
+
     data = [t.dict("reporter") for t in tasks]
 
     # current_app.logger.debug("DATA: %s" %data)

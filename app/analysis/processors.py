@@ -37,17 +37,9 @@ class AnalysisUtility(Processor):
 
     async def __call__(self, task):
         self.task = task
-        current_app.logger.debug("START TASK %s" %task)
-
         self.input_data = await self.get_input_data()
-        current_app.logger.debug("GOT INPUT DATA TASK %s" %task)
-
         self.result = await self.make_result()
-        current_app.logger.debug("RESULT MADE %s" %task)        
-
         self.interestingness = await self._estimate_interestingness()
-        current_app.logger.debug("INTERESTINGNESS MADE %s" %task)
-
         return {"result": self.result, "interestingness": self.interestingness}
 
     async def get_input_data(self):

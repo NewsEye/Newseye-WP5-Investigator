@@ -15,7 +15,7 @@ class TopicProcessor(AnalysisUtility):
         if self.task.dataset:
             return [d.document.solr_id for d in self.task.dataset.documents]
         search = await search_database(self.task.search_query, retrieve="docids")
-        return [d['id'] for d in search['docs']]
+        return [d["id"] for d in search["docs"]]
 
 
 class TopicModelDocumentLinking(TopicProcessor):
@@ -40,7 +40,6 @@ class TopicModelDocumentLinking(TopicProcessor):
                     "default": None,
                     "required": True,
                 },
-
             ],
             input_type="dataset",
             output_type="dataset",
@@ -49,13 +48,14 @@ class TopicModelDocumentLinking(TopicProcessor):
     async def make_result(self):
 
         # current_app.logger.debug("PARAMETERS: %s" %self.task.parameters)
-        
-        payload = {"model_name": self.task.parameters.get("model_name"),
-                   "num_docs": self.task.parameters.get("num_docs"),
-                   "documents": self.input_data}
+
+        payload = {
+            "model_name": self.task.parameters.get("model_name"),
+            "num_docs": self.task.parameters.get("num_docs"),
+            "documents": self.input_data,
+        }
         # current_app.logger.debug("!!!PAYLOAD: %s" %payload)
 
-        
         # ??? will we have any other way to link documents?
         response = requests.post(
             "{}/lda-doc-linking".format(Config.TOPIC_MODEL_URI), json=payload
@@ -72,7 +72,9 @@ class TopicModelDocumentLinking(TopicProcessor):
                 "{}/doc-linking-results".format(Config.TOPIC_MODEL_URI),
                 json={"task_uuid": uuid},
             )
-            current_app.logger.debug("DELAY: %s STATUS: %s" %(delay, response.status_code))
+            current_app.logger.debug(
+                "DELAY: %s STATUS: %s" % (delay, response.status_code)
+            )
             if response.status_code == 200:
                 break
         response = response.json()
@@ -113,8 +115,10 @@ class QueryTopicModel(TopicProcessor):
         model_type = self.task.parameters.get("model_type")
         if model_type is None:
             raise KeyError
-        payload = {"model_name": self.task.parameters.get("model_name"),
-                   "documents": self.input_data}
+        payload = {
+            "model_name": self.task.parameters.get("model_name"),
+            "documents": self.input_data,
+        }
         # current_app.logger.debug("!!!PAYLOAD: %s" %payload)
         response = requests.post(
             "{}/{}/query".format(Config.TOPIC_MODEL_URI, model_type), json=payload
@@ -132,13 +136,16 @@ class QueryTopicModel(TopicProcessor):
                 "{}/query-results".format(Config.TOPIC_MODEL_URI),
                 json={"task_uuid": uuid},
             )
-            current_app.logger.debug("TASK_UUID: %s DELAY: %s STATUS: %s" %(uuid, delay, response.status_code))            
+            current_app.logger.debug(
+                "TASK_UUID: %s DELAY: %s STATUS: %s"
+                % (uuid, delay, response.status_code)
+            )
             if response.status_code == 200:
                 break
 
-        # current_app.logger.debug("RESPONSE: %s" %response)    
+        # current_app.logger.debug("RESPONSE: %s" %response)
         response_data = response.json()
-        #current_app.logger.debug("JSON: %s" %response_data)    
+        # current_app.logger.debug("JSON: %s" %response_data)
         # If the lists are stored as strings, fix them into proper lists
         if isinstance(response_data["topic_weights"], str):
             response_data = {
