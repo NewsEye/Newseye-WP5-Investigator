@@ -37,6 +37,7 @@ class ExtractFacets(AnalysisUtility):
         # except for this processor --- get read of them???
         facets = {}
         available_facets = {v: k for k, v in AVAILABLE_FACETS.items()}
+        current_app.logger.debug("AVAILABLE_FACETS: %s" %available_facets)
         for feature in self.input_data[FACETS_KEY]:
             values = {}
             for item in feature[FACET_ITEMS_KEY]:
@@ -45,6 +46,12 @@ class ExtractFacets(AnalysisUtility):
             if feature[FACET_ID_KEY] in available_facets:
                 facets[available_facets[feature[FACET_ID_KEY]]] = values
 
+        years = [int(y) for y in facets["PUB_YEAR"]]
+        for y in range(min(years), max(years)):
+            if y not in years:
+                facets["PUB_YEAR"][str(y)]=0
+            
+           
         return facets
 
 
