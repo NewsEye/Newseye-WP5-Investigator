@@ -1,5 +1,5 @@
 from app import db
-from app.utils.db_utils import generate_task, store_results, verify_analysis_parameters
+from app.utils.db_utils import generate_task, store_results
 from app.models import Task
 from app.utils.search_utils import search_database
 
@@ -71,23 +71,24 @@ class TaskPlanner(object):
         ).all()
         if not related_tasks:
             return
-
         related_task = sorted(related_tasks, key=lambda t: t.task_finished)[-1]
         result = related_task.task_result
-
         task.task_results.append(result)
         return True
 
     async def execute_and_store(self, task):
         """this function executes one task and its prerequisites"""
 
-        # Todo: delay estimates: based on old runtime history for similar tasks?
+        # TODO: delay estimates: based on old runtime history for similar tasks?
 
         task.task_started = datetime.utcnow()
         # to update data obtained in previous searches
 
         # current_app.logger.debug("FORCE_REFRESH %s" % task.force_refresh)
 
+        current_app.logger.debug(
+            "TASK %s FORCE_REFRESH: %s" % (task, task.force_refresh)
+        )
         if not task.force_refresh:
             # search for similar tasks, reuse results
             if await self.result_exists(task):
@@ -105,7 +106,7 @@ class TaskPlanner(object):
             return task
 
         required_task = await self.get_prerequisite_tasks(task)
-        if required_task:
+        if required_task and not required_task.task_result:
             await self.execute_and_store(required_task)
             task.source_uuid = required_task.uuid
             db.session.commit()
@@ -139,5 +140,50 @@ class TaskPlanner(object):
         return source_utility
 
     async def get_prerequisite_tasks(self, task):
-        # TODO: get prerequisite tasks")
-        return None
+        parent_uuid = task.parent_uuid
+        if parent_uuid:
+
+            input_task = Task.query.filter_by(uuid=parent_uuid).first()
+
+            current_app.logger.debug(
+                "INPUT_TASK: %s RESULT: %d" % (input_task, len(input_task.task_results))
+            )
+
+            current_app.logger.debug("input_task_uuid %s" % parent_uuid)
+            if input_task is None:
+                raise ValueError("Invalid parent_uuid")
+
+            task.dataset = input_task.dataset
+            task.solr_query = input_task.solr_query
+
+            # if the concrete uuid is given, no need to repeat the task
+            # may change this behaviour in the future, right now seems reasonable
+
+            db.session.commit()
+
+            if task.processor.input_type == input_task.processor.output_type:
+                # it could be a longer sequence of tasks,
+                # and the first one does not have the correct type
+                return input_task
+
+            task_parameters = {
+                "processor": self.get_source_processor(task),
+                "parameters": {},
+                "solr_query": task.solr_query,
+                "dataset": task.dataset,
+                "force_refresh": task.force_refresh,
+            }
+
+            input_task = generate_task(
+                query=task_parameters,
+                user=task.user,
+                parent_id=task.id,
+                return_task=True,
+            )
+            return input_task
+
+        elif task.processor.input_type != "dataset":
+            raise NotImplementedError(
+                "Don't know how to get a prerequisite task for %s"
+                % task.processor.input_type
+            )

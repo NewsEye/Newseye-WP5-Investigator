@@ -28,7 +28,8 @@ class Investigator:
 
         current_app.logger.debug("RUN: %s" % self.run)
 
-        self.root_documentset = Documentset(self.run, self.user)
+        self.root_documentset = Collection()
+        self.root_documentset.make_root_collection(self.run, self.user)
         self.action_id = 0
         self.node_id = 0
         self.to_stop = False
@@ -310,9 +311,13 @@ class TaskQueue:
         return [t[2].id for t in self.taskq]
 
 
-class Documentset:
-    def __init__(self, run, user):
+class Collection:
+    def __init__(self):
+        pass
+
+    def make_root_collection(self, run, user):
         self.user = user
+
         if run.root_dataset_id is not None:
             self.data_type = "dataset"
             self.data = {

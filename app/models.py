@@ -166,7 +166,7 @@ task_parent_child_relation = db.Table(
 task_result_relation = db.Table(
     # many-to-many relation
     # a task may output more than one result
-    # if task is rerun (e.g. as a part of another investigator's run) then we add a link into result table instead pf copying result, which could be quite heavy
+    # if task is rerun (e.g. as a part of another investigator's run) then we add a link into result table instead of copying result, which could be quite heavy
     "task_result_relation",
     db.Column("task_id", db.Integer, db.ForeignKey("task.id"), primary_key=True),
     db.Column("result_id", db.Integer, db.ForeignKey("result.id"), primary_key=True),
@@ -301,6 +301,7 @@ class Task(db.Model):
     def task_result(self):
         if self.task_results:
             if len(self.task_results) > 1:
+                current_app.logger.debug("TASK_RESULTS: %s" % self.task_results)
                 raise NotImplementedError(
                     "Don't know what to do with more than one result"
                 )
@@ -323,6 +324,16 @@ class Task(db.Model):
     @property
     def interestingness(self):
         return self.task_result.interestingness["overall"]
+
+    @property
+    def parent_uuid(self):
+        parent_uuids = [p.uuid for p in self.parents]
+        if parent_uuids:
+            if len(parent_uuids) > 1:
+                raise NotImplementedError(
+                    "Don't know what to do with more than one parent"
+                )
+            return parent_uuids[0]
 
 
 class Result(db.Model):

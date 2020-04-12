@@ -26,15 +26,24 @@ def verify_data(args):
         and args.get("source_uuid") is None
     ):
         raise BadRequest(
-            "A 'dataset' or 'source_uuid' is missing for query:\n{}".format(query)
+            "A 'dataset', 'search_query', or 'source_uuid' is missing for query:\n{}".format(
+                query
+            )
         )
 
     if args.get("dataset") and args.get("search_query"):
-        raise BadREquest(
+        raise BadRequest(
             "You cannot specify 'dataset' and 'search query' in the same time"
         )
 
+    if (
+        args.get("source_uuid")
+        and not Task.query.filter_by(uuid=args["source_uuid"]).first()
+    ):
+        raise BadRequest("Task %s does not exist" % args["source_uuid"])
 
+
+# comment out, takes too much time
 #    if args.get("dataset"):
 #        get_dataset(args.get("dataset")) # this will raise an exeption if something is wrong
 #
@@ -68,7 +77,7 @@ def verify_analysis_parameters(args):
             if parameter["required"]:
                 raise BadRequest(
                     "Required utility parameter '{}' is not defined in the query:\n{}".format(
-                        parameter["parameter_name"], query
+                        parameter["name"], args
                     )
                 )
             else:
@@ -115,6 +124,10 @@ def generate_task(query, user=current_user, parent_id=None, return_task=False):
     stores them in the database
     returns task objects or task ids
     """
+
+    if parent_id:
+        raise NotImplementedError("PARENT_ID")
+
     task_parameters, processor = verify_analysis_parameters(query)
     task = Task(
         processor_id=processor.id,
@@ -130,10 +143,13 @@ def generate_task(query, user=current_user, parent_id=None, return_task=False):
         input_data = "solr_query"
         task.solr_query = get_solr_query(task_parameters["search_query"])
     else:
-        raise NotImplementedError("Taking a source_uuid as an input is not ready yet")
-    # if source_uuid:
-    #     source_instance = Task.query.filter_by(uuid=source_uuid).one_or_none()
-    #     search_query = source_instance.search_query
+        if task_parameters.get("source_uuid"):
+            parent_task = Task.query.filter_by(
+                uuid=task_parameters["source_uuid"]
+            ).first()
+            task.parents.append(parent_task)
+            task.solr_query = parent_task.solr_query
+            task.dataset = parent_task.dataset
 
     check_uuid_and_commit(task)
     current_app.logger.debug("TASK %s" % task)
@@ -154,7 +170,6 @@ def generate_investigator_run(args, user=current_user):
     )
 
     if args.get("dataset"):
-        current_app.logger.debug("DDDDDDDDDDDDDDDDDDDATASET: %s" % args.get("dataset"))
         investigator_run.root_dataset = get_dataset(args["dataset"])
     elif args.get("search_query"):
         investigator_run.root_solr_query = get_solr_query(args["search_query"])
