@@ -27,7 +27,7 @@ def verify_data(args):
     ):
         raise BadRequest(
             "A 'dataset', 'search_query', or 'source_uuid' is missing for query:\n{}".format(
-                query
+                args
             )
         )
 

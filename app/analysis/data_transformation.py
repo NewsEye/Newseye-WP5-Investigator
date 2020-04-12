@@ -57,3 +57,10 @@ class SplitByFacet(AnalysisUtility):
             f: 2 * interestingness[f]
             for f in sorted(interestingness, key=interestingness.get, reverse=True)
         }
+
+    async def _estimate_interestingness(self):
+        interestingness = await self.estimate_interestingness()
+        interestingness.update(
+            {"overall": assessment.normalized_entropy(self.input_data.values())}
+        )
+        return interestingness

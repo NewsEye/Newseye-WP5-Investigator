@@ -1,6 +1,6 @@
 from app import db
 from app.utils.db_utils import generate_task, store_results
-from app.models import Task
+from app.models import Task, Processor
 from app.utils.search_utils import search_database
 
 # from app.analysis import UTILITY_MAP, INPUT_TYPE_MAP
@@ -30,7 +30,7 @@ class TaskPlanner(object):
             # currently all processors are from this package so it would be possible to import them directly
             # in the future it is possible that we use another processing package,
             # which would need to register its processors in the database and then they will be imported
-            # so, planner doesn't nede to know import path beforehand and imports it during runtime
+            # so, planner doesn't need to know import path beforehand and imports it during runtime
             Processor = getattr(
                 __import__(task.processor.import_path, fromlist=[task.processor.name]),
                 task.processor.name,
@@ -140,6 +140,9 @@ class TaskPlanner(object):
         return source_utility
 
     async def get_prerequisite_tasks(self, task):
+        if task.processor.input_type == "dataset":
+            return
+
         parent_uuid = task.parent_uuid
         if parent_uuid:
 
@@ -166,24 +169,38 @@ class TaskPlanner(object):
                 # and the first one does not have the correct type
                 return input_task
 
-            task_parameters = {
-                "processor": self.get_source_processor(task),
-                "parameters": {},
-                "solr_query": task.solr_query,
-                "dataset": task.dataset,
-                "force_refresh": task.force_refresh,
-            }
+        task_parameters = {
+            "processor": self.get_source_processor(task),
+            "parameters": {},
+            "search_query": task.solr_query.search_query,
+            "dataset": task.dataset,
+            "force_refresh": task.force_refresh,
+        }
 
-            input_task = generate_task(
-                query=task_parameters,
-                user=task.user,
-                parent_id=task.id,
-                return_task=True,
+        input_task = generate_task(
+            query=task_parameters, user=task.user, return_task=True,
+        )
+
+        task.parents.append(input_task)
+        db.session.commit()
+        return input_task
+
+    @staticmethod
+    def get_source_processor(task):
+        related_processors = [
+            p.name
+            for p in Processor.query.all()
+            if p.output_type == task.processor.input_type
+        ]
+
+        if not related_processors:
+            raise ValueError(
+                "Cannot find processor with output_type %s" % task.processor.input_type
             )
-            return input_task
-
-        elif task.processor.input_type != "dataset":
+        elif len(related_processors) > 1:
             raise NotImplementedError(
-                "Don't know how to get a prerequisite task for %s"
-                % task.processor.input_type
+                "Don't know how to get a prerequisite task for %s, too many options: %s"
+                % (task.processor.input_type, " ".join(related_processors))
             )
+        else:
+            return related_processors[0]

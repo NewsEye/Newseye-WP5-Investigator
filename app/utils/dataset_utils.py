@@ -11,10 +11,14 @@ import json
 
 def get_dataset(dataset):
     # current_app.logger.debug("DATASET!!!!!!: %s type: %s" %(dataset, type(dataset)))
-    dataset_name, user = dataset["name"], dataset["user"]
-    dataset = Dataset.query.filter_by(
-        dataset_name=dataset_name, user=user
-    ).one_or_none()
+    if isinstance(dataset, Dataset):
+        dataset_name, user = dataset.dataset_name, dataset.user
+    else:
+        dataset_name, user = dataset["name"], dataset["user"]
+        dataset = Dataset.query.filter_by(
+            dataset_name=dataset_name, user=user
+        ).one_or_none()
+
     if not dataset or not uptodate(dataset):
         current_app.logger.debug("REQUESTING...")
         request_dataset(dataset_name, user)
