@@ -6,10 +6,10 @@ ns = Namespace("investigator", description="Investigator")
 
 processorsets = {
     "DESCRIPTION": [
-        "ExtractFacets",
-        "ExtractWords",
-        "ExtractBigrams",
-        "GenerateTimeSeries",
+        {"name": "ExtractFacets", "parameters": {}},
+        {"name": "ExtractWords", "parameters": {}},
+        {"name": "ExtractBigrams", "parameters": {}},
+        {"name": "GenerateTimeSeries", "parameters": {}},
     ]
 }
 

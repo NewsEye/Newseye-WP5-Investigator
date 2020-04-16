@@ -232,10 +232,7 @@ class Investigator:
         db.session.commit()
 
     def make_tasks(self, processorset, documentset):
-        # TODO: processor parameters
-        return [
-            documentset.make_task(processor_name) for processor_name in processorset
-        ]
+        return [documentset.make_task(p["name"], p["parameters"]) for p in processorset]
 
     def estimate_node_interestingness(self, results):
         # self is currently not used but might be useful to estimate interestingness
