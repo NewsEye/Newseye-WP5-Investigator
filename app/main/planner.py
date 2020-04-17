@@ -64,6 +64,7 @@ class TaskPlanner(object):
         ##  is too old.
         related_tasks = Task.query.filter(
             Task.processor_id == task.processor_id,
+            Task.parameters == task.parameters,
             Task.dataset_id == task.dataset_id,
             Task.solr_query_id == task.solr_query_id,
             Task.task_status == "finished",
