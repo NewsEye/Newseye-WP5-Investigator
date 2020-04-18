@@ -295,7 +295,7 @@ class Investigator:
         return why, combined_result
 
     def add_processorset_into_q(self, processorset, documentset, reason):
-        current_app.logger.debug("ADDING PROCESSORSET: %s" % processorset)
+        current_app.logger.info("ADDING PROCESSORSET: %s" % processorset)
         tasks = self.make_tasks(processorset, documentset)
         self.task_queue.add_tasks(tasks)
         why = {"processorset": processorset, "reason": reason}
