@@ -8,6 +8,7 @@ from app.utils.search_utils import search_database
 from app.analysis import assessment
 from werkzeug.exceptions import NotFound
 from flask import current_app
+import random
 
 
 class TopicProcessor(AnalysisUtility):
@@ -97,26 +98,54 @@ class QueryTopicModel(TopicProcessor):
                     "description": "The type of the topic model to use",
                     "type": "string",
                     "default": None,
-                    "is_required": True,
+                    "required": False,
                 },
                 {
                     "name": "model_name",
                     "description": "The name of the topic model to use. If this is not specified, the system will use the first model offered by the topic modelling API.",
                     "type": "string",
                     "default": None,
-                    "required": True,
+                    "required": False,
+                },
+                {
+                    "name": "language",
+                    "description": "Language for which the model is needed",
+                    "type": "string",
+                    "default": None,
+                    "required": False,
                 },
             ],
             input_type="dataset",
             output_type="topic_analysis",
         )
 
+    async def find_model(self, language):
+        available_models = []
+        for model_type in Config.TOPIC_MODEL_TYPES:
+            response = requests.get(
+                "{}/{}/list-models".format(Config.TOPIC_MODEL_URI, model_type)
+            )
+            available_models += [
+                (model_type, model["name"])
+                for model in response.json()
+                if model["lang"] == language
+            ]
+        # for now: random choice
+        # later on: something more clever
+        return random.choice(available_models)
+
     async def make_result(self):
         model_type = self.task.parameters.get("model_type")
-        if model_type is None:
-            raise KeyError
+        model_name = self.task.parameters.get("model_name")
+        if model_type is None and model_name is None:
+            if self.task.parameters.get("language") is None:
+                raise KeyError
+            else:
+                model_type, model_name = await self.find_model(
+                    self.task.parameters["language"]
+                )
         payload = {
-            "model_name": self.task.parameters.get("model_name"),
+            "model_name": model_name,
             "documents": self.input_data,
         }
         # current_app.logger.debug("!!!PAYLOAD: %s" %payload)
@@ -124,7 +153,7 @@ class QueryTopicModel(TopicProcessor):
             "{}/{}/query".format(Config.TOPIC_MODEL_URI, model_type), json=payload
         )
 
-        # current_app.logger.debug("RESPONSE: %s %s" %(response, response.__dict__))
+        # current_app.logger.debug("!!!!RESPONSE: %s %s" %(response, response.__dict__))
         uuid = response.json().get("task_uuid")
         if not uuid:
             raise ValueError("Invalid response from the Topic Model API")

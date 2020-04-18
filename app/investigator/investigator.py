@@ -2,6 +2,7 @@ import heapq
 import itertools
 from app import db
 from app.utils.db_utils import generate_task, generate_investigator_node
+from app.utils.search_utils import search_database
 from app.models import (
     Task,
     Processor,
@@ -28,8 +29,11 @@ class Investigator:
 
         current_app.logger.debug("RUN: %s" % self.run)
 
-        self.root_documentset = Collection()
-        self.root_documentset.make_root_collection(self.run, self.user)
+        self.root_documentset = Collection(self.user)
+        self.root_documentset.make_root_collection(self.run)
+
+        self.current_collections = [self.root_documentset]
+
         self.action_id = 0
         self.node_id = 0
         self.to_stop = False
@@ -90,35 +94,39 @@ class Investigator:
     async def action(self, action_func, **action_parameters):
         input_q = self.queue_state
 
-        why, action = await action_func(**action_parameters)
+        whys, actions = await action_func(**action_parameters)
+        if not isinstance(whys, list):
+            whys = [whys]
+            actions = [actions]
 
-        db_action = InvestigatorAction(
-            run_id=self.run.id,
-            action_id=self.action_id,
-            action_type=action_func.__name__,
-            why=why,
-            action=action,
-            input_queue=input_q,
-            output_queue=self.queue_state,
-            timestamp=datetime.utcnow(),
-        )
+        for why, action in zip(whys, actions):
 
-        current_app.logger.debug("DB_ACTION: %s" % db_action)
-        current_app.logger.debug("NODES: %s" % self.run.nodes)
+            db_action = InvestigatorAction(
+                run_id=self.run.id,
+                action_id=self.action_id,
+                action_type=action_func.__name__,
+                why=why,
+                action=action,
+                input_queue=input_q,
+                output_queue=self.queue_state,
+                timestamp=datetime.utcnow(),
+            )
 
-        db.session.add(db_action)
+            current_app.logger.debug("DB_ACTION: %s" % db_action)
+            current_app.logger.debug("NODES: %s" % self.run.nodes)
+            current_app.logger.debug("TASKQ: %s" % self.task_queue)
+            db.session.add(db_action)
+            self.action_id += 1
+
         db.session.commit()  # this also stores changes made inside actions (e.g. execute, report)
-
-        self.action_id += 1
 
     async def initialize(self, processorset):
         """
         task queue initialization
         """
-        tasks = self.make_tasks(processorsets[processorset], self.root_documentset)
-        self.task_queue.add_tasks(tasks)
-        why = {"processorset": processorset}
-        action = {"tasks_added_to_q": self.task_list(tasks)}
+        why, action = self.add_processorset_into_q(
+            processorset, self.root_documentset, "initialization"
+        )
         return why, action
 
     async def select(self):
@@ -195,9 +203,44 @@ class Investigator:
         """
         update task queue
         """
-        # dev_note means temporal placeholder, which should not be used by explainer:
-        why = {"dev_note": "not implemented"}
-        action = {}
+        # Rule-based for now
+
+        current_app.logger.debug(
+            "UPDATE: self.root_documentset.processors %s"
+            % self.root_documentset.processors
+        )
+        if "SPLIT" not in self.root_documentset.processors:
+            # the first thing to do: split
+
+            why, action = self.add_processorset_into_q(
+                "SPLIT", self.root_documentset, "brute_force"
+            )
+            return why, action
+
+        elif self.root_documentset in self.current_collections:
+            current_app.logger.debug("IFFFFFFFFFFFFFFF")
+            # we are still in the root collection but splits are done
+            lang_split = self.find_split_by_facet(self.root_documentset, "LANGUAGE")
+            self.current_collections = self.make_collections_from_split(
+                lang_split, outliers=True
+            )
+            current_app.logger.debug(
+                "###CURRENT COLLECTIONS: %s" % self.current_collections
+            )
+            whys, actions = await self.add_language_specific_tasks(
+                self.current_collections
+            )
+            return whys, actions
+
+        elif len(self.current_collections) > 1:
+            # we already away from the root and have several collections
+            why, action = self.apply_comparison()
+            self.current_collections = []
+
+        else:
+            # dev_note means temporal placeholder, which should not be used by explainer:
+            why = {"dev_note": "not implemented"}
+            action = {}
         return why, action
 
     async def stop(self):
@@ -219,7 +262,7 @@ class Investigator:
             raise NotImplementedError
 
     def check_for_stop(self):
-        if self.run.user_parameters["describe"]:
+        if self.run.user_parameters.get("describe"):
             self.to_stop = {"user_parameters": "describe"}
         elif self.task_queue.taskq == []:
             self.to_stop = {"taskq": "empty"}
@@ -231,8 +274,12 @@ class Investigator:
             self.run_finished = datetime.utcnow()
         db.session.commit()
 
-    def make_tasks(self, processorset, documentset):
-        return [documentset.make_task(p["name"], p["parameters"]) for p in processorset]
+    def make_tasks(self, set_name, documentset):
+        documentset.processors.append(set_name)
+        return [
+            documentset.make_task(p["name"], p["parameters"])
+            for p in processorsets[set_name]
+        ]
 
     def estimate_node_interestingness(self, results):
         # self is currently not used but might be useful to estimate interestingness
@@ -246,6 +293,70 @@ class Investigator:
         why = {"dev_note": "not implemented; all results combined unselectevely"}
         combined_result = self.sort_by_interestingness(sum(results, []))
         return why, combined_result
+
+    def add_processorset_into_q(self, processorset, documentset, reason):
+        current_app.logger.debug("ADDING PROCESSORSET: %s" % processorset)
+        tasks = self.make_tasks(processorset, documentset)
+        self.task_queue.add_tasks(tasks)
+        why = {"processorset": processorset, "reason": reason}
+        action = {"tasks_added_to_q": self.task_list(tasks)}
+        return why, action
+
+    async def add_language_specific_tasks(self, collections):
+        whys = []
+        actions = []
+        for collection in collections:
+            collection_size = await collection.collection_size()
+
+            current_app.logger.debug("****COLLECTION_SIZE: %s" % collection_size)
+
+            if collection_size <= 20:
+                why, action = self.add_processorset_into_q(
+                    "SUMMARIZATION", collection, "small_collection"
+                )
+            elif collection_size < 1000:
+                why, action = self.add_processorset_into_q(
+                    "TOPIC_MODEL", collection, "big_collection"
+                )
+            else:
+                why = {"reason": "too_big_collection"}
+                action = {}
+
+            why["collection_size"] = collection_size
+            whys.append(why)
+            actions.append(action)
+
+        return whys, actions
+
+    def find_split_by_facet(self, collection, facet):
+        for task in collection.tasks:
+            if (
+                task.processor.name == "SplitByFacet"
+                and task.parameters["facet"] == facet
+                and task.task_status == "finished"
+            ):
+                return task.task_result
+
+    def make_collections_from_split(self, split, number=None, outliers=False):
+        # split is a task result
+        # returns list of collections
+        # todo: some meaningful criteria
+        if len(split.result) == 1 or not outliers:
+            thr = 0.0
+        else:
+            thr = 0.001
+        current_app.logger.debug("SPLIT %s" % split)
+        current_app.logger.debug("SPLIT RESULT %s" % split.result)
+        current_app.logger.debug("SPLIT INTERESTINGNESS %s" % split.interestingness)
+        current_app.logger.debug("THRRRRR: %s" % thr)
+        return [
+            Collection(self.user, query=split.result[lang], lang=lang)
+            for lang in split.result
+            if split.interestingness[lang] >= thr
+        ]
+
+    def apply_comparison(self):
+        return "not-implemented", {}
 
     @staticmethod
     def sort_by_interestingness(results):
@@ -309,12 +420,17 @@ class TaskQueue:
 
 
 class Collection:
-    def __init__(self):
-        pass
-
-    def make_root_collection(self, run, user):
+    def __init__(self, user, query=None, lang=None):
+        self.processors = []
+        self.tasks = []
         self.user = user
+        # we know language if the collection is a result of language-based split
+        self.lang = lang
+        if query:
+            self.data_type = "search_query"
+            self.data = query
 
+    def make_root_collection(self, run):
         if run.root_dataset_id is not None:
             self.data_type = "dataset"
             self.data = {
@@ -328,8 +444,16 @@ class Collection:
             raise Exception("Unknown documentset for run %s" % run)
 
     def make_task(self, processor_name, task_parameters={}):
-        current_app.logger.debug("PARAMETERS: %s" % task_parameters)
-        return generate_task(
+        if not isinstance(task_parameters, dict):
+            # need to infer parameters dynamically
+            if task_parameters == "LANG":
+                task_parameters = {"language": self.lang}
+            else:
+                raise NotImplementedError(
+                    "Don't know where to get parameters %s" % task_parameters
+                )
+
+        task = generate_task(
             {
                 "processor": processor_name,
                 self.data_type: self.data,
@@ -338,3 +462,13 @@ class Collection:
             user=self.user,
             return_task=True,
         )
+        self.tasks.append(task)
+        return task
+
+    async def collection_size(self):
+        if self.data_type == "dataset":
+            raise NotImplementedError
+        search_result = await search_database(
+            {"rows": 0, **self.data}, retrieve="docids"
+        )
+        return search_result["numFound"]

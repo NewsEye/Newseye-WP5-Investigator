@@ -10,7 +10,14 @@ processorsets = {
         {"name": "ExtractWords", "parameters": {}},
         {"name": "ExtractBigrams", "parameters": {}},
         {"name": "GenerateTimeSeries", "parameters": {}},
-    ]
+    ],
+    "SPLIT": [
+        {"name": "SplitByFacet", "parameters": {"facet": "LANGUAGE"}},
+        {"name": "SplitByFacet", "parameters": {"facet": "PUB_YEAR"}},
+        {"name": "SplitByFacet", "parameters": {"facet": "NEWSPAPER_NAME"}},
+    ],
+    "SUMMARIZATION": [{"name": "Summarization", "parameters": {}}],
+    "TOPIC_MODEL": [{"name": "QueryTopicModel", "parameters": "LANG"}],
 }
 
 

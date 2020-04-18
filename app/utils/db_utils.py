@@ -67,6 +67,8 @@ def verify_analysis_parameters(args):
 
     parameter_info = processor.parameter_info
     query_parameters = args["parameters"]
+    current_app.logger.debug("PARAMETERS: %s" % query_parameters)
+    current_app.logger.debug("PARAMETER_INFO: %s" % parameter_info)
 
     new_parameters = {}
     for parameter in parameter_info:
@@ -74,6 +76,7 @@ def verify_analysis_parameters(args):
         if parameter_name in query_parameters.keys():
             new_parameters[parameter_name] = query_parameters[parameter_name]
         else:
+
             if parameter["required"]:
                 raise BadRequest(
                     "Required utility parameter '{}' is not defined in the query:\n{}".format(
@@ -85,7 +88,7 @@ def verify_analysis_parameters(args):
 
     new_args = {key: value for key, value in args.items() if key != "parameters"}
     new_args["parameters"] = new_parameters
-
+    current_app.logger.debug("NEW_ARGS: %s" % new_args)
     return new_args, processor
 
 

@@ -85,7 +85,7 @@ async def query_solr(
         parameters["rows"] = min(num_results, max_return_value)
         if num_results > max_return_value:
             current_app.logger.debug(
-                "TOO MANY RAWS TO RETURN, returnung %d" % max_return_value
+                "TOO MANY ROWS TO RETURN, returning %d" % max_return_value
             )
 
         async with session.get(solr_uri, json={"params": parameters}) as response:
@@ -99,6 +99,10 @@ async def query_solr(
         "facets": format_facets(response["facet_counts"]["facet_fields"]),
     }
     return result
+
+
+async def query_size(query):
+    return 1
 
 
 def convert_vector_response_to_dictionary(term_vectors):

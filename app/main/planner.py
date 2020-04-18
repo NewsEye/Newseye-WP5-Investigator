@@ -70,10 +70,14 @@ class TaskPlanner(object):
             Task.task_status == "finished",
             Task.task_results is not None,
         ).all()
+        related_tasks = [
+            rt
+            for rt in sorted(related_tasks, key=lambda t: t.task_finished)
+            if rt.task_result is not None
+        ]
         if not related_tasks:
             return
-        related_task = sorted(related_tasks, key=lambda t: t.task_finished)[-1]
-        result = related_task.task_result
+        result = related_tasks[-1].task_result
         task.task_results.append(result)
         return True
 
@@ -173,7 +177,7 @@ class TaskPlanner(object):
         task_parameters = {
             "processor": self.get_source_processor(task),
             "parameters": {},
-            "search_query": task.solr_query.search_query,
+            "search_query": task.solr_query.search_query if task.solr_query else None,
             "dataset": task.dataset,
             "force_refresh": task.force_refresh,
         }

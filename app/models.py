@@ -300,12 +300,13 @@ class Task(db.Model):
     @property
     def task_result(self):
         if self.task_results:
+            self.task_results = [tr for tr in self.task_results if tr]
             if len(self.task_results) > 1:
                 current_app.logger.debug("TASK_RESULTS: %s" % self.task_results)
                 raise NotImplementedError(
                     "Don't know what to do with more than one result"
                 )
-            else:
+            elif self.task_results:
                 return self.task_results[0]
 
     def report(self, language="en", format="p"):

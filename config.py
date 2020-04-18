@@ -23,8 +23,10 @@ class Config(object):
     # The URI for the Reporter API
     REPORTER_URI = "http://newseye-wp5.cs.helsinki.fi:4218/api"
     # REPORTER_URI = "http://localhost:8080/api"
+
     # This should contain the URI for the topic modelling tools
     TOPIC_MODEL_URI = "https://newseye-wp4.cs.helsinki.fi"
+    TOPIC_MODEL_TYPES = ["lda", "dtm"]
 
     # credentials for the dataset API
     DATASET_URI = "https://platform.newseye.eu"

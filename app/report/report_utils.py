@@ -77,7 +77,7 @@ def generate_report(record, report_language, report_format):
         "data": json.dumps(data),
     }
 
-    # current_app.logger.debug("PAYLOAD: %s" %payload)
+    current_app.logger.debug("PAYLOAD: %s" % payload)
     response = requests.post(Config.REPORTER_URI + "/report", data=payload)
 
     try:

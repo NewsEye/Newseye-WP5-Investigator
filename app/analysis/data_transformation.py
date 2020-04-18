@@ -33,9 +33,12 @@ class SplitByFacet(AnalysisUtility):
         return previous_task_result[self.task.parameters["facet"]]
 
     async def make_result(self):
-        if len(self.input_data) == 1:
-            return []
+        # if len(self.input_data) == 1:
+        #     return []
         facet_field = AVAILABLE_FACETS[self.task.parameters["facet"]]
+
+        current_app.logger.debug("******FACET_FIELD: %s" % facet_field)
+
         search_query = self.task.search_query
         fq = search_query.get("fq", [])
         if isinstance(fq, str):
