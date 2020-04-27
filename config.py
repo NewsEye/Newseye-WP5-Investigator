@@ -45,11 +45,19 @@ class Config(object):
     # SOLR_URI = "http://newseye.cs.helsinki.fi:9983/solr/hydra-development/select"
     SOLR_PARAMETERS = {
         "default": {
-            "mm": 1,  # minimal matching
+            # "mm": 1,  # minimal matching
+            "mm": "2<-1 5<-2 6<90%",
+            "qs": 1,
+            "ps": 2,
+            "tie": 0.01,
             "wt": "json",
             "qf": "all_text_tfr_siv all_text_tfi_siv all_text_tde_siv all_text_tse_siv",
         },
         "all": {
+            "mm": "2<-1 5<-2 6<90%",
+            "qs": 1,
+            "ps": 2,
+            "tie": 0.01,
             "fl": "system_create_dtsi, system_modified_dtsi, has_model_ssim, id, title_ssi, date_created_dtsi, date_created_ssim, language_ssi, original_uri_ss, nb_pages_isi, thumbnail_url_ss, member_ids_ssim, object_ids_ssim, member_of_collection_ids_ssim, timestamp, year_isi, _version_, all_text_tfr_siv, all_text_tfi_siv, all_text_tde_siv, all_text_tse_siv, score",
             "facet.field": [
                 "year_isi",
@@ -59,6 +67,10 @@ class Config(object):
             ],
         },
         "facets": {
+            "mm": "2<-1 5<-2 6<90%",
+            "qs": 1,
+            "ps": 2,
+            "tie": 0.01,
             "facet.field": [
                 "year_isi",
                 "language_ssi",
@@ -67,25 +79,50 @@ class Config(object):
             ],
             "rows": 0,
         },
-        "docids": {"fl": "id", "rows": 0,},
+        "docids": {
+            "mm": "2<-1 5<-2 6<90%",
+            "qs": 1,
+            "ps": 2,
+            "tie": 0.01,
+            "fl": "id",
+            "rows": 0,
+        },
         "stems": {
+            "mm": "2<-1 5<-2 6<90%",
+            "qs": 1,
+            "ps": 2,
+            "tie": 0.01,
             "tv.all": True,
             "tv.fl": "all_text_tfr_siv all_text_tfi_siv all_text_tde_siv all_text_tse_siv",
             "fl": "nothing",  # non-existing field to retrun nothing; otherwise all text will be returned
             "defType": "edismax",
         },
         "tokens": {
+            "mm": "2<-1 5<-2 6<90%",
+            "qs": 1,
+            "ps": 2,
+            "tie": 0.01,
             "tv.all": True,
             "tv.fl": "all_text_unstemmed_tfr_iv all_text_unstemmed_tfi_iv all_text_unstemmed_tde_iv all_text_unstemmed_tse_iv",
             "fl": "nothing",  # non-existing field to retrun nothing; otherwise all text will be returned
             "defType": "edismax",
         },
         "words": {
+            "mm": "2<-1 5<-2 6<90%",
+            "qs": 1,
+            "ps": 2,
+            "tie": 0.01,
             "q": "*:*",
             "fl": "*,[child parentFilter=level:1. childFilter=level:4. limit=100000]",
             "qf": "id",
         },
-        "pages": {"fl": "member_ids_ssim"},
+        "pages": {
+            "mm": "2<-1 5<-2 6<90%",
+            "qs": 1,
+            "ps": 2,
+            "tie": 0.01,
+            "fl": "member_ids_ssim",
+        },
     }
 
     SUPPORTED_LANGUAGES = ["fi", "de", "fr"]
