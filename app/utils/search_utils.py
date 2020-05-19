@@ -31,7 +31,7 @@ async def query_solr(
 ):
     #### TODO: store queries and outputs, check if output exists, and reuse
 
-    #    current_app.logger.debug("============== QUERY: %s RETRIEVE: %s" %(query, retrieve))
+    current_app.logger.debug("============== QUERY: %s RETRIEVE: %s" %(query, retrieve))
 
     """
     :param session: an aiohttp ClientSession
@@ -76,7 +76,43 @@ async def query_solr(
         # current_app.logger.debug("RESPONSE in search_utils: %s" %response)
 
     if retrieve in ["tokens", "stems"]:
-        return convert_vector_response_to_dictionary(response["termVectors"])
+        num_results = response["response"]["numFound"]
+        current_app.logger.debug("!!!!NUM_RESULTS %d" %num_results)
+        if num_results > max_return_value:
+            current_app.logger.info(
+                "TOO MANY ROWS TO RETURN, returning %d" % max_return_value
+            )
+            num_results=max_return_value
+
+        # TODO: parameter, move to config
+        # keeping them here is easier to debug, I don't know what is the best numbers
+        rows_in_one_query = 20
+        pages_in_parallel=5
+        pages = []
+        result_dict = {}
+        page_count = 0
+        for start in range(0, num_results, rows_in_one_query):
+            parameters["start"] = start
+            parameters["rows"] = rows_in_one_query
+            #current_app.logger.debug("START: %d" %start)
+            #current_app.logger.debug("parameters %s" % parameters)
+            pages.append(parameters.copy())
+            page_count += 1
+            if page_count >= pages_in_parallel:
+                for response in asyncio.as_completed([get_response(session, solr_uri, page) for page in pages]):
+                    response = await response
+                    result_dict = convert_vector_response_to_dictionary(response["termVectors"], result_dict)
+                    current_app.logger.debug("RESULT_DICT %d" %len(result_dict))
+                pages = []
+                page_count = 0
+                
+        # Last batch:
+        for response in asyncio.as_completed([get_response(session, solr_uri, page) for page in pages]):
+            response = await response
+            result_dict = convert_vector_response_to_dictionary(response["termVectors"], result_dict)
+            current_app.logger.debug("RESULT_DICT %d" %len(result_dict))
+    
+        return result_dict
 
     # For retrieving docids, retrieve all of them, unless the number of rows is specified in the query
     if retrieve in ["docids"] and "rows" not in query.keys():
@@ -84,7 +120,7 @@ async def query_solr(
         # Set a limit for the maximum number of documents to fetch at one go to 100000
         parameters["rows"] = min(num_results, max_return_value)
         if num_results > max_return_value:
-            current_app.logger.debug(
+            current_app.logger.info(
                 "TOO MANY ROWS TO RETURN, returning %d" % max_return_value
             )
 
@@ -105,9 +141,12 @@ async def query_size(query):
     return 1
 
 
-def convert_vector_response_to_dictionary(term_vectors):
+async def get_response(session, solr_uri, parameters):
+    async with session.get(solr_uri, json={"params": parameters}) as response:
+        return await response.json()
+
+def convert_vector_response_to_dictionary(term_vectors, result_dict):
     # bunch of hacks
-    result_dict = {}
     for article in term_vectors:
         if article[0] == "uniqueKey":
             article_id = article[1]
@@ -151,6 +190,9 @@ def format_facets(facet_dict):
         "year_isi": "Year",
         "has_model_ssim": "Type",
         "date_created_dtsi": "Date",
+        "linked_persons_ssim" : "Person",
+        "linked_locations_ssim" : "Location",
+        "linked_organisations_ssim" : "Organizations"        
     }
     facet_list = [
         {

@@ -144,7 +144,11 @@ def generate_task(query, user=current_user, parent_id=None, return_task=False):
         task.dataset_id = get_dataset(task_parameters["dataset"]).id
     elif task_parameters.get("search_query"):
         input_data = "solr_query"
-        task.solr_query = get_solr_query(task_parameters["search_query"])
+        # ROWS parameter may come from the demonstrator
+        # needed only for representation
+        # remove it to query ALL documents
+        solr_query = {k:v for k,v in task_parameters["search_query"].items() if k != "rows"}
+        task.solr_query = get_solr_query(solr_query)
     else:
         if task_parameters.get("source_uuid"):
             parent_task = Task.query.filter_by(

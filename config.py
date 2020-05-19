@@ -37,7 +37,7 @@ class Config(object):
     COOKIES = {}
 
     SOLR_URI = os.environ.get("SOLR_URI")
-    SOLR_MAX_RETURN_VALUES = 100000
+    SOLR_MAX_RETURN_VALUES = 20000 #100000
 
     # SOLR_URI = "http://localhost:9983/solr/hydra-development/select"
     # test DB:
@@ -54,7 +54,6 @@ class Config(object):
             "qf": "all_text_tfr_siv all_text_tfi_siv all_text_tde_siv all_text_tse_siv",
         },
         "all": {
-            "mm": "2<-1 5<-2 6<90%",
             "qs": 1,
             "ps": 2,
             "tie": 0.01,
@@ -67,7 +66,6 @@ class Config(object):
             ],
         },
         "facets": {
-            "mm": "2<-1 5<-2 6<90%",
             "qs": 1,
             "ps": 2,
             "tie": 0.01,
@@ -80,7 +78,6 @@ class Config(object):
             "rows": 0,
         },
         "docids": {
-            "mm": "2<-1 5<-2 6<90%",
             "qs": 1,
             "ps": 2,
             "tie": 0.01,
@@ -88,27 +85,24 @@ class Config(object):
             "rows": 0,
         },
         "stems": {
-            "mm": "2<-1 5<-2 6<90%",
             "qs": 1,
             "ps": 2,
             "tie": 0.01,
             "tv.all": True,
             "tv.fl": "all_text_tfr_siv all_text_tfi_siv all_text_tde_siv all_text_tse_siv",
             "fl": "nothing",  # non-existing field to retrun nothing; otherwise all text will be returned
-            "defType": "edismax",
+            "defType": "edismax"
         },
         "tokens": {
-            "mm": "2<-1 5<-2 6<90%",
             "qs": 1,
             "ps": 2,
             "tie": 0.01,
             "tv.all": True,
             "tv.fl": "all_text_unstemmed_tfr_iv all_text_unstemmed_tfi_iv all_text_unstemmed_tde_iv all_text_unstemmed_tse_iv",
             "fl": "nothing",  # non-existing field to retrun nothing; otherwise all text will be returned
-            "defType": "edismax",
+            "defType": "edismax"
         },
         "words": {
-            "mm": "2<-1 5<-2 6<90%",
             "qs": 1,
             "ps": 2,
             "tie": 0.01,
@@ -117,7 +111,6 @@ class Config(object):
             "qf": "id",
         },
         "pages": {
-            "mm": "2<-1 5<-2 6<90%",
             "qs": 1,
             "ps": 2,
             "tie": 0.01,
