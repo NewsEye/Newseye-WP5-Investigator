@@ -86,15 +86,15 @@ async def query_solr(
 
         # TODO: parameter, move to config
         # keeping them here is easier to debug, I don't know what is the best numbers
-        rows_in_one_query = 20
-        pages_in_parallel=5
+        rows_in_one_query = 10
+        pages_in_parallel=10
         pages = []
         result_dict = {}
         page_count = 0
         for start in range(0, num_results, rows_in_one_query):
             parameters["start"] = start
             parameters["rows"] = rows_in_one_query
-            #current_app.logger.debug("START: %d" %start)
+            current_app.logger.debug("START: %d" %start)
             #current_app.logger.debug("parameters %s" % parameters)
             pages.append(parameters.copy())
             page_count += 1
@@ -102,7 +102,7 @@ async def query_solr(
                 for response in asyncio.as_completed([get_response(session, solr_uri, page) for page in pages]):
                     response = await response
                     result_dict = convert_vector_response_to_dictionary(response["termVectors"], result_dict)
-                    current_app.logger.debug("RESULT_DICT %d" %len(result_dict))
+                    #current_app.logger.debug("RESULT_DICT %d" %len(result_dict))
                 pages = []
                 page_count = 0
                 
@@ -141,9 +141,15 @@ async def query_size(query):
     return 1
 
 
-async def get_response(session, solr_uri, parameters):
-    async with session.get(solr_uri, json={"params": parameters}) as response:
-        return await response.json()
+async def get_response(session, solr_uri, parameters, max_retry=10):
+    try:
+        async with session.get(solr_uri, json={"params": parameters}) as response:
+            return await response.json()
+    except asyncio.TimeoutError as e:
+        current_app.logger.debug("timeout_error!!! try a new session")
+        async with aiohttp.ClientSession() as session:
+            async with session.get(solr_uri, json={"params": parameters}) as response:
+                return await response.json()
 
 def convert_vector_response_to_dictionary(term_vectors, result_dict):
     # bunch of hacks
