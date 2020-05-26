@@ -37,7 +37,7 @@ class Config(object):
     COOKIES = {}
 
     SOLR_URI = os.environ.get("SOLR_URI")
-    SOLR_MAX_RETURN_VALUES = 20000 #100000
+    SOLR_MAX_RETURN_VALUES = 100000
 
     # SOLR_URI = "http://localhost:9983/solr/hydra-development/select"
     # test DB:

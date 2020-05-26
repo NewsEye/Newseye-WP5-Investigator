@@ -148,6 +148,15 @@ def generate_task(query, user=current_user, parent_id=None, return_task=False):
         # needed only for representation
         # remove it to query ALL documents
         solr_query = {k:v for k,v in task_parameters["search_query"].items() if k != "rows"}
+        # all analysis is done using only articles and ignoring issues
+        fq = solr_query.get("fq", [])
+        if isinstance(fq, str):
+            fq = [fq]
+
+        fq = [f for f in fq if not f.startswith("has_model_ssim")]
+        fq.append("has_model_ssim:Article")
+        solr_query["fq"] = fq
+        current_app.logger.debug("!!!!!SOLR_QUERY!!! %s" %solr_query)
         task.solr_query = get_solr_query(solr_query)
     else:
         if task_parameters.get("source_uuid"):

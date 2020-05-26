@@ -77,7 +77,7 @@ async def query_solr(
 
     if retrieve in ["tokens", "stems"]:
         num_results = response["response"]["numFound"]
-        current_app.logger.debug("!!!!NUM_RESULTS %d" %num_results)
+        current_app.logger.debug("NUM_RESULTS %d" %num_results)
         if num_results > max_return_value:
             current_app.logger.info(
                 "TOO MANY ROWS TO RETURN, returning %d" % max_return_value
@@ -85,9 +85,9 @@ async def query_solr(
             num_results=max_return_value
 
         # TODO: parameter, move to config
-        # keeping them here is easier to debug, I don't know what is the best numbers
-        rows_in_one_query = 10
-        pages_in_parallel=10
+        # keeping them here is easier to debug, I don't yet know the best numbers
+        rows_in_one_query = 60
+        pages_in_parallel=3
         pages = []
         result_dict = {}
         page_count = 0
@@ -147,10 +147,15 @@ async def get_response(session, solr_uri, parameters, max_retry=10):
             return await response.json()
     except asyncio.TimeoutError as e:
         current_app.logger.debug("timeout_error!!! try a new session")
-        async with aiohttp.ClientSession() as session:
-            async with session.get(solr_uri, json={"params": parameters}) as response:
-                return await response.json()
-
+        for t in range(max_retry):
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(solr_uri, json={"params": parameters}) as response:
+                        return await asyncio.wait_for(response.json(), timeout=None)
+            except asyncio.TimeoutError as e:
+                current_app.logger.debug("%d timeout_error!!! try a new session" %t)
+                pass
+                
 def convert_vector_response_to_dictionary(term_vectors, result_dict):
     # bunch of hacks
     for article in term_vectors:

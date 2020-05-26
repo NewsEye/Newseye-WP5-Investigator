@@ -27,8 +27,6 @@ class WordProcessor(AnalysisUtility):
         )
 
     async def get_input_data(self):
-        current_app.logger.debug("!!!!self.task.search_query %s" %self.task.search_query)
-        current_app.logger.debug("!!!! retrieve %s" %self.task.parameters["unit"])
         return await search_database(
             self.task.search_query, retrieve=self.task.parameters["unit"]
         )
@@ -51,7 +49,6 @@ class ExtractWords(WordProcessor):
         """
         # TODO: might need to save an initial dictionary for reuse
 
-        current_app.logger.debug("!!!!INPUT_DATA %s" %len(self.input_data.keys()))
         
         df = {}
         tf = defaultdict(int)
