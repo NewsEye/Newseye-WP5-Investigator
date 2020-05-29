@@ -31,7 +31,9 @@ async def query_solr(
 ):
     #### TODO: store queries and outputs, check if output exists, and reuse
 
-    current_app.logger.debug("============== QUERY: %s RETRIEVE: %s" %(query, retrieve))
+    current_app.logger.debug(
+        "============== QUERY: %s RETRIEVE: %s" % (query, retrieve)
+    )
 
     """
     :param session: an aiohttp ClientSession
@@ -77,41 +79,49 @@ async def query_solr(
 
     if retrieve in ["tokens", "stems"]:
         num_results = response["response"]["numFound"]
-        current_app.logger.debug("NUM_RESULTS %d" %num_results)
+        current_app.logger.debug("NUM_RESULTS %d" % num_results)
         if num_results > max_return_value:
             current_app.logger.info(
                 "TOO MANY ROWS TO RETURN, returning %d" % max_return_value
             )
-            num_results=max_return_value
+            num_results = max_return_value
 
         # TODO: parameter, move to config
         # keeping them here is easier to debug, I don't yet know the best numbers
         rows_in_one_query = 60
-        pages_in_parallel=3
+        pages_in_parallel = 3
         pages = []
         result_dict = {}
         page_count = 0
         for start in range(0, num_results, rows_in_one_query):
             parameters["start"] = start
             parameters["rows"] = rows_in_one_query
-            current_app.logger.debug("START: %d" %start)
-            #current_app.logger.debug("parameters %s" % parameters)
+            current_app.logger.debug("START: %d" % start)
+            # current_app.logger.debug("parameters %s" % parameters)
             pages.append(parameters.copy())
             page_count += 1
             if page_count >= pages_in_parallel:
-                for response in asyncio.as_completed([get_response(session, solr_uri, page) for page in pages]):
+                for response in asyncio.as_completed(
+                    [get_response(session, solr_uri, page) for page in pages]
+                ):
                     response = await response
-                    result_dict = convert_vector_response_to_dictionary(response["termVectors"], result_dict)
-                    #current_app.logger.debug("RESULT_DICT %d" %len(result_dict))
+                    result_dict = convert_vector_response_to_dictionary(
+                        response["termVectors"], result_dict
+                    )
+                    # current_app.logger.debug("RESULT_DICT %d" %len(result_dict))
                 pages = []
                 page_count = 0
-                
+
         # Last batch:
-        for response in asyncio.as_completed([get_response(session, solr_uri, page) for page in pages]):
+        for response in asyncio.as_completed(
+            [get_response(session, solr_uri, page) for page in pages]
+        ):
             response = await response
-            result_dict = convert_vector_response_to_dictionary(response["termVectors"], result_dict)
-            current_app.logger.debug("RESULT_DICT %d" %len(result_dict))
-    
+            result_dict = convert_vector_response_to_dictionary(
+                response["termVectors"], result_dict
+            )
+            current_app.logger.debug("RESULT_DICT %d" % len(result_dict))
+
         return result_dict
 
     # For retrieving docids, retrieve all of them, unless the number of rows is specified in the query
@@ -150,12 +160,15 @@ async def get_response(session, solr_uri, parameters, max_retry=10):
         for t in range(max_retry):
             try:
                 async with aiohttp.ClientSession() as session:
-                    async with session.get(solr_uri, json={"params": parameters}) as response:
+                    async with session.get(
+                        solr_uri, json={"params": parameters}
+                    ) as response:
                         return await asyncio.wait_for(response.json(), timeout=None)
             except asyncio.TimeoutError as e:
-                current_app.logger.debug("%d timeout_error!!! try a new session" %t)
+                current_app.logger.debug("%d timeout_error!!! try a new session" % t)
                 pass
-                
+
+
 def convert_vector_response_to_dictionary(term_vectors, result_dict):
     # bunch of hacks
     for article in term_vectors:
@@ -201,9 +214,9 @@ def format_facets(facet_dict):
         "year_isi": "Year",
         "has_model_ssim": "Type",
         "date_created_dtsi": "Date",
-        "linked_persons_ssim" : "Person",
-        "linked_locations_ssim" : "Location",
-        "linked_organisations_ssim" : "Organizations"        
+        "linked_persons_ssim": "Person",
+        "linked_locations_ssim": "Location",
+        "linked_organisations_ssim": "Organizations",
     }
     facet_list = [
         {

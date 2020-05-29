@@ -33,7 +33,7 @@ class Investigator:
         self.root_documentset.make_root_collection(self.run)
 
         self.current_collections = [self.root_documentset]
-
+        self.loop_no = 0
         self.action_id = 0
         self.node_id = 0
         self.to_stop = False
@@ -193,7 +193,15 @@ class Investigator:
                 interestingness,
                 self.user,
             )
-            self.nodes += [{"uuid": str(node.uuid), "interestingness": interestingness}]
+            self.nodes += [
+                {
+                    "uuid": str(node.uuid),
+                    "interestingness": interestingness,
+                    "id": str(node.id),
+                    "start_action_id": str(node.start_action_id),
+                    "end_action_id": str(node.end_action_id),
+                }
+            ]
             self.run.nodes = self.nodes
             self.node_id += 1
 
@@ -211,16 +219,20 @@ class Investigator:
         )
         if "SPLIT" not in self.root_documentset.processors:
             # the first thing to do: split
-
+            current_app.logger.debug("UPDATE: split not done ---> adding split")
             why, action = self.add_processorset_into_q(
                 "SPLIT", self.root_documentset, "brute_force"
             )
             return why, action
 
         elif self.root_documentset in self.current_collections:
-            current_app.logger.debug("IFFFFFFFFFFFFFFF")
+            current_app.logger.debug(
+                "UPDATE: split is done but we are still in the root dataset"
+            )
             # we are still in the root collection but splits are done
-            lang_split = self.find_split_by_facet(self.root_documentset, "LANGUAGE")
+            lang_split, split_uuid = self.find_split_by_facet(
+                self.root_documentset, "LANGUAGE"
+            )
             self.current_collections = self.make_collections_from_split(
                 lang_split, outliers=True
             )
@@ -228,12 +240,13 @@ class Investigator:
                 "###CURRENT COLLECTIONS: %s" % self.current_collections
             )
             whys, actions = await self.add_language_specific_tasks(
-                self.current_collections
+                self.current_collections, split_uuid
             )
             return whys, actions
 
         elif len(self.current_collections) > 1:
             # we already away from the root and have several collections
+            current_app.logger.debug("UPDATE: comparison of split parts")
             why, action = self.apply_comparison()
             self.current_collections = []
 
@@ -274,10 +287,10 @@ class Investigator:
             self.run_finished = datetime.utcnow()
         db.session.commit()
 
-    def make_tasks(self, set_name, documentset):
+    def make_tasks(self, set_name, documentset, source_uuid=None):
         documentset.processors.append(set_name)
         return [
-            documentset.make_task(p["name"], p["parameters"])
+            documentset.make_task(p["name"], p["parameters"], source_uuid)
             for p in processorsets[set_name]
         ]
 
@@ -294,15 +307,17 @@ class Investigator:
         combined_result = self.sort_by_interestingness(sum(results, []))
         return why, combined_result
 
-    def add_processorset_into_q(self, processorset, documentset, reason):
+    def add_processorset_into_q(
+        self, processorset, documentset, reason, source_uuid=None
+    ):
         current_app.logger.info("ADDING PROCESSORSET: %s" % processorset)
-        tasks = self.make_tasks(processorset, documentset)
+        tasks = self.make_tasks(processorset, documentset, source_uuid)
         self.task_queue.add_tasks(tasks)
         why = {"processorset": processorset, "reason": reason}
         action = {"tasks_added_to_q": self.task_list(tasks)}
         return why, action
 
-    async def add_language_specific_tasks(self, collections):
+    async def add_language_specific_tasks(self, collections, source_uuid):
         whys = []
         actions = []
         for collection in collections:
@@ -312,11 +327,11 @@ class Investigator:
 
             if collection_size <= 20:
                 why, action = self.add_processorset_into_q(
-                    "SUMMARIZATION", collection, "small_collection"
+                    "SUMMARIZATION", collection, "small_collection", source_uuid
                 )
             elif collection_size < 1000:
                 why, action = self.add_processorset_into_q(
-                    "TOPIC_MODEL", collection, "big_collection"
+                    "TOPIC_MODEL", collection, "big_collection", source_uuid
                 )
             else:
                 why = {"reason": "too_big_collection"}
@@ -335,7 +350,7 @@ class Investigator:
                 and task.parameters["facet"] == facet
                 and task.task_status == "finished"
             ):
-                return task.task_result
+                return task.task_result, task.uuid
 
     def make_collections_from_split(self, split, number=None, outliers=False):
         # split is a task result
@@ -443,7 +458,10 @@ class Collection:
         else:
             raise Exception("Unknown documentset for run %s" % run)
 
-    def make_task(self, processor_name, task_parameters={}):
+    def make_task(self, processor_name, task_parameters={}, source_uuid=None):
+
+        current_app.logger.debug("!!!! InVESTIGATOR  source_uuid %s" % source_uuid)
+
         if not isinstance(task_parameters, dict):
             # need to infer parameters dynamically
             if task_parameters == "LANG":
@@ -453,22 +471,23 @@ class Collection:
                     "Don't know where to get parameters %s" % task_parameters
                 )
 
-        task = generate_task(
-            {
-                "processor": processor_name,
-                self.data_type: self.data,
-                "parameters": task_parameters,
-            },
-            user=self.user,
-            return_task=True,
-        )
+        task_dict = {
+            "processor": processor_name,
+            self.data_type: self.data,
+            "parameters": task_parameters,
+        }
+        if source_uuid:
+            task_dict["source_uuid"] = source_uuid
+
+        task = generate_task(task_dict, user=self.user, return_task=True,)
         self.tasks.append(task)
         return task
 
     async def collection_size(self):
         if self.data_type == "dataset":
             raise NotImplementedError
-        search_result = await search_database(
-            {"rows": 0, **self.data}, retrieve="docids"
-        )
+        else:
+            search_result = await search_database(
+                {"rows": 0, **self.data}, retrieve="docids"
+            )
         return search_result["numFound"]

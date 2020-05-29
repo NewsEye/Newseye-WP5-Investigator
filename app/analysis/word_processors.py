@@ -49,7 +49,6 @@ class ExtractWords(WordProcessor):
         """
         # TODO: might need to save an initial dictionary for reuse
 
-        
         df = {}
         tf = defaultdict(int)
         total = 0.0
@@ -79,15 +78,16 @@ class ExtractWords(WordProcessor):
         max_value = sum([vocab[word][2] for word in vocab])
         try:
             return assessment.recoursive_distribution(
-                {word: exp(vocab[word][2]/max_value) for word in vocab}
+                {word: exp(vocab[word][2] / max_value) for word in vocab}
             )  # interestingness based on tf-idf, the biggest numbers highlighted
         except OverflowError as e:
             for word in vocab:
                 try:
                     exp(vocab[word][2])
                 except:
-                    print("word %s vocab[word] %s" %(word, vocab[word]))
+                    print("word %s vocab[word] %s" % (word, vocab[word]))
                     raise e
+
 
 class ExtractBigrams(WordProcessor):
     # could be more efficient

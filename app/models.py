@@ -285,6 +285,9 @@ class Task(db.Model):
                 ret.update(
                     {"interestingness": self.task_result.interestingness["overall"]}
                 )
+            if self.parents:
+                ret.update({"parents": [str(p.uuid) for p in self.parents]})
+
             ret.update(self.data_dict())
         return ret
 

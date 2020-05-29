@@ -132,6 +132,11 @@ def generate_task(query, user=current_user, parent_id=None, return_task=False):
         raise NotImplementedError("PARENT_ID")
 
     task_parameters, processor = verify_analysis_parameters(query)
+
+    current_app.logger.debug(
+        "!!!! GENERATE_TASK source_uuid: %s" % task_parameters.get("source_uuid")
+    )
+
     task = Task(
         processor_id=processor.id,
         force_refresh=bool(task_parameters.get("force_refresh", False)),
@@ -139,15 +144,25 @@ def generate_task(query, user=current_user, parent_id=None, return_task=False):
         task_status="created",
         parameters=task_parameters.get("parameters", {}),
     )
+
+    if task_parameters.get("source_uuid"):
+        parent_task = Task.query.filter_by(uuid=task_parameters["source_uuid"]).first()
+        task.parents.append(parent_task)
+    else:
+        parent_task = None
+
     if task_parameters.get("dataset"):
         input_data = "dataset"
         task.dataset_id = get_dataset(task_parameters["dataset"]).id
+
     elif task_parameters.get("search_query"):
         input_data = "solr_query"
         # ROWS parameter may come from the demonstrator
         # needed only for representation
         # remove it to query ALL documents
-        solr_query = {k:v for k,v in task_parameters["search_query"].items() if k != "rows"}
+        solr_query = {
+            k: v for k, v in task_parameters["search_query"].items() if k != "rows"
+        }
         # all analysis is done using only articles and ignoring issues
         fq = solr_query.get("fq", [])
         if isinstance(fq, str):
@@ -156,16 +171,12 @@ def generate_task(query, user=current_user, parent_id=None, return_task=False):
         fq = [f for f in fq if not f.startswith("has_model_ssim")]
         fq.append("has_model_ssim:Article")
         solr_query["fq"] = fq
-        current_app.logger.debug("!!!!!SOLR_QUERY!!! %s" %solr_query)
+        current_app.logger.debug("!!!!!SOLR_QUERY!!! %s" % solr_query)
         task.solr_query = get_solr_query(solr_query)
-    else:
-        if task_parameters.get("source_uuid"):
-            parent_task = Task.query.filter_by(
-                uuid=task_parameters["source_uuid"]
-            ).first()
-            task.parents.append(parent_task)
-            task.solr_query = parent_task.solr_query
-            task.dataset = parent_task.dataset
+
+    elif parent_task:
+        task.solr_query = parent_task.solr_query
+        task.dataset = parent_task.dataset
 
     check_uuid_and_commit(task)
     current_app.logger.debug("TASK %s" % task)

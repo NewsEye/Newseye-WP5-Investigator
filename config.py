@@ -77,13 +77,7 @@ class Config(object):
             ],
             "rows": 0,
         },
-        "docids": {
-            "qs": 1,
-            "ps": 2,
-            "tie": 0.01,
-            "fl": "id",
-            "rows": 0,
-        },
+        "docids": {"qs": 1, "ps": 2, "tie": 0.01, "fl": "id", "rows": 0,},
         "stems": {
             "qs": 1,
             "ps": 2,
@@ -91,7 +85,7 @@ class Config(object):
             "tv.all": True,
             "tv.fl": "all_text_tfr_siv all_text_tfi_siv all_text_tde_siv all_text_tse_siv",
             "fl": "nothing",  # non-existing field to retrun nothing; otherwise all text will be returned
-            "defType": "edismax"
+            "defType": "edismax",
         },
         "tokens": {
             "qs": 1,
@@ -100,7 +94,7 @@ class Config(object):
             "tv.all": True,
             "tv.fl": "all_text_unstemmed_tfr_iv all_text_unstemmed_tfi_iv all_text_unstemmed_tde_iv all_text_unstemmed_tse_iv",
             "fl": "nothing",  # non-existing field to retrun nothing; otherwise all text will be returned
-            "defType": "edismax"
+            "defType": "edismax",
         },
         "words": {
             "qs": 1,
@@ -110,12 +104,7 @@ class Config(object):
             "fl": "*,[child parentFilter=level:1. childFilter=level:4. limit=100000]",
             "qf": "id",
         },
-        "pages": {
-            "qs": 1,
-            "ps": 2,
-            "tie": 0.01,
-            "fl": "member_ids_ssim",
-        },
+        "pages": {"qs": 1, "ps": 2, "tie": 0.01, "fl": "member_ids_ssim",},
     }
 
     SUPPORTED_LANGUAGES = ["fi", "de", "fr"]
