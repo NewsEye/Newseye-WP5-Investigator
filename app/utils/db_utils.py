@@ -133,10 +133,6 @@ def generate_task(query, user=current_user, parent_id=None, return_task=False):
 
     task_parameters, processor = verify_analysis_parameters(query)
 
-    current_app.logger.debug(
-        "!!!! GENERATE_TASK source_uuid: %s" % task_parameters.get("source_uuid")
-    )
-
     task = Task(
         processor_id=processor.id,
         force_refresh=bool(task_parameters.get("force_refresh", False)),
@@ -171,7 +167,6 @@ def generate_task(query, user=current_user, parent_id=None, return_task=False):
         fq = [f for f in fq if not f.startswith("has_model_ssim")]
         fq.append("has_model_ssim:Article")
         solr_query["fq"] = fq
-        current_app.logger.debug("!!!!!SOLR_QUERY!!! %s" % solr_query)
         task.solr_query = get_solr_query(solr_query)
 
     elif parent_task:
