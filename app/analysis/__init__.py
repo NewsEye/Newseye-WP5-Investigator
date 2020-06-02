@@ -9,7 +9,7 @@ from app.analysis.facet_processors import ExtractFacets, GenerateTimeSeries
 from app.analysis.word_processors import ExtractWords, ExtractBigrams
 from app.analysis.summarization_processor import Summarization
 from app.analysis.topic_processors import TopicModelDocumentLinking, QueryTopicModel
-from app.analysis.data_transformation import SplitByFacet
+from app.analysis.data_transformation import SplitByFacet, Comparison
 
 
 def initialize_processors(app):
@@ -24,5 +24,6 @@ def initialize_processors(app):
             TopicModelDocumentLinking,
             QueryTopicModel,
             SplitByFacet,
+            Comparison
         ]:
             cls(initialize=True).make_processor()

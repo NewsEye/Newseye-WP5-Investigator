@@ -445,6 +445,9 @@ class Collection:
             self.data_type = "search_query"
             self.data = query
 
+    def __repr__(self):
+        return "Data %s processors %s" %(self.data, self.processors)
+            
     def make_root_collection(self, run):
         if run.root_dataset_id is not None:
             self.data_type = "dataset"
