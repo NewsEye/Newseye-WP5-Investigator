@@ -248,6 +248,13 @@ class Task(db.Model):
                 self.solr_query.search_query,
                 self.task_status,
             )
+        else:
+            return "<Task id: {}, processor: {}, parents: {}, status: {}>".format(
+                self.id,
+                self.processor.name,
+                " ,".join([str(p.uuid) for p in self.parents]),
+                self.task_status,
+            )
 
     def data_dict(self):
         if self.dataset:
@@ -288,7 +295,9 @@ class Task(db.Model):
             if self.parents:
                 ret.update({"parents": [str(p.uuid) for p in self.parents]})
 
-            ret.update(self.data_dict())
+            data_dict = self.data_dict()
+            if data_dict:
+                ret.update()
         return ret
 
     @property
@@ -332,12 +341,7 @@ class Task(db.Model):
     @property
     def parent_uuid(self):
         parent_uuids = [p.uuid for p in self.parents]
-        if parent_uuids:
-            if len(parent_uuids) > 1:
-                raise NotImplementedError(
-                    "Don't know what to do with more than one parent"
-                )
-            return parent_uuids[0]
+        return parent_uuids
 
 
 class Result(db.Model):
@@ -553,7 +557,7 @@ class InvestigatorResult(db.Model):
             return get_report(self.result_reports, language=language, format=format)
 
     def __repr__(self):
-        return "<InvestigatorResult id: {} node_id: {}, uuid: {} run_id: {} start_action_id: {} end_action_id: {} interestingness: {} result: {}".format(
+        return "<InvestigatorResult id: {}, uuid: {} run_id: {} start_action_id: {} end_cation_id: {} interestingness: {} result: {}".format(
             self.id,
             self.uuid,
             self.run_id,

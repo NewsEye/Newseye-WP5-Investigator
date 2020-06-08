@@ -51,6 +51,7 @@ class AnalysisTaskList(Resource):
 
     post_parser.add_argument(
         "source_uuid",
+        type=list,
         location="json",
         help="A task_uuid that defines the input data for the analysis task",
     )

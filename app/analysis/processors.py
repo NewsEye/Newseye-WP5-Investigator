@@ -3,7 +3,7 @@ from app.models import Processor, Task
 from app.utils.search_utils import search_database
 from app.analysis import assessment
 import asyncio
-
+from werkzeug.exceptions import BadRequest
 from flask import current_app
 
 
@@ -53,30 +53,38 @@ class AnalysisUtility(Processor):
 
     async def _get_input_data(self):
         current_app.logger.debug("PARENT UUID: %s" % self.task.parent_uuid)
-
-        if self.task.parent_uuid:
-            input_task = Task.query.filter_by(uuid=self.task.parent_uuid).first()
-            if input_task:
-                wait_time = 0
-                while input_task.task_status != "finished" and wait_time < 100:
-                    # what happens after that? should we raise some
-                    # exception? cancel all tasks?
-                    asyncio.sleep(wait_time)
-                    wait_time += 1
-                    if input_task.task_status == "failed":
-                        raise BadRequest(
-                            "Task used as source_uuid (%s) failed" % input_task.uuid
+        parent_uuids = self.task.parent_uuid
+        if parent_uuids:
+            for parent_uuid in parent_uuids:
+                input_task = Task.query.filter_by(uuid=parent_uuid).first()
+                if input_task:
+                    wait_time = 0
+                    while input_task.task_status != "finished" and wait_time < 100:
+                        # what happens after that? should we raise some
+                        # exception? cancel all tasks?
+                        asyncio.sleep(wait_time)
+                        wait_time += 1
+                        if input_task.task_status == "failed":
+                            raise BadRequest(
+                                "Task used as source_uuid (%s) failed" % input_task.uuid
+                            )
+                if len(parent_uuids) == 1:
+                    try:
+                        return await self.get_input_data(input_task.task_result.result)
+                    except:
+                        current_app.logger.debug(
+                            "!!!!!!!!Don't know how to use previous_task_result for %s Result: %s"
+                            % (self.processor.name, input_task.task_result)
                         )
-                try:
-                    return await self.get_input_data(input_task.task_result.result)
-                except:
-                    current_app.logger.debug("!!!!!!!!Don't know how to use previous_task_result for %s Result: %s" %(self.processor.name, input_task.task_result))
-                    pass # try to call get_input_data in standard way, without parameters
+                        pass  # try to call get_input_data in standard way, without parameters
         return await self.get_input_data()
 
     async def get_input_data(self, previous_task_result=None):
         if previous_task_result:
-            raise NotImplementedError("Don't know how to use previous_task_result for %s Result: %s" %(self.processor.name, previous_task_result))
+            raise NotImplementedError(
+                "Don't know how to use previous_task_result for %s Result: %s"
+                % (self.processor.name, previous_task_result)
+            )
         else:
             return await search_database(self.task.search_query, retrieve="all")
 

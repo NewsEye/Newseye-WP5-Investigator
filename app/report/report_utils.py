@@ -46,7 +46,7 @@ def make_report(args):
         current_app.logger.debug("REPORT: %s" % report.report_content)
     else:
         report = generate_report(record, report_language, report_format)
-        current_app.logger.debug("GENERATE: %s" %report)
+        current_app.logger.debug("GENERATE: %s" % report)
     try:
         return report.report_content
     except:
@@ -77,7 +77,7 @@ def generate_report(record, report_language, report_format):
         "data": json.dumps(data),
     }
 
-    #current_app.logger.debug("PAYLOAD: %s" % payload)
+    # current_app.logger.debug("PAYLOAD: %s" % payload)
     response = requests.post(Config.REPORTER_URI + "/report", data=payload)
 
     try:

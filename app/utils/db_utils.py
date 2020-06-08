@@ -36,11 +36,13 @@ def verify_data(args):
             "You cannot specify 'dataset' and 'search query' in the same time"
         )
 
-    if (
-        args.get("source_uuid")
-        and not Task.query.filter_by(uuid=args["source_uuid"]).first()
-    ):
-        raise BadRequest("Task %s does not exist" % args["source_uuid"])
+    source_uuid = args.get("source_uuid")
+    if source_uuid:
+        if not isinstance(source_uuid, list):
+            source_uuid = [source_uuid]
+        for su in source_uuid:
+            if not Task.query.filter_by(uuid=su).first():
+                raise BadRequest("Task %s does not exist" % args["source_uuid"])
 
 
 # comment out, takes too much time
@@ -66,7 +68,7 @@ def verify_analysis_parameters(args):
     current_app.logger.debug("PROCESSOR: %s" % processor)
 
     parameter_info = processor.parameter_info
-    query_parameters = args["parameters"]
+    query_parameters = args.get("parameters", {})
     current_app.logger.debug("PARAMETERS: %s" % query_parameters)
     current_app.logger.debug("PARAMETER_INFO: %s" % parameter_info)
 
@@ -133,6 +135,10 @@ def generate_task(query, user=current_user, parent_id=None, return_task=False):
 
     task_parameters, processor = verify_analysis_parameters(query)
 
+    current_app.logger.debug(
+        "~~~~TASK_PARAMETERS: %s PROCESSOR: %s" % (task_parameters, processor)
+    )
+
     task = Task(
         processor_id=processor.id,
         force_refresh=bool(task_parameters.get("force_refresh", False)),
@@ -141,11 +147,15 @@ def generate_task(query, user=current_user, parent_id=None, return_task=False):
         parameters=task_parameters.get("parameters", {}),
     )
 
-    if task_parameters.get("source_uuid"):
-        parent_task = Task.query.filter_by(uuid=task_parameters["source_uuid"]).first()
-        task.parents.append(parent_task)
-    else:
-        parent_task = None
+    source_uuids = task_parameters.get("source_uuid")
+
+    current_app.logger.debug("source_uuids: %s" % source_uuids)
+
+    if source_uuids:
+        if not isinstance(source_uuids, list):
+            source_uuids = [source_uuids]
+        for source_uuid in source_uuids:
+            task.parents.append(Task.query.filter_by(uuid=source_uuid).first())
 
     if task_parameters.get("dataset"):
         input_data = "dataset"
@@ -169,12 +179,16 @@ def generate_task(query, user=current_user, parent_id=None, return_task=False):
         solr_query["fq"] = fq
         task.solr_query = get_solr_query(solr_query)
 
-    elif parent_task:
-        task.solr_query = parent_task.solr_query
-        task.dataset = parent_task.dataset
+    elif task.parents and not processor.name == "Comparison":
+        task.solr_query = task.parents[0].solr_query
+        task.dataset = task.parents[0].dataset
 
+    current_app.logger.debug(
+        "****TASK_PARAMETERS: %s PROCESSOR: %s" % (task_parameters, processor)
+    )
+    current_app.logger.debug("task.parents %s" % task.parents)
     check_uuid_and_commit(task)
-    current_app.logger.debug("TASK %s" % task)
+    current_app.logger.debug("TASK: %s" % task)
 
     if return_task:
         return task
@@ -230,11 +244,15 @@ def store_results(tasks, task_results, set_to_finished=True, interestingness=0.0
             task.task_finished = datetime.utcnow()
 
         if isinstance(result, ValueError):
-            current_app.logger.error("Task: {} ValueError: {}".format(task.uuid, result))
+            current_app.logger.error(
+                "Task: {} ValueError: {}".format(task.uuid, result)
+            )
             task.task_status = "failed"
             task.status_message = "{}".format(result)[:255]
         elif isinstance(result, Exception):
-            current_app.logger.error("Task: {} Unexpected exception: {}".format(task.uuid, result))
+            current_app.logger.error(
+                "Task: {} Unexpected exception: {}".format(task.uuid, result)
+            )
             task.task_status = "failed"
             task.status_message = "Unexpected exception: {}".format(result)[:255]
         else:

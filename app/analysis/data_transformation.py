@@ -7,6 +7,7 @@ from app.analysis.facet_processors import AVAILABLE_FACETS
 from copy import copy
 import asyncio
 import numpy as np
+from werkzeug.exceptions import BadRequest
 
 
 class SplitByFacet(AnalysisUtility):
@@ -69,7 +70,6 @@ class SplitByFacet(AnalysisUtility):
         return interestingness
 
 
-
 class Comparison(AnalysisUtility):
     @classmethod
     def _make_processor(cls):
@@ -79,17 +79,9 @@ class Comparison(AnalysisUtility):
             description="Special type of the utility which takes as an input a list of tasks with the same input type and finds the difference.",
             parameter_info=[
                 {
-                    "name": "task_ids",
-                    "description": "The list of tasks with the same output type, refered by id",
-                    "type": "task_list",
-                    "default": [],
-                    "required": False,
-                },
-                {
-                    "name": "task_uuids",
-                    "description": "The list of tasks with the same output type, refered by uuid",
-                    "type": "task_list",
-                    "default": [],
+                    "name": "facet",
+                    "description": "If compare by facet, can specify the facet",
+                    "default": "PUB_YEAR",
                     "required": False,
                 }
             ],
@@ -97,65 +89,76 @@ class Comparison(AnalysisUtility):
             output_type="comparison",
         )
 
-    
-    
     async def get_input_data(self):
-        if self.task.parameters.get('task_ids'):
-            tasks = Task.query.filter(Task.id.in_(task.parameters['task_ids'])).all()
-        elif self.task.parameters.get('task_uuid'):
-            tasks = TaskInstance.query.filter(TaskInstance.uuid.in_(task.utility_parameters['task_uuids'])).all()
-                            
-        else:
-            raise BadRequest('Request missing valid task_uuids or task_ids!')
-
+        tasks = Task.query.filter(
+            Task.uuid.in_([t.uuid for t in self.task.parents])
+        ).all()
 
         wait_time = 0
-        while any([task.task_status != 'finished' for task in tasks]) and wait_time < 100:
+        while (
+            any([task.task_status != "finished" for task in tasks]) and wait_time < 100
+        ):
             asyncio.sleep(wait_time)
             wait_time += 1
-            
-        tasks = [task.task for task in tasks]
-        input_data_type = [task.output_type for task in tasks]
+
+        input_data_type = [task.processor.output_type for task in tasks]
         try:
-            assert(len(set(input_data_type))==1)
+            assert len(set(input_data_type)) == 1
         except AssertionError:
-            raise BadRequest('All input tasks must have the same output types')
+            raise BadRequest("All input tasks must have the same output types")
         self.data_type = input_data_type[0]
-        
+
         return [task.task_result.result for task in tasks]
-        
+
     async def make_result(self):
         dicts = [self.make_dict(data) for data in self.input_data]
         if len(dicts) > 2:
-            raise NotImplementedError("At the moment comparison of more than two results is not supported")
-        js_divergence = assessment.dict_js_divergence(dicts[0], dicts[1])
-        return {'result': {'jensen_shannon_divergence':js_divergence},
-                'interestingness' : {'jensen_shannon_divergence':js_divergence}}
-        
-        
+            raise NotImplementedError(
+                "At the moment comparison of more than two results is not supported"
+            )
+        assessment.align_dicts(dicts[0], dicts[1], default_value=assessment.EPSILON)
+        return {
+            "jensen_shannon_divergence": assessment.dict_js_divergence(
+                dicts[0], dicts[1]
+            ),
+            "abs_diff": assessment.abs_diff(dicts[0], dicts[1]),
+        }
+
+    async def estimate_interestingness(self):
+        return {
+            "abs_diff": assessment.recoursive_distribution(self.result["abs_diff"]),
+            "jensen_shannon_divergence": self.result["jensen_shannon_divergence"],
+        }
+
+    async def _estimate_interestingness(self):
+        interestingness = await self.estimate_interestingness()
+        interestingness.update({"overall": self.result["jensen_shannon_divergence"]})
+        return interestingness
+
     def make_dict(self, data):
-        if self.data_type == 'tf_idf':
+        if self.data_type == "word_list":
             return self.make_ipm_dict(data)
-        elif self.data_type == 'facet_list':
-            return self.make_facet_dict(data)
-        elif self.data_type == 'topic_analysis':
+        elif self.data_type == "bigram_list":
+            return self.make_bigram_ipm_list(data)
+        elif self.data_type == "facet_list":
+            return self.make_facet_dict(data, self.task.parameters.get("facet"))
+        elif self.data_type == "topic_analysis":
             return self.make_topic_dict(data)
         else:
-            raise NotImplementedError("Unknown data_type: %s" %self.data_type)
+            raise NotImplementedError("Unknown data_type: %s" % self.data_type)
 
     @staticmethod
-    def make_ipm_dict(tf_idf_output):
-        return {k:v['ipm'] for k,v in tf_idf_output.items()}
+    def make_ipm_dict(word_list):
+        return {k: v[1] for k, v in word_list["vocabulary"].items()}
 
     @staticmethod
-    def make_facet_dict(facet_list_output):
-        facet_dict = {f['facet_value']:f['document_count'] for f in facet_list_output}
-        total = float(sum(facet_dict.values()))
-        return {k:v/total for k,v in facet_dict.items()}
+    def make_bigram_ipm_list(bigram_list):
+        return {k: v[1] for k, v in bigram_list.items()}
+
+    @staticmethod
+    def make_facet_dict(facet_list_output, facet):
+        return facet_list_output[facet]
 
     @staticmethod
     def make_topic_dict(topic_analysis_output):
-        return dict(enumerate(topic_analysis_output['topic_weights']))
-
-        
-    
+        return dict(enumerate(topic_analysis_output["topic_weights"]))

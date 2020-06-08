@@ -239,15 +239,26 @@ class Investigator:
             current_app.logger.debug(
                 "###CURRENT COLLECTIONS: %s" % self.current_collections
             )
+
             whys, actions = await self.add_language_specific_tasks(
                 self.current_collections, split_uuid
             )
+
+            for collection in self.current_collections:
+                w, a = self.add_processorset_into_q(
+                    "DESCRIPTION", collection, "brute_force", source_uuid=split_uuid
+                )
+                whys.append(w)
+                actions.append(a)
+
             return whys, actions
 
         elif len(self.current_collections) > 1:
             # we already away from the root and have several collections
             current_app.logger.debug("UPDATE: comparison of split parts")
-            why, action = self.apply_comparison()
+
+            why, action = self.apply_comparison(self.current_collections)
+
             self.current_collections = []
 
         else:
@@ -370,8 +381,33 @@ class Investigator:
             if split.interestingness[lang] >= thr
         ]
 
-    def apply_comparison(self):
-        return "not-implemented", {}
+    def apply_comparison(self, collections):
+
+        tasks_to_compare = []
+
+        for collection in collections:
+
+            for task in collection.tasks:
+                if (
+                    task.processor.name == "ExtractFacets"
+                    and task.task_status == "finished"
+                ):
+                    tasks_to_compare.append(str(task.uuid))
+                if len(tasks_to_compare) == 2:
+                    break
+
+        if len(tasks_to_compare) < 2:
+            return "nothing-to-compare", {}
+
+        comparison_task = generate_task(
+            {"processor": "Comparison", "source_uuid": tasks_to_compare},
+            user=self.user,
+            return_task=True,
+        )
+        self.task_queue.add_tasks(comparison_task)
+        current_app.logger.debug("COMPARISON_TASK %s" % comparison_task)
+        action = {"tasks_added_to_q": self.task_list(comparison_task)}
+        return "ready_for_comparison", action
 
     @staticmethod
     def sort_by_interestingness(results):
@@ -379,6 +415,8 @@ class Investigator:
 
     @staticmethod
     def task_list(tasks):
+        if not isinstance(tasks, list):
+            tasks = [tasks]
         return [task.dict(style="investigator") for task in tasks]
 
 
@@ -390,6 +428,8 @@ class TaskQueue:
         self.counter = itertools.count()  # unique sequence count
 
     def add_tasks(self, tasks, priority=0):
+        if not isinstance(tasks, list):
+            tasks = [tasks]
         for t in tasks:
             self.add_task(t, priority=priority)
 
@@ -436,6 +476,7 @@ class TaskQueue:
 
 class Collection:
     def __init__(self, user, query=None, lang=None):
+
         self.processors = []
         self.tasks = []
         self.user = user
@@ -446,8 +487,8 @@ class Collection:
             self.data = query
 
     def __repr__(self):
-        return "Data %s processors %s" %(self.data, self.processors)
-            
+        return "Data %s processors %s" % (self.data, self.processors)
+
     def make_root_collection(self, run):
         if run.root_dataset_id is not None:
             self.data_type = "dataset"
@@ -463,8 +504,6 @@ class Collection:
 
     def make_task(self, processor_name, task_parameters={}, source_uuid=None):
 
-        current_app.logger.debug("!!!! InVESTIGATOR  source_uuid %s" % source_uuid)
-
         if not isinstance(task_parameters, dict):
             # need to infer parameters dynamically
             if task_parameters == "LANG":
@@ -479,6 +518,9 @@ class Collection:
             self.data_type: self.data,
             "parameters": task_parameters,
         }
+
+        current_app.logger.debug("!!!! InVESTIGATOR  task_dict %s" % task_dict)
+
         if source_uuid:
             task_dict["source_uuid"] = source_uuid
 

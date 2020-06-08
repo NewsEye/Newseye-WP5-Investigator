@@ -110,10 +110,13 @@ class TaskPlanner(object):
         if task.task_status == "finished":
             return task
 
-        required_task = await self.get_prerequisite_tasks(task)
-        if required_task and not required_task.task_result:
-            await self.execute_and_store(required_task)
-            task.source_uuid = required_task.uuid
+        required_tasks = await self.get_prerequisite_tasks(task)
+
+        current_app.logger.debug("REQUIRED_TASKS: %s" % required_tasks)
+
+        if required_tasks:
+            tasks_to_execute = [t for t in required_tasks if not t.task_result]
+            await self.execute_and_store_tasks(tasks_to_execute)
             db.session.commit()
 
         # waiting for tasks to be done
@@ -145,50 +148,46 @@ class TaskPlanner(object):
         return source_utility
 
     async def get_prerequisite_tasks(self, task):
+        current_app.logger.debug(
+            "task.processor.input_type: %s" % task.processor.input_type
+        )
         if task.processor.input_type == "dataset":
             return
 
-        parent_uuid = task.parent_uuid
-        if parent_uuid:
+        parent_uuids = task.parent_uuid
+        input_tasks = []
 
-            input_task = Task.query.filter_by(uuid=parent_uuid).first()
+        current_app.logger.debug("parent.uuids: %s" % parent_uuids)
+        if parent_uuids:
+            for parent_uuid in parent_uuids:
 
-            current_app.logger.debug(
-                "INPUT_TASK: %s RESULT: %d" % (input_task, len(input_task.task_results))
+                input_task = Task.query.filter_by(uuid=parent_uuid).first()
+
+                current_app.logger.debug("input_task_uuid %s" % parent_uuid)
+                if input_task is None:
+                    raise ValueError("Invalid parent_uuid")
+
+                input_tasks.append(input_task)
+
+        else:
+            task_parameters = {
+                "processor": self.get_source_processor(task),
+                "parameters": {},
+                "search_query": task.solr_query.search_query
+                if task.solr_query
+                else None,
+                "dataset": task.dataset,
+                "force_refresh": task.force_refresh,
+            }
+
+            input_task = generate_task(
+                query=task_parameters, user=task.user, return_task=True,
             )
 
-            current_app.logger.debug("input_task_uuid %s" % parent_uuid)
-            if input_task is None:
-                raise ValueError("Invalid parent_uuid")
-
-            task.dataset = input_task.dataset
-            task.solr_query = input_task.solr_query
-
-            # if the concrete uuid is given, no need to repeat the task
-            # may change this behaviour in the future, right now seems reasonable
-
+            task.parents.append(input_task)
+            input_tasks.append(input_task)
             db.session.commit()
-
-            if task.processor.input_type == input_task.processor.output_type:
-                # it could be a longer sequence of tasks,
-                # and the first one does not have the correct type
-                return input_task
-
-        task_parameters = {
-            "processor": self.get_source_processor(task),
-            "parameters": {},
-            "search_query": task.solr_query.search_query if task.solr_query else None,
-            "dataset": task.dataset,
-            "force_refresh": task.force_refresh,
-        }
-
-        input_task = generate_task(
-            query=task_parameters, user=task.user, return_task=True,
-        )
-
-        task.parents.append(input_task)
-        db.session.commit()
-        return input_task
+        return input_tasks
 
     @staticmethod
     def get_source_processor(task):

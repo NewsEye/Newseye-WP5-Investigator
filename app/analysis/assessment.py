@@ -2,6 +2,7 @@ import numpy as np
 import sys
 from flask import current_app
 from collections import Iterable
+import math
 
 EPSILON = sys.float_info.epsilon  # smallest possible number
 
@@ -116,6 +117,10 @@ def align_dicts_from_to(from_dict, to_dict, default_value=0.0):
 def align_dicts(dict1, dict2, default_value=0.0):
     align_dicts_from_to(dict1, dict2, default_value)
     align_dicts_from_to(dict2, dict1, default_value)
+
+
+def abs_diff(dict1, dict2):
+    return {k: abs(dict1[k] - dict2[k]) for k in dict1.keys()}
 
 
 def frequency_ratio(dict1, dict2):

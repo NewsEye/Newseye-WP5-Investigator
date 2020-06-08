@@ -24,6 +24,6 @@ def initialize_processors(app):
             TopicModelDocumentLinking,
             QueryTopicModel,
             SplitByFacet,
-            Comparison
+            Comparison,
         ]:
             cls(initialize=True).make_processor()
