@@ -173,6 +173,16 @@ task_result_relation = db.Table(
 )
 
 
+task_collection_relation = db.Table(
+    # many-to-many relation
+    "task_collection_relation",
+    db.Column("task_id", db.Integer, db.ForeignKey("task.id"), primary_key=True),
+    db.Column(
+        "collection_id", db.Integer, db.ForeignKey("collection.id"), primary_key=True
+    ),
+)
+
+
 class Task(db.Model):
     __tablename__ = "task"
     id = db.Column(db.Integer, primary_key=True)
@@ -231,6 +241,10 @@ class Task(db.Model):
     # results contain data and can be heavy while tasks contain only parameters and should be light
     task_results = db.relationship(
         "Result", secondary=task_result_relation, back_populates="tasks"
+    )
+
+    collections = db.relationship(
+        "Collection", secondary=task_collection_relation, back_populates="tasks"
     )
 
     def __repr__(self):
@@ -294,7 +308,7 @@ class Task(db.Model):
                 )
             if self.parents:
                 ret.update({"parents": [str(p.uuid) for p in self.parents]})
-
+            ret.update({"collections": [c.collection_no for c in self.collections]})
             data_dict = self.data_dict()
             if data_dict:
                 ret.update()
@@ -448,6 +462,8 @@ class InvestigatorRun(db.Model):
 
     root_action_id = db.Column(db.Integer)
 
+    collections = db.Column(db.JSON, default=[])
+
     def data_dict(self):
         if self.root_dataset:
             return {"dataset": self.root_dataset.dataset_name}
@@ -468,7 +484,13 @@ class InvestigatorRun(db.Model):
         if style == "status":
             pass
         elif style == "result":
-            ret.update({"result": self.result, "nodes": self.nodes})
+            ret.update(
+                {
+                    "result": self.result,
+                    "nodes": self.nodes,
+                    "collections": self.collections,
+                }
+            )
 
         return ret
 
@@ -572,6 +594,47 @@ class InvestigatorResult(db.Model):
             "uuid": str(self.uuid),
             "result": self.result,
             "interestingness": self.interestingness,
+        }
+
+
+class Collection(db.Model):
+    """
+    A set of documents---dataset or a search query---used by investigator task
+    """
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    run_id = db.Column(db.Integer, db.ForeignKey("investigator_run.id"))
+    data_type = db.Column(db.String(255))
+    data_id = db.Column(db.Integer)
+    collection_no = db.Column(db.Integer)  # no inside run
+
+    tasks = db.relationship(
+        "Task", secondary=task_collection_relation, back_populates="collections"
+    )
+
+    __table_args__ = (
+        UniqueConstraint("run_id", "collection_no", name="uq_run_id_and_no"),
+    )
+
+    def __repr__(self):
+        return "<Collection id: {}, run_id: {}, collection_no: {}, data_type: {}>".format(
+            self.id, self.run_id, self.collection_no, self.data_type
+        )
+
+    def search_query(self):
+        if self.data_type == "dataset":
+            dataset = Dataset.query.filter_by(id=self.data_id).one()
+            return dataset.make_query()
+        elif self.data_type == "search_query":
+            solr_query = SolrQuery.query.filter_by(id=self.data_id).one()
+            return solr_query.search_query
+
+    def dict(self):
+        return {
+            "collection_no": self.collection_no,
+            "collection_type": self.data_type,
+            "search_query": self.search_query(),
         }
 
 

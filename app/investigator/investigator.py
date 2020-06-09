@@ -9,6 +9,8 @@ from app.models import (
     InvestigatorRun,
     InvestigatorAction,
     InvestigatorResult,
+    Collection,
+    SolrQuery,
 )
 from copy import copy
 from app.investigator import processorsets
@@ -29,8 +31,9 @@ class Investigator:
 
         current_app.logger.debug("RUN: %s" % self.run)
 
-        self.root_documentset = Collection(self.user)
+        self.root_documentset = Run_Collection(self.user, self.run.id)
         self.root_documentset.make_root_collection(self.run)
+        self.run.collections = [self.root_documentset.dict()]
 
         self.current_collections = [self.root_documentset]
         self.loop_no = 0
@@ -213,10 +216,6 @@ class Investigator:
         """
         # Rule-based for now
 
-        current_app.logger.debug(
-            "UPDATE: self.root_documentset.processors %s"
-            % self.root_documentset.processors
-        )
         if "SPLIT" not in self.root_documentset.processors:
             # the first thing to do: split
             current_app.logger.debug("UPDATE: split not done ---> adding split")
@@ -236,6 +235,7 @@ class Investigator:
             self.current_collections = self.make_collections_from_split(
                 lang_split, outliers=True
             )
+
             current_app.logger.debug(
                 "###CURRENT COLLECTIONS: %s" % self.current_collections
             )
@@ -371,15 +371,27 @@ class Investigator:
             thr = 0.0
         else:
             thr = 0.001
-        current_app.logger.debug("SPLIT %s" % split)
-        current_app.logger.debug("SPLIT RESULT %s" % split.result)
-        current_app.logger.debug("SPLIT INTERESTINGNESS %s" % split.interestingness)
-        current_app.logger.debug("THRRRRR: %s" % thr)
-        return [
-            Collection(self.user, query=split.result[lang], lang=lang)
+        collections = [
+            Run_Collection(self.user, self.run.id, query=split.result[lang], lang=lang)
             for lang in split.result
             if split.interestingness[lang] >= thr
         ]
+
+        current_app.logger.debug("SELF.RUN.COLLECTIONS: %s" % self.run.collections)
+        current_app.logger.debug("COLLECTIONS: %s" % collections)
+
+        for c in collections:
+            current_app.logger.debug("collection dict: %s" % c.dict())
+
+        self.run.collections = self.run.collections + [
+            collection.dict() for collection in collections
+        ]
+
+        db.session.commit()
+
+        current_app.logger.debug("SELF.RUN.COLLECTIONS: %s" % self.run.collections)
+
+        return collections
 
     def apply_comparison(self, collections):
 
@@ -392,7 +404,7 @@ class Investigator:
                     task.processor.name == "ExtractFacets"
                     and task.task_status == "finished"
                 ):
-                    tasks_to_compare.append(str(task.uuid))
+                    tasks_to_compare.append(task)
                 if len(tasks_to_compare) == 2:
                     break
 
@@ -400,10 +412,17 @@ class Investigator:
             return "nothing-to-compare", {}
 
         comparison_task = generate_task(
-            {"processor": "Comparison", "source_uuid": tasks_to_compare},
+            {
+                "processor": "Comparison",
+                "source_uuid": [str(task.uuid) for task in tasks_to_compare],
+            },
             user=self.user,
             return_task=True,
         )
+        comparison_task.collections = []
+        for task in tasks_to_compare:
+            comparison_task.collections += task.collections
+
         self.task_queue.add_tasks(comparison_task)
         current_app.logger.debug("COMPARISON_TASK %s" % comparison_task)
         action = {"tasks_added_to_q": self.task_list(comparison_task)}
@@ -474,9 +493,12 @@ class TaskQueue:
         return [t[2].id for t in self.taskq]
 
 
-class Collection:
-    def __init__(self, user, query=None, lang=None):
+class Run_Collection:
+    collection_no = 0
 
+    def __init__(self, user, run_id, query=None, lang=None):
+        Run_Collection.collection_no += 1
+        current_app.logger.debug("COLLECTION_NO: %s" % Run_Collection.collection_no)
         self.processors = []
         self.tasks = []
         self.user = user
@@ -486,8 +508,30 @@ class Collection:
             self.data_type = "search_query"
             self.data = query
 
+            solr_query = SolrQuery(search_query=query)
+            db.session.add(solr_query)
+            db.session.commit()
+
+            self.collection = Collection(
+                run_id=run_id,
+                collection_no=Run_Collection.collection_no,
+                data_type=self.data_type,
+                data_id=solr_query.id,
+            )
+
+        else:
+            self.collection = Collection(
+                run_id=run_id, collection_no=Run_Collection.collection_no
+            )
+
+        db.session.add(self.collection)
+        db.session.commit()
+
     def __repr__(self):
         return "Data %s processors %s" % (self.data, self.processors)
+
+    def dict(self):
+        return self.collection.dict()
 
     def make_root_collection(self, run):
         if run.root_dataset_id is not None:
@@ -496,9 +540,13 @@ class Collection:
                 "name": run.root_dataset.dataset_name,
                 "user": run.root_dataset.user,
             }
+            self.collection.data_type = self.data_type
+            self.collection.data_id = run.root_dataset.id
         elif run.root_solr_query_id is not None:
             self.data_type = "search_query"
             self.data = run.root_solr_query.search_query
+            self.collection.data_type = self.data_type
+            self.collection.data_id = run.root_solr_query.id
         else:
             raise Exception("Unknown documentset for run %s" % run)
 
@@ -525,6 +573,7 @@ class Collection:
             task_dict["source_uuid"] = source_uuid
 
         task = generate_task(task_dict, user=self.user, return_task=True,)
+        task.collections.append(self.collection)
         self.tasks.append(task)
         return task
 
