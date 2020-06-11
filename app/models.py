@@ -609,10 +609,17 @@ class Collection(db.Model):
     data_id = db.Column(db.Integer)
     collection_no = db.Column(db.Integer)  # no inside run
 
+    # tasks that use this collection as an input
     tasks = db.relationship(
         "Task", secondary=task_collection_relation, back_populates="collections"
     )
 
+    # task(s) that output this collection
+    # in principle, more than one path could lead to the same collection, hence list
+    origin = db.Column(db.JSON, default=[])
+
+    # Collections belong to runs and unique numbers inside the run
+    # for another run we can make the same collection once again, no problem
     __table_args__ = (
         UniqueConstraint("run_id", "collection_no", name="uq_run_id_and_no"),
     )
@@ -635,6 +642,7 @@ class Collection(db.Model):
             "collection_no": self.collection_no,
             "collection_type": self.data_type,
             "search_query": self.search_query(),
+            "origin": self.origin,
         }
 
 

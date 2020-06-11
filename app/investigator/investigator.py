@@ -31,7 +31,7 @@ class Investigator:
 
         current_app.logger.debug("RUN: %s" % self.run)
 
-        self.root_documentset = Run_Collection(self.user, self.run.id)
+        self.root_documentset = Run_Collection(self.user, self.run.id, "root")
         self.root_documentset.make_root_collection(self.run)
         self.run.collections = [self.root_documentset.dict()]
 
@@ -233,7 +233,7 @@ class Investigator:
                 self.root_documentset, "LANGUAGE"
             )
             self.current_collections = self.make_collections_from_split(
-                lang_split, outliers=True
+                lang_split, split_uuid, outliers=True
             )
 
             current_app.logger.debug(
@@ -363,7 +363,7 @@ class Investigator:
             ):
                 return task.task_result, task.uuid
 
-    def make_collections_from_split(self, split, number=None, outliers=False):
+    def make_collections_from_split(self, split, origin, number=None, outliers=False):
         # split is a task result
         # returns list of collections
         # todo: some meaningful criteria
@@ -372,7 +372,9 @@ class Investigator:
         else:
             thr = 0.001
         collections = [
-            Run_Collection(self.user, self.run.id, query=split.result[lang], lang=lang)
+            Run_Collection(
+                self.user, self.run.id, origin, query=split.result[lang], lang=lang
+            )
             for lang in split.result
             if split.interestingness[lang] >= thr
         ]
@@ -496,9 +498,8 @@ class TaskQueue:
 class Run_Collection:
     collection_no = 0
 
-    def __init__(self, user, run_id, query=None, lang=None):
+    def __init__(self, user, run_id, origin, query=None, lang=None):
         Run_Collection.collection_no += 1
-        current_app.logger.debug("COLLECTION_NO: %s" % Run_Collection.collection_no)
         self.processors = []
         self.tasks = []
         self.user = user
@@ -523,6 +524,10 @@ class Run_Collection:
             self.collection = Collection(
                 run_id=run_id, collection_no=Run_Collection.collection_no
             )
+
+        if not isinstance(origin, list):
+            origin = [origin]
+        self.collection.origin = [str(o) for o in origin]
 
         db.session.add(self.collection)
         db.session.commit()
