@@ -39,7 +39,6 @@ pip install -r requirements.txt
 
 
 Summarization requires additional models:
-see app/analysis/summarization/readme.txt
 
 python -m spacy download en
 python -m spacy download fr
