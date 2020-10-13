@@ -55,14 +55,19 @@ class TopicModelDocumentLinking(TopicProcessor):
             "num_docs": self.task.parameters.get("num_docs"),
             "documents": self.input_data,
         }
-        # current_app.logger.debug("!!!PAYLOAD: %s" %payload)
+        #current_app.logger.debug("!!!PAYLOAD: %s" %payload)
 
         # ??? will we have any other way to link documents?
         response = requests.post(
-            "{}/lda-doc-linking".format(Config.TOPIC_MODEL_URI), json=payload
+            "{}/doc-linking".format(Config.TOPIC_MODEL_URI), json=payload
         )
+
+        current_app.logger.debug("!!!RESPONSE: %s" %response)
+
         uuid = response.json().get("task_uuid")
 
+
+        
         if not uuid:
             raise ValueError("Invalid response from the Topic Model API")
         delay = 4
@@ -120,6 +125,8 @@ class QueryTopicModel(TopicProcessor):
         )
 
     async def find_model(self, language):
+        # this is not relevant anymore
+        # we will have only 1 model for each language/pair type
         available_models = []
         for model_type in Config.TOPIC_MODEL_TYPES:
             response = requests.get(
@@ -135,25 +142,34 @@ class QueryTopicModel(TopicProcessor):
         return random.choice(available_models)
 
     async def make_result(self):
-        model_type = self.task.parameters.get("model_type")
         model_name = self.task.parameters.get("model_name")
-        if model_type is None and model_name is None:
+        model_type = self.task.parameters.get("model_type")
+        language = self.task.parameters.get("language")
+
+        if model_name is None:
             if self.task.parameters.get("language") is None:
                 raise KeyError
+            elif self.task.parameters.get("model_type") is None:
+                # TODO: random selection between lda and dtm
+                model_type = "lda"
             else:
-                model_type, model_name = await self.find_model(
-                    self.task.parameters["language"]
-                )
+                model_name = (model_type + "_" + language).upper()
+
+        current_app.logger.debug("MODEL_NAME: %s" %model_name)
+                
         payload = {
             "model_name": model_name,
             "documents": self.input_data,
         }
-        # current_app.logger.debug("!!!PAYLOAD: %s" %payload)
+        #current_app.logger.debug("!!!PAYLOAD: %s" %payload)
         response = requests.post(
-            "{}/{}/query".format(Config.TOPIC_MODEL_URI, model_type), json=payload
+            "{}/query-tm".format(Config.TOPIC_MODEL_URI), json=payload
         )
+        current_app.logger.debug("URL: %s" %"{}/query-tm".format(Config.TOPIC_MODEL_URI))
+        current_app.logger.debug("!!!!RESPONSE: %s %s" %(response, response.__dict__))
 
-        # current_app.logger.debug("!!!!RESPONSE: %s %s" %(response, response.__dict__))
+
+        
         uuid = response.json().get("task_uuid")
         if not uuid:
             raise ValueError("Invalid response from the Topic Model API")
