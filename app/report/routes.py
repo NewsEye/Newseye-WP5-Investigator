@@ -2,10 +2,7 @@ from flask_login import login_required, current_user
 from flask_restplus import Resource
 from app.auth import AuthParser
 from app.report import ns
-from app.models import Task, Report
 from app.report.report_utils import make_report, get_formats, get_languages
-from uuid import UUID
-from werkzeug.exceptions import NotFound, BadRequest
 
 from flask import current_app
 
