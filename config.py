@@ -24,6 +24,9 @@ class Config(object):
     REPORTER_URI = "http://newseye-wp5.cs.helsinki.fi:4218/api"
     # REPORTER_URI = "http://localhost:8080/api"
 
+    # The URI for the Explainer API
+    EXPLAINER_URI = "http://newseye-wp5.cs.helsinki.fi:4219/api"
+    
     # This should contain the URI for the topic modelling tools
     TOPIC_MODEL_URI = "https://newseye-wp4.cs.helsinki.fi"
     TOPIC_MODEL_TYPES = ["lda", "dtm"]
