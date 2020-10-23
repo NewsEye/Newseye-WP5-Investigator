@@ -216,6 +216,9 @@ class Investigator:
         """
         # Rule-based for now
 
+        # 0. (made in initialize): describe
+
+        # 1. Split
         if "SPLIT" not in self.root_documentset.processors:
             # the first thing to do: split
             current_app.logger.debug("UPDATE: split not done ---> adding split")
@@ -229,6 +232,8 @@ class Investigator:
                 "UPDATE: split is done but we are still in the root dataset"
             )
             # we are still in the root collection but splits are done
+
+            # 1'. Only split by language is used for further use
             lang_split, split_uuid = self.find_split_by_facet(
                 self.root_documentset, "LANGUAGE"
             )
@@ -240,10 +245,12 @@ class Investigator:
                 "###CURRENT COLLECTIONS: %s" % self.current_collections
             )
 
+            # 2. Add language-specific (TM or summarization) 
             whys, actions = await self.add_language_specific_tasks(
                 self.current_collections, split_uuid
             )
 
+            # 3. Description of new collections
             for collection in self.current_collections:
                 w, a = self.add_processorset_into_q(
                     "DESCRIPTION", collection, "brute_force", source_uuid=split_uuid
@@ -253,6 +260,7 @@ class Investigator:
 
             return whys, actions
 
+        # 4. split comparison (currently by facets)
         elif len(self.current_collections) > 1:
             # we already away from the root and have several collections
             current_app.logger.debug("UPDATE: comparison of split parts")
@@ -261,6 +269,7 @@ class Investigator:
 
             self.current_collections = []
 
+        # 5. exit
         else:
             # dev_note means temporal placeholder, which should not be used by explainer:
             why = {"dev_note": "not implemented"}
