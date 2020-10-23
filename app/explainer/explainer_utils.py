@@ -42,7 +42,7 @@ def make_explanation(args):
     if run is None:
         raise NotFound(
             "{} {} not found for user {}".format(
-                InvestigatorRun.__name__, uuid, current_user.username
+                InvestigatorRun.__name__, run_uuid, current_user.username
             )
         )
 
