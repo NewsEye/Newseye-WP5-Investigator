@@ -419,11 +419,42 @@ def get_report(reports, language="en", format="p"):
     reports = [
         r
         for r in reports
-        if r.report_language == language and r.report_format == format
+        if r.report_language == language and r.report_format == format and not (r.head_generation_error or r.body_generation_error)
     ]
     if reports:
         return sorted(reports, key=lambda r: r.report_generated)[-1]
 
+
+def get_explanation(explanations, language="en", format="ul"):
+    explanations = [
+        e for e in explanations
+        if e.explanation_language == language and e.explanation_format == format and not (e.head_generation_error or e.body_generation_error)
+        ]
+    if explanations:
+        return sorted(explanations, key=lambda e: e.explanation_generated)[-1]
+        
+    
+class Explanation(db.Model):
+    __tablename__ = "explanation"
+    id = db.Column(db.Integer, primary_key=True)
+
+    run_id = db.Column(db.Integer, db.ForeignKey("investigator_run.id"))
+    run = db.relationship(
+        "InvestigatorRun", back_populates="run_explanations", foreign_keys=[run_id]
+    )
+
+    explanation_language = db.Column(db.String(255))
+    explanation_format = db.Column(db.String(255))
+    explanation_content = db.Column(db.JSON)
+    head_generation_error = db.Column(db.String(255))
+    body_generation_error = db.Column(db.String(255))
+
+    explanation_generated = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return "<Explanation>"
+
+    
 
 class InvestigatorRun(db.Model):
     # TODO: make explicit relations w other tables
@@ -454,6 +485,8 @@ class InvestigatorRun(db.Model):
     result = db.Column(db.JSON, default=[])
     result_reports = db.relationship("Report", back_populates="run")
 
+    run_explanations = db.relationship("Explanation", back_populates="run")
+    
     # all done tasks
     # unlike result never replaced, just updated
     done_tasks = db.Column(db.JSON)
@@ -498,6 +531,10 @@ class InvestigatorRun(db.Model):
         if self.result_reports:
             return get_report(self.result_reports, language=language, format=format)
 
+    def explanation(self, language="en", format="ul"):
+        if self.run_explanations:
+            return get_explanation(self.run_explanations, language=language, format=format)
+        
     def __repr__(self):
         if self.root_dataset:
             return "<InvestigatorRun id: {}, dataset: {}, status: {}>".format(

@@ -1,7 +1,8 @@
 import requests, json
 from config import Config
 from flask_login import current_user
-from app.models import InvestigatorRun, InvestigatorAction
+from app import db
+from app.models import InvestigatorRun, InvestigatorAction, Explanation
 from uuid import UUID
 from werkzeug.exceptions import NotFound, BadRequest
 from flask import current_app
@@ -38,6 +39,27 @@ def make_explanation(args):
         raise NotFound
     
     run = InvestigatorRun.query.filter_by(uuid=run_uuid, user_id=current_user.id).first()
+    if run is None:
+        raise NotFound(
+            "{} {} not found for user {}".format(
+                InvestigatorRun.__name__, uuid, current_user.username
+            )
+        )
+
+    explanation = run.explanation(explanation_language, explanation_format)
+    if explanation:
+        current_app.logger.info("Explanation exists, not generating")
+        current_app.logger.debug("Explanation: %s" % explanation.explanation_content)
+    else:
+        explanation = generate_explanation(run, explanation_language, explanation_format)
+        current_app.logger.debug("GENERATE: %s" % explanation)
+
+    return explanation.explanation_content
+  
+    
+
+
+def generate_explanation(run, explanation_language, explanation_format): 
     actions = InvestigatorAction.query.filter_by(run_id=run.id).all()
     data = []
     for action in actions:
@@ -57,7 +79,7 @@ def make_explanation(args):
     payload = {"format":explanation_format,
                "language":explanation_language,
                "data":data,
-               "run_uuid":str(run_uuid)}
+               "run_uuid":str(run.uuid)}
 
     #current_app.logger.debug("PAYLOAD: %s" %json.dumps(payload))
     #current_app.logger.debug("URI: %s" %Config.EXPLAINER_URI + "/report/json")
@@ -70,5 +92,24 @@ def make_explanation(args):
         return {"error": "%s: %s" % (response.status_code, response.reason)}
 
     # TODO: store explanation to DB
+
+    explanation = Explanation(
+        explanation_language = explanation.get("language", explanation_language),
+        explanation_format = explanation.get("format", explanation_format),
+        explanation_content = {"header": explanation.get("header"),
+                               "body": explanation.get("body")},
+        head_generation_error=explanation.get("head_generation_error"),
+        body_generation_error=explanation.get("body_generation_error"),
+        )
+
+    explanation.run_id = run.id
+
+    db.session.add(explanation)
+    db.session.commit()
+
+    return explanation
+
+                               
+
     
     return explanation

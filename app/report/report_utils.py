@@ -41,22 +41,18 @@ def make_report(args):
             )
         )
     report = record.report(report_language, report_format)
-    if valid_report(report):
+    if report:
         current_app.logger.info("Report exists, not generating")
         current_app.logger.debug("REPORT: %s" % report.report_content)
     else:
         report = generate_report(record, report_language, report_format)
         current_app.logger.debug("GENERATE: %s" % report)
+
     try:
         return report.report_content
     except:
         current_app.logger.debug("REPORT: %s type %s" % (report, type(report)))
         return report
-
-
-def valid_report(report):
-    if report:
-        return not (report.head_generation_error or report.body_generation_error)
 
 
 def generate_report(record, report_language, report_format):
