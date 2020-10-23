@@ -15,7 +15,10 @@ def get_formats():
     return requests.get(Config.EXPLAINER_URI + "/formats").json()
 
 def make_reason(why):
-    why["name"] = why.pop("reason")
+    try:
+        why["name"] = why.pop("reason")
+    except KeyError:
+        why["name"] = "unknown"
     return why
 
 def make_task(task):
@@ -64,9 +67,11 @@ def generate_explanation(run, explanation_language, explanation_format):
     data = []
     for action in actions:
         if action.action_type in ["initialize", "update"]:
-            action_id = action.action_id
-            why = make_reason(action.why)
-            tasks = action.action['tasks_added_to_q']
+            tasks = action.action.get('tasks_added_to_q')
+            if tasks:
+                action_id = action.action_id
+                why = make_reason(action.why)
+            
 
             current_app.logger.debug("ACTION: %d REASON: %s TASKS: %s" %(action_id, why, [t["processor"] for t in tasks]))
 
