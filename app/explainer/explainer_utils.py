@@ -68,11 +68,12 @@ def generate_explanation(run, explanation_language, explanation_format):
     for action in actions:
         if action.action_type in ["initialize", "update"]:
             tasks = action.action.get('tasks_added_to_q')
-            if tasks:
-                action_id = action.action_id
-                why = make_reason(action.why)
+            if not tasks:
+                continue
             
-
+            action_id = action.action_id
+            why = make_reason(action.why)
+            
             current_app.logger.debug("ACTION: %d REASON: %s TASKS: %s" %(action_id, why, [t["processor"] for t in tasks]))
 
             for task in tasks:
