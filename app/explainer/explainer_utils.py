@@ -102,10 +102,8 @@ def generate_explanation(run, explanation_language, explanation_format):
     explanation = Explanation(
         explanation_language = explanation.get("language", explanation_language),
         explanation_format = explanation.get("format", explanation_format),
-        explanation_content = {"header": explanation.get("header"),
-                               "body": explanation.get("body")},
-        head_generation_error=explanation.get("head_generation_error"),
-        body_generation_error=explanation.get("body_generation_error"),
+        explanation_content = {"error": explanation.get("error")},
+        generation_error=explanation.get("error"),
         )
 
     explanation.run_id = run.id

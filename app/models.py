@@ -428,7 +428,7 @@ def get_report(reports, language="en", format="p"):
 def get_explanation(explanations, language="en", format="ul"):
     explanations = [
         e for e in explanations
-        if e.explanation_language == language and e.explanation_format == format and not (e.head_generation_error or e.body_generation_error)
+        if e.explanation_language == language and e.explanation_format == format and not e.generation_error
         ]
     if explanations:
         return sorted(explanations, key=lambda e: e.explanation_generated)[-1]
@@ -446,8 +446,7 @@ class Explanation(db.Model):
     explanation_language = db.Column(db.String(255))
     explanation_format = db.Column(db.String(255))
     explanation_content = db.Column(db.JSON)
-    head_generation_error = db.Column(db.String(255))
-    body_generation_error = db.Column(db.String(255))
+    generation_error = db.Column(db.String(255))
 
     explanation_generated = db.Column(db.DateTime, default=datetime.utcnow)
 
