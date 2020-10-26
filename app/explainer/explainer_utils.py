@@ -97,7 +97,6 @@ def generate_explanation(run, explanation_language, explanation_format):
     except:
         return {"error": "%s: %s" % (response.status_code, response.reason)}
 
-    # TODO: store explanation to DB
 
     explanation = Explanation(
         explanation_language = explanation.get("language", explanation_language),
