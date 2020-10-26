@@ -101,7 +101,7 @@ def generate_explanation(run, explanation_language, explanation_format):
     explanation = Explanation(
         explanation_language = explanation.get("language", explanation_language),
         explanation_format = explanation.get("format", explanation_format),
-        explanation_content = {"error": explanation.get("error")},
+        explanation_content = {"body": explanation.get("body")},
         generation_error=explanation.get("error"),
         )
 
@@ -110,9 +110,4 @@ def generate_explanation(run, explanation_language, explanation_format):
     db.session.add(explanation)
     db.session.commit()
 
-    return explanation
-
-                               
-
-    
     return explanation
