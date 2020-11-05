@@ -16,6 +16,7 @@ def make_report(args):
 
     report_language = args["language"]
     report_format = args["format"]
+    need_links = False if args["nolinks"] else True
     if args.get("task"):
         uuid = args.get("task")
         Table = Task
@@ -40,12 +41,12 @@ def make_report(args):
                 Table.__name__, uuid, current_user.username
             )
         )
-    report = record.report(report_language, report_format)
+    report = record.report(report_language, report_format, need_links)
     if report:
         current_app.logger.info("Report exists, not generating")
         current_app.logger.debug("REPORT: %s" % report.report_content)
     else:
-        report = generate_report(record, report_language, report_format)
+        report = generate_report(record, report_language, report_format, need_links)
         current_app.logger.debug("GENERATE: %s" % report)
 
     try:
@@ -55,7 +56,7 @@ def make_report(args):
         return report
 
 
-def generate_report(record, report_language, report_format):
+def generate_report(record, report_language, report_format, need_links=True):
 
     if isinstance(record, Task):
         tasks = [record]
@@ -65,16 +66,20 @@ def generate_report(record, report_language, report_format):
 
     data = [t.dict("reporter") for t in tasks]
 
-    # current_app.logger.debug("DATA: %s" %data)
+    # current_app.logger.debug("DATA: %s" %json.dumps(data))
+    current_app.logger.debug("NEED LINKS: %s" %need_links)
 
     payload = {
         "language": report_language,
         "format": report_format,
         "data": json.dumps(data),
+        "links": json.dumps(need_links)
     }
 
-    # current_app.logger.debug("PAYLOAD: %s" % payload)
-    response = requests.post(Config.REPORTER_URI + "/report", data=payload)
+    #current_app.logger.debug("PAYLOAD: %s" %json.dumps(payload))
+    
+    headers = {'content-type': 'application/json'}
+    response = requests.post(Config.REPORTER_URI + "/report", payload)
 
     try:
         report = response.json()

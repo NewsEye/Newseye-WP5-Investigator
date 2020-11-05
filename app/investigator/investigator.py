@@ -245,7 +245,7 @@ class Investigator:
                 "###CURRENT COLLECTIONS: %s" % self.current_collections
             )
 
-            # 2. Add language-specific (TM or summarization) 
+            # 2. Add language-specific (TM or summarization)
             whys, actions = await self.add_language_specific_tasks(
                 self.current_collections, split_uuid
             )
@@ -345,7 +345,7 @@ class Investigator:
 
             current_app.logger.debug("****COLLECTION_SIZE: %s" % collection_size)
 
-            if collection_size <= 20:
+            if collection_size <= 30:
                 why, action = self.add_processorset_into_q(
                     "SUMMARIZATION", collection, "small_collection", source_uuid
                 )

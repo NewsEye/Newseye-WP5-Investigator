@@ -56,27 +56,25 @@ class AnalysisUtility(Processor):
         parent_uuids = self.task.parent_uuid
         if parent_uuids:
             for parent_uuid in parent_uuids:
-                input_task = Task.query.filter_by(uuid=parent_uuid).first()
-                if input_task:
+                self.input_task = Task.query.filter_by(uuid=parent_uuid).first()
+                if self.input_task:
                     wait_time = 0
-                    while input_task.task_status != "finished" and wait_time < 100:
-                        # what happens after that? should we raise some
-                        # exception? cancel all tasks?
+                    while self.input_task.task_status != "finished" and wait_time < 100:
                         asyncio.sleep(wait_time)
                         wait_time += 1
-                        if input_task.task_status == "failed":
+                        if self.input_task.task_status == "failed":
                             raise BadRequest(
-                                "Task used as source_uuid (%s) failed" % input_task.uuid
+                                "Task used as source_uuid (%s) failed" % self.input_task.uuid
                             )
                 if len(parent_uuids) == 1:
                     try:
-                        return await self.get_input_data(input_task.task_result.result)
+                        return await self.get_input_data(self.input_task.task_result)
                     except:
                         current_app.logger.debug(
                             "!!!!!!!!Don't know how to use previous_task_result for %s Result: %s"
-                            % (self.processor.name, input_task.task_result)
+                            % (self.processor.name, self.input_task.task_result)
                         )
-                        pass  # try to call get_input_data in standard way, without parameters
+                        pass  # try to call get_input_data in a standard way, without parameters
         return await self.get_input_data()
 
     async def get_input_data(self, previous_task_result=None):

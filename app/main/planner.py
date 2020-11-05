@@ -1,4 +1,4 @@
-from app import db
+from app import db, analysis
 from app.utils.db_utils import generate_task, store_results
 from app.models import Task, Processor
 from app.utils.search_utils import search_database
@@ -9,7 +9,7 @@ from flask import current_app
 import asyncio
 from app.investigator.investigator import Investigator
 import warnings
-
+from config import Config
 
 class TaskPlanner(object):
     def __init__(self, user):
@@ -151,7 +151,10 @@ class TaskPlanner(object):
         current_app.logger.debug(
             "task.processor.input_type: %s" % task.processor.input_type
         )
-        if task.processor.input_type == "dataset":
+        if (
+            task.processor.input_type == "dataset"
+            or task.processor.name in Config.PROCESSOR_EXCEPTION_LIST
+        ):
             return
 
         parent_uuids = task.parent_uuid

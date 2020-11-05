@@ -23,6 +23,7 @@ class ReportTask(Resource):
     parser.add_argument("task", help="task uuid")
     parser.add_argument("node", help="node uuid")
     parser.add_argument("run", help="run uuid")
+    parser.add_argument("nolinks", help="exclude links from report")
 
     @login_required
     @ns.expect(parser)

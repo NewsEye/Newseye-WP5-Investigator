@@ -32,9 +32,6 @@ class ExtractFacets(AnalysisUtility):
 
     async def make_result(self):
         """ Extract all facet values found in the input data and the number of occurrences for each."""
-        # too complicated
-        # seems nobody is using these constants
-        # except for this processor --- get read of them???
         facets = {}
         available_facets = {v: k for k, v in AVAILABLE_FACETS.items()}
         current_app.logger.debug("AVAILABLE_FACETS: %s" % available_facets)
@@ -183,13 +180,13 @@ class GenerateTimeSeries(AnalysisUtility):
         return out_dict
 
     async def estimate_interestingness(self):
-        rel_counts = {
+        counts = {
             k: v
-            for k, v in self.result["relative_counts"].items()
+            for k, v in self.result["absolute_counts"].items()
             if k not in ["min", "max", "avg"]
         }
-        interestingness = assessment.recoursive_distribution(rel_counts)
+        interestingness = assessment.recoursive_distribution(counts)
         return {
-            k: (assessment.normalized_entropy(v.values()), v)
+            k: (1-assessment.normalized_entropy(v.values()), v) # we want minimal entropy, which means sharpest peak
             for k, v in interestingness.items()
         }

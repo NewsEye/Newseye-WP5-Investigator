@@ -2,7 +2,7 @@ import uuid
 from flask import current_app
 from sqlalchemy.exc import IntegrityError
 from flask_login import current_user
-from app import db
+from app import db, analysis
 from app.models import (
     Task,
     Result,
@@ -15,16 +15,22 @@ from app.models import (
 from datetime import datetime
 from werkzeug.exceptions import BadRequest
 from app.utils.dataset_utils import get_dataset
-
+from config import Config
 
 def verify_data(args):
     current_app.logger.debug("ARGS: %s" % args)
 
     if (
-        args.get("dataset") is None
+        not args.get("processor") in Config.PROCESSOR_EXCEPTION_LIST
+        and args.get("dataset") is None
         and args.get("search_query") is None
         and args.get("source_uuid") is None
     ):
+
+        current_app.logger.debug(
+            "!!!!! args.get('processor') %s" % args.get("processor")
+        )
+
         raise BadRequest(
             "A 'dataset', 'search_query', or 'source_uuid' is missing for query:\n{}".format(
                 args
@@ -78,7 +84,6 @@ def verify_analysis_parameters(args):
         if parameter_name in query_parameters.keys():
             new_parameters[parameter_name] = query_parameters[parameter_name]
         else:
-
             if parameter["required"]:
                 raise BadRequest(
                     "Required utility parameter '{}' is not defined in the query:\n{}".format(

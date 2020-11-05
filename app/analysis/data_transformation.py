@@ -31,7 +31,7 @@ class SplitByFacet(AnalysisUtility):
         )
 
     async def get_input_data(self, previous_task_result):
-        return previous_task_result[self.task.parameters["facet"]]
+        return previous_task_result.result[self.task.parameters["facet"]]
 
     async def make_result(self):
         # if len(self.input_data) == 1:
@@ -70,6 +70,70 @@ class SplitByFacet(AnalysisUtility):
         return interestingness
 
 
+class FindBestSplitFromTimeseries(AnalysisUtility):
+    @classmethod
+    def _make_processor(cls):
+        return Processor(
+            name=cls.__name__,
+            import_path=cls.__module__,
+            description="Find the best time timeseries from result and the best (single) split within timeseries",
+
+            parameter_info = [],
+
+            input_type = "timeseries",
+            output_type = "dataset_list"
+            )
+
+    async def get_input_data(self, previous_task_result):
+        max_interestingness = (None, 0)
+        for k,v in previous_task_result.interestingness.items():
+            if k == "overall":
+                continue
+            if v[0] > max_interestingness[1]:
+                max_interestingness = (k, v[0])
+                
+        return {"data": previous_task_result.result,
+                "key": max_interestingness[0]}
+    
+    async def make_result(self):
+        timeseries = {int(k):v for k,v in self.input_data["data"]["relative_counts"][self.input_data["key"]].items() if k.isdigit()}
+
+        current_app.logger.debug("TIMESERIES: %s" %timeseries)
+        
+        # strip zeros in the beginning and end:
+        for k,v in sorted(timeseries.items()):
+            if v != 0:
+                start = k
+                break
+        for k,v in sorted(timeseries.items(), reverse=True):
+            if v != 0:
+                end = k
+                break
+
+        timeseries = {k:v for k,v in sorted(timeseries.items()) if k >= start and k <= end}
+
+        # compute distances
+        diffs = {k1:abs(timeseries[k1] - timeseries[k2]) for k1, k2 in zip(list(timeseries.keys())[:-1],list(timeseries.keys())[1:])}
+        # key for max distance
+        split_point = max(diffs, key=diffs.get)
+
+        
+        # now make new queries
+        facet_field = AVAILABLE_FACETS[self.input_task.parameters["facet_name"]]
+
+        current_app.logger.debug("******FACET_FIELD: %s" % facet_field)
+        
+        
+        current_app.logger.debug("DIFFS: %s" %diffs)
+        current_app.logger.debug("SPLIT_POINT: %s" %split_point)
+            
+        
+        current_app.logger.debug("INPUT_DATA: %s" %self.input_data.keys())
+        current_app.logger.debug("INPUT TASK: %s" %self.input_task.parameters)
+    
+
+        raise NotImplementedError
+        
 class Comparison(AnalysisUtility):
     @classmethod
     def _make_processor(cls):
@@ -162,3 +226,5 @@ class Comparison(AnalysisUtility):
     @staticmethod
     def make_topic_dict(topic_analysis_output):
         return dict(enumerate(topic_analysis_output["topic_weights"]))
+
+

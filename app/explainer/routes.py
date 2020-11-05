@@ -11,7 +11,9 @@ from flask import current_app
 class Explain(Resource):
     parser = AuthParser()
     parser.add_argument(
-        "language", default="en", help="The language the explanation should be written in."
+        "language",
+        default="en",
+        help="The language the explanation should be written in.",
     )
     parser.add_argument(
         "format", default="ul", help="The format of the body of the explanation."
@@ -27,7 +29,7 @@ class Explain(Resource):
         args = self.parser.parse_args()
         current_app.logger.debug("ARGS: %s" % args)
         explanation = make_explanation(args)
-        current_app.logger.debug("EXPLANATION: %s" %explanation)
+        current_app.logger.debug("EXPLANATION: %s" % explanation)
         return explanation
 
 
@@ -51,5 +53,3 @@ class FormatList(Resource):
         List the text formatting options supported by the Explainer component.
         """
         return get_formats()
-
-

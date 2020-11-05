@@ -26,11 +26,24 @@ class Config(object):
 
     # The URI for the Explainer API
     EXPLAINER_URI = "http://newseye-wp5.cs.helsinki.fi:4219/api"
-    
+
     # This should contain the URI for the topic modelling tools
     TOPIC_MODEL_URI = "https://newseye-wp4.cs.helsinki.fi"
     TOPIC_MODEL_TYPES = ["lda", "dtm"]
+    TOPIC_MODEL_COMPARISON_TYPE = {
+        "distinct_topics": True,
+        "shared_topics": True,
+        "mean_jsd": False,
+        "internal_jsd": False,
+        "cross_jsd": False,
+    }
 
+    PROCESSOR_EXCEPTION_LIST = [
+        "TopicModelDocsetComparison"
+    ]  # processors that don't have an input dataset or source_uuid
+    # should this be a field in the db?
+
+    
     # credentials for the dataset API
     DATASET_URI = "https://platform.newseye.eu"
     DATASET_EMAIL = "pra@newseye.eu"

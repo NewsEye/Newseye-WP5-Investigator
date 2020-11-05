@@ -43,6 +43,7 @@ class DocumentDatasetRelation(db.Model):
 class Document(db.Model):
     # currently not used, just store document names
     # in principle it might be possible to store link to task for document-level tasks
+    # and also store document facets, e.g. language
     __tablename__ = "document"
     id = db.Column(db.Integer, primary_key=True)
     # name used in the main Solr database
@@ -275,6 +276,8 @@ class Task(db.Model):
             return {"dataset": self.dataset.dataset_name}
         elif self.solr_query:
             return {"search_query": self.solr_query.search_query}
+        elif self.processor.name in Config.PROCESSOR_EXCEPTION_LIST:
+            return {k:v for k,v in self.parameters if k.startswith("collection")}
 
     def dict(self, style="status"):
         ret = {
@@ -300,6 +303,7 @@ class Task(db.Model):
                 {"task_result": self.result_with_interestingness,}
             )
             ret.update(self.data_dict())
+            
 
         elif style == "investigator":
             if self.task_result:
@@ -311,7 +315,7 @@ class Task(db.Model):
             ret.update({"collections": [c.collection_no for c in self.collections]})
             data_dict = self.data_dict()
             if data_dict:
-                ret.update()
+                ret.update(data_dict)
         return ret
 
     @property
@@ -335,10 +339,15 @@ class Task(db.Model):
             elif self.task_results:
                 return self.task_results[0]
 
-    def report(self, language="en", format="p"):
+    def report(self, language="en", format="p", need_links=True):
         result = self.task_result
         if result:
-            return get_report(result.result_reports, language=language, format=format)
+            return get_report(
+                result.result_reports,
+                language=language,
+                format=format,
+                need_links=need_links,
+            )
 
     @property
     def result_with_interestingness(self):
@@ -405,6 +414,7 @@ class Report(db.Model):
     body_generation_error = db.Column(db.String(255))
 
     report_generated = db.Column(db.DateTime, default=datetime.utcnow)
+    need_links = db.Column(db.Boolean)
 
     def dict(self):
         ret = self.report_content
@@ -415,11 +425,14 @@ class Report(db.Model):
         return "<Report>"
 
 
-def get_report(reports, language="en", format="p"):
+def get_report(reports, language="en", format="p", need_links=True):
     reports = [
         r
         for r in reports
-        if r.report_language == language and r.report_format == format and not (r.head_generation_error or r.body_generation_error)
+        if r.report_language == language
+        and r.report_format == format
+        and not (r.head_generation_error or r.body_generation_error)
+        and r.need_links == need_links
     ]
     if reports:
         return sorted(reports, key=lambda r: r.report_generated)[-1]
@@ -427,13 +440,17 @@ def get_report(reports, language="en", format="p"):
 
 def get_explanation(explanations, language="en", format="ul"):
     explanations = [
-        e for e in explanations
-        if e.explanation_language == language and e.explanation_format == format and not e.generation_error
-        ]
+        e
+        for e in explanations
+        if e.explanation_language == language
+        and e.explanation_format == format
+        and not e.generation_error
+    ]
     if explanations:
+        current_app.logger.debug("EXPLANATIONS: %s" % explanations)
         return sorted(explanations, key=lambda e: e.explanation_generated)[-1]
-        
-    
+
+
 class Explanation(db.Model):
     __tablename__ = "explanation"
     id = db.Column(db.Integer, primary_key=True)
@@ -451,9 +468,10 @@ class Explanation(db.Model):
     explanation_generated = db.Column(db.DateTime, default=datetime.utcnow)
 
     def __repr__(self):
-        return "<Explanation>"
+        return "<Explanation id: {} explanation_content: {} generation_error: {} ".format(
+            self.id, self.explanation_content, self.generation_error
+        )
 
-    
 
 class InvestigatorRun(db.Model):
     # TODO: make explicit relations w other tables
@@ -485,7 +503,7 @@ class InvestigatorRun(db.Model):
     result_reports = db.relationship("Report", back_populates="run")
 
     run_explanations = db.relationship("Explanation", back_populates="run")
-    
+
     # all done tasks
     # unlike result never replaced, just updated
     done_tasks = db.Column(db.JSON)
@@ -526,14 +544,21 @@ class InvestigatorRun(db.Model):
 
         return ret
 
-    def report(self, language="en", format="p"):
+    def report(self, language="en", format="p", need_links=True):
         if self.result_reports:
-            return get_report(self.result_reports, language=language, format=format)
+            return get_report(
+                self.result_reports,
+                language=language,
+                format=format,
+                need_links=need_links,
+            )
 
     def explanation(self, language="en", format="ul"):
         if self.run_explanations:
-            return get_explanation(self.run_explanations, language=language, format=format)
-        
+            return get_explanation(
+                self.run_explanations, language=language, format=format
+            )
+
     def __repr__(self):
         if self.root_dataset:
             return "<InvestigatorRun id: {}, dataset: {}, status: {}>".format(
@@ -610,9 +635,14 @@ class InvestigatorResult(db.Model):
     result = db.Column(db.JSON, default=[])
     result_reports = db.relationship("Report", back_populates="node")
 
-    def report(self, language="en", format="p"):
+    def report(self, language="en", format="p", need_links=True):
         if self.result_reports:
-            return get_report(self.result_reports, language=language, format=format)
+            return get_report(
+                self.result_reports,
+                language=language,
+                format=format,
+                need_links=need_links,
+            )
 
     def __repr__(self):
         return "<InvestigatorResult id: {}, uuid: {} run_id: {} start_action_id: {} end_cation_id: {} interestingness: {} result: {}".format(
