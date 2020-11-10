@@ -58,6 +58,8 @@ class TopicProcessor(AnalysisUtility):
             response = requests.post(uri, json=parameters)
             if response.status_code == 200:
                 return response.json()
+            elif response.status_code != 202:
+                return response
             current_app.logger.debug(
                 "TM_TASK: %s DELAY: %s STATUS: %s"
                 % (task_uuid, delay, response.status_code)
