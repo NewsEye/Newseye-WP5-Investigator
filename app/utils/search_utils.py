@@ -8,7 +8,7 @@ from werkzeug.exceptions import Unauthorized
 # Runs the query/queries using aiohttp. The return value is a list containing the results in the corresponding order.
 async def search_database(queries, **kwargs):
 
-    #current_app.logger.debug("QUERIES: %s" % queries)
+    # current_app.logger.debug("QUERIES: %s" % queries)
     return_list = isinstance(queries, list)
     if not isinstance(queries, list):
         queries = [queries]
@@ -32,9 +32,9 @@ async def query_solr(
 ):
     #### TODO: store queries and outputs, check if output exists, and reuse
 
-#    current_app.logger.debug(
-#        "============== QUERY: %s RETRIEVE: %s" % (query, retrieve)
-#    )
+    #    current_app.logger.debug(
+    #        "============== QUERY: %s RETRIEVE: %s" % (query, retrieve)
+    #    )
 
     """
     :param session: an aiohttp ClientSession

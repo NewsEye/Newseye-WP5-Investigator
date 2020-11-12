@@ -187,6 +187,9 @@ class GenerateTimeSeries(AnalysisUtility):
         }
         interestingness = assessment.recoursive_distribution(counts)
         return {
-            k: (1-assessment.normalized_entropy(v.values()), v) # we want minimal entropy, which means sharpest peak
+            k: (
+                1 - assessment.normalized_entropy(v.values()),
+                v,
+            )  # we want minimal entropy, which means sharpest peak
             for k, v in interestingness.items()
         }

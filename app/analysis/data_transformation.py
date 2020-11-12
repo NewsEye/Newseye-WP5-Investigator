@@ -8,7 +8,7 @@ from copy import copy
 import asyncio
 import numpy as np
 from werkzeug.exceptions import BadRequest
-
+import datetime
 
 class SplitByFacet(AnalysisUtility):
     @classmethod
@@ -77,63 +77,107 @@ class FindBestSplitFromTimeseries(AnalysisUtility):
             name=cls.__name__,
             import_path=cls.__module__,
             description="Find the best time timeseries from result and the best (single) split within timeseries",
-
-            parameter_info = [],
-
-            input_type = "timeseries",
-            output_type = "dataset_list"
-            )
+            parameter_info=[],
+            input_type="timeseries",
+            output_type="dataset_list",
+        )
 
     async def get_input_data(self, previous_task_result):
+        # choose most interesting timeseries
         max_interestingness = (None, 0)
-        for k,v in previous_task_result.interestingness.items():
+        for k, v in previous_task_result.interestingness.items():
             if k == "overall":
                 continue
             if v[0] > max_interestingness[1]:
                 max_interestingness = (k, v[0])
-                
-        return {"data": previous_task_result.result,
-                "key": max_interestingness[0]}
-    
-    async def make_result(self):
-        timeseries = {int(k):v for k,v in self.input_data["data"]["relative_counts"][self.input_data["key"]].items() if k.isdigit()}
 
-        current_app.logger.debug("TIMESERIES: %s" %timeseries)
-        
+        return {"data": previous_task_result.result, "key": max_interestingness[0]}
+
+    async def make_result(self):
+        # get a single, the most interesting timeseries
+        timeseries = {
+            int(k): v
+            for k, v in self.input_data["data"]["relative_counts"][
+                self.input_data["key"]  # key to choose the most interesting timeseries
+            ].items()
+            if k.isdigit()  # only choose years
+        }
+
         # strip zeros in the beginning and end:
-        for k,v in sorted(timeseries.items()):
+        for k, v in sorted(timeseries.items()):
             if v != 0:
                 start = k
                 break
-        for k,v in sorted(timeseries.items(), reverse=True):
+        for k, v in sorted(timeseries.items(), reverse=True):
             if v != 0:
                 end = k
                 break
 
-        timeseries = {k:v for k,v in sorted(timeseries.items()) if k >= start and k <= end}
+        timeseries = {
+            k: v for k, v in sorted(timeseries.items()) if k >= start and k <= end
+        }
 
         # compute distances
-        diffs = {k1:abs(timeseries[k1] - timeseries[k2]) for k1, k2 in zip(list(timeseries.keys())[:-1],list(timeseries.keys())[1:])}
-        # key for max distance
-        split_point = max(diffs, key=diffs.get)
+        self.diffs = {
+            k1: abs(timeseries[k1] - timeseries[k2])
+            for k1, k2 in zip(list(timeseries.keys())[:-1], list(timeseries.keys())[1:])
+        }
+        # choose split point at max distance
+        self.split_point = max(self.diffs, key=self.diffs.get)
 
-        
         # now make new queries
         facet_field = AVAILABLE_FACETS[self.input_task.parameters["facet_name"]]
 
-        current_app.logger.debug("******FACET_FIELD: %s" % facet_field)
-        
-        
-        current_app.logger.debug("DIFFS: %s" %diffs)
-        current_app.logger.debug("SPLIT_POINT: %s" %split_point)
-            
-        
-        current_app.logger.debug("INPUT_DATA: %s" %self.input_data.keys())
-        current_app.logger.debug("INPUT TASK: %s" %self.input_task.parameters)
-    
+        search_query = self.task.search_query
+        fq = search_query.get("fq", [])
+        if isinstance(fq, str):
+            fq = [fq]
 
-        raise NotImplementedError
+
+        query1 = copy(search_query)
+        query1["fq"] = [*fq,
+                        "{}:{}".format(facet_field, self.input_data["key"]),
+                       "date_created_dtsi:%s" %self.format_period(start, self.split_point)]
+
+        query2 = copy(search_query)
+        query2["fq"] = [*fq,
+                        "{}:{}".format(facet_field, self.input_data["key"]),
+                       "date_created_dtsi:%s" %self.format_period(self.split_point+1, end)]
+
+
+        return {"query1":query1,
+                "query2":query2
+        }
+
+
+    async def estimate_interestingness(self):
+        total1 = sum([v for k,v in self.input_data["data"]["absolute_counts"][self.input_data["key"]].items()
+                      if k.isdigit() and int(k)<= self.split_point])
+        total2 = sum([v for k,v in self.input_data["data"]["absolute_counts"][self.input_data["key"]].items()
+                      if k.isdigit() and int(k)> self.split_point])
         
+        return {"query1":total1 / (total1 + total2),
+                "query2":total2 / (total1 + total2)}
+    
+    async def _estimate_interestingness(self):
+        interestingness = await self.estimate_interestingness()
+        interestingness.update(
+            {"overall": max(self.diffs.values())}
+        )
+        return interestingness
+
+    
+    
+    @staticmethod
+    def format_period(start_year, end_year):
+        # should it go to db utils?
+        date_format = "%Y-%m-%dT%H:%M:%SZ"
+        return "[%s TO %s]" %(datetime.datetime(start_year, 1, 1).strftime(date_format),
+                              datetime.datetime(end_year, 12, 31, 23, 59, 59).strftime(date_format))
+    
+        
+
+                  
 class Comparison(AnalysisUtility):
     @classmethod
     def _make_processor(cls):
@@ -226,5 +270,3 @@ class Comparison(AnalysisUtility):
     @staticmethod
     def make_topic_dict(topic_analysis_output):
         return dict(enumerate(topic_analysis_output["topic_weights"]))
-
-

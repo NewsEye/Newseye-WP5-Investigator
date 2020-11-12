@@ -64,7 +64,8 @@ class AnalysisUtility(Processor):
                         wait_time += 1
                         if self.input_task.task_status == "failed":
                             raise BadRequest(
-                                "Task used as source_uuid (%s) failed" % self.input_task.uuid
+                                "Task used as source_uuid (%s) failed"
+                                % self.input_task.uuid
                             )
                 if len(parent_uuids) == 1:
                     try:

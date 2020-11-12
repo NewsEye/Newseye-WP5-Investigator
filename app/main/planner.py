@@ -11,6 +11,7 @@ from app.investigator.investigator import Investigator
 import warnings
 from config import Config
 
+
 class TaskPlanner(object):
     def __init__(self, user):
         self.user = user

@@ -43,7 +43,6 @@ class Config(object):
     ]  # processors that don't have an input dataset or source_uuid
     # should this be a field in the db?
 
-    
     # credentials for the dataset API
     DATASET_URI = "https://platform.newseye.eu"
     DATASET_EMAIL = "pra@newseye.eu"

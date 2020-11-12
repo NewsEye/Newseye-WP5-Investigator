@@ -16,8 +16,9 @@ from app.analysis.topic_processors import (
 from app.analysis.data_transformation import (
     SplitByFacet,
     Comparison,
-    FindBestSplitFromTimeseries
+    FindBestSplitFromTimeseries,
 )
+
 
 def initialize_processors(app):
     # adding processors to the database (if they are not there already)
@@ -33,8 +34,6 @@ def initialize_processors(app):
             QueryTopicModel,
             SplitByFacet,
             Comparison,
-            FindBestSplitFromTimeseries    
+            FindBestSplitFromTimeseries,
         ]:
             cls(initialize=True).make_processor()
-
-
