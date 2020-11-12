@@ -27,7 +27,7 @@ class TopicProcessor(AnalysisUtility):
         return [d["id"] for d in search["docs"]]
 
     async def request_result_from_tm(
-            self, payload, request_uri, result_uri, parameters={}, max_delay=False
+        self, payload, request_uri, result_uri, parameters={}, max_delay=False
     ):
         response = requests.post(request_uri, json=payload)
         uuid = response.json().get("task_uuid")
@@ -309,40 +309,42 @@ class TopicModelDocsetComparison(TopicProcessor):
 
         return collection
 
-    
     async def make_result(self):
         result = {}
         for attempt in range(3):
-    
+
             comparisons = [
                 self.query_tm_comparison(i[0], i[1], n, max_delay=150)
                 for n, i in enumerate(Config.TOPIC_MODEL_COMPARISON_TYPE.items())
-                if i[0] not in result and i[0]+"1" not in result
+                if i[0] not in result and i[0] + "1" not in result
             ]
 
-            current_app.logger.debug("COMPARISONS: %s" %comparisons)
+            current_app.logger.debug("COMPARISONS: %s" % comparisons)
             if not comparisons:
                 # all done
-                break 
+                break
             # else try once again with (hopefully) less parallel tasks
-            comparison_results = await asyncio.gather(*comparisons, return_exceptions=True)
+            comparison_results = await asyncio.gather(
+                *comparisons, return_exceptions=True
+            )
             for res in comparison_results:
                 if not isinstance(res, RequestTimeout):
                     result.update(res)
 
-                    current_app.logger.debug("ATTEMPT: %d RESULT: %s" %(attempt, result))
+                    current_app.logger.debug(
+                        "ATTEMPT: %d RESULT: %s" % (attempt, result)
+                    )
 
         if not result:
             raise RequestTimeout("No results could be obtained in reasonable time")
-        
+
         return result
-     
-                           
+
     async def query_tm_comparison(
-            self, comparison_type, accept_num_topics=False, postpone=0, max_delay=False
+        self, comparison_type, accept_num_topics=False, postpone=0, max_delay=False
     ):
-        await asyncio.sleep(2*postpone)  # HACK to avoid task uuid collision
-        
+        await asyncio.sleep(2 * postpone)  # HACK to avoid task uuid collision
+
         model_type = self.task.parameters.get("model_type")
         payload = {
             "model_name": "-".join(
@@ -360,11 +362,10 @@ class TopicModelDocsetComparison(TopicProcessor):
             "{}/docset-comparison".format(Config.TOPIC_MODEL_URI),
             "{}/docset-results".format(Config.TOPIC_MODEL_URI),
             parameters={"compare_type": comparison_type},
-            max_delay=max_delay
+            max_delay=max_delay,
         )
 
         return response
-
 
     async def _estimate_interestingness(self):
         # function with underscore computes 'overall' interestingness as well
@@ -372,7 +373,7 @@ class TopicModelDocsetComparison(TopicProcessor):
         interestingness = {}
         numerical_results = []
 
-        for k,v in self.result.items():
+        for k, v in self.result.items():
             if isinstance(v, float):
                 interestingness[k] = v
                 numerical_results.append(v)
@@ -380,12 +381,11 @@ class TopicModelDocsetComparison(TopicProcessor):
                 interestingness[k] = 1
 
         if "mean_jsd" in interestingness:
-            interestingness["overall"] = "mean_jsd"
+            interestingness["overall"] = interestingness["mean_jsd"]
         elif numerical_results:
             interestingness["overall"] = max(numerical_results)
         else:
             interestingness["overall"] = 0.5
 
-        current_app.logger.debug("INTERESTINGNESS: %s" %interestingness)
+        current_app.logger.debug("INTERESTINGNESS: %s" % interestingness)
         return interestingness
-        
