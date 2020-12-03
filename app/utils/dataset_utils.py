@@ -68,8 +68,8 @@ def request_dataset(dataset_name, user):
     response = requests.request(
         "POST", url, data=payload, headers=headers, verify=False
     )
-    current_app.logger.debug("RESPONSE: %s" %response)
-    if report.status is 404:
+    # current_app.logger.debug("RESPONSE: %s" %response)
+    if response.status_code is 404:
         raise NotFound("Dataset {} is not found for {}".format(dataset_name, user))
     make_dataset(dataset_name, user, response.json())
 
