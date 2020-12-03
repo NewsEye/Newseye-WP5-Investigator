@@ -2,7 +2,7 @@ from werkzeug.exceptions import BadRequest
 from config import Config
 import requests
 import os
-from werkzeug.exceptions import BadRequest
+from werkzeug.exceptions import BadRequest, NotFound
 from app.models import Dataset, Document, DocumentDatasetRelation
 from app import db
 from flask import current_app
@@ -55,7 +55,7 @@ def get_hash_value(dataset_name, user):
     for d in response.json():
         if d[0] == dataset_name:
             return str(d[1])
-    raise BadRequest("Dataset {} not found for {}".format(dataset_name, user))
+    raise BadRequest("Dataset {} does not exist for {}".format(dataset_name, user))
 
 
 def request_dataset(dataset_name, user):
@@ -68,11 +68,14 @@ def request_dataset(dataset_name, user):
     response = requests.request(
         "POST", url, data=payload, headers=headers, verify=False
     )
-    # current_app.logger.debug("RESPONSE: %s" %response.json())
+    current_app.logger.debug("RESPONSE: %s" %response)
+    if report.status is 404:
+        raise NotFound("Dataset {} is not found for {}".format(dataset_name, user))
     make_dataset(dataset_name, user, response.json())
 
 
 def make_dataset(dataset_name, user, document_list):
+    current_app.logger.debug("DATASET_NAME: %s USER: %s DOCUMENT_LIST %s" %(dataset_name, user, document_list))
     dataset = Dataset.query.filter_by(
         dataset_name=dataset_name, user=user
     ).one_or_none()

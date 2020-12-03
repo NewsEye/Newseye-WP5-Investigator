@@ -66,7 +66,7 @@ class Config(object):
             "ps": 2,
             "tie": 0.01,
             "wt": "json",
-            "qf": "all_text_tfr_siv all_text_tfi_siv all_text_tde_siv all_text_tse_siv",
+            "qf": "all_text_ten_siv all_text_tfr_siv all_text_tfi_siv all_text_tse_siv all_text_tde_siv title_ten_siv title_tfr_siv title_tfi_siv title_tde_siv title_tse_siv",
         },
         "all": {
             "qs": 1,
@@ -107,7 +107,7 @@ class Config(object):
             "ps": 2,
             "tie": 0.01,
             "tv.all": True,
-            "tv.fl": "all_text_unstemmed_tfr_iv all_text_unstemmed_tfi_iv all_text_unstemmed_tde_iv all_text_unstemmed_tse_iv",
+            "tv.fl": "all_text_unstemmed_tfr_siv all_text_unstemmed_tfi_siv all_text_unstemmed_tde_siv all_text_unstemmed_tse_siv",
             "fl": "nothing",  # non-existing field to retrun nothing; otherwise all text will be returned
             "defType": "edismax",
         },

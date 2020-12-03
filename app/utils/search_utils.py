@@ -56,6 +56,8 @@ async def query_solr(
 
     solr_uri = Config.SOLR_URI + solr_index
 
+    current_app.logger.debug("SOLR_URI: %s" %solr_uri)
+    
     # First read the default parameters for the query
     parameters = {
         key: value for key, value in Config.SOLR_PARAMETERS["default"].items()
@@ -87,6 +89,7 @@ async def query_solr(
             )
             num_results = max_return_value
 
+           
         # TODO: parameter, move to config
         # keeping them here is easier to debug, I don't yet know the best numbers
         rows_in_one_query = 60
@@ -98,7 +101,7 @@ async def query_solr(
             parameters["start"] = start
             parameters["rows"] = rows_in_one_query
             current_app.logger.debug("START: %d" % start)
-            # current_app.logger.debug("parameters %s" % parameters)
+            current_app.logger.debug("parameters %s" % parameters)
             pages.append(parameters.copy())
             page_count += 1
             if page_count >= pages_in_parallel:
@@ -172,10 +175,17 @@ async def get_response(session, solr_uri, parameters, max_retry=10):
 
 def convert_vector_response_to_dictionary(term_vectors, result_dict):
     # bunch of hacks
+    # current_app.logger.debug("TERM_VECTORS: %s" %term_vectors)
     for article in term_vectors:
         if article[0] == "uniqueKey":
             article_id = article[1]
-            word_list = article[3]
+            #current_app.logger.debug("ARTICLE_ID: %s" %article_id)
+            try:
+                word_list = article[3]
+            except Exception as e:
+                current_app.logger.debug("WRONG WORD_LIST: %s" %article)
+                continue
+                
             article_dict = {}
             for i in range(0, len(word_list), 2):
                 word = word_list[i]
