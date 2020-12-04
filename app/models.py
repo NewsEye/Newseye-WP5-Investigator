@@ -132,9 +132,8 @@ class Processor(db.Model):
     description = db.Column(db.String(10000))
     import_path = db.Column(db.String(1024))
     tasks = db.relationship("Task", back_populates="processor")
-    __table_args__ = (
-        UniqueConstraint("name", "import_path", name="uq_processor_name_and_path"),
-    )
+
+    deprecated = db.Column(db.Boolean, default=False)
 
     def __repr__(self):
         return "<Processor id: {}, name: {}, import_path: {}>".format(
@@ -152,10 +151,13 @@ class Processor(db.Model):
 
     @staticmethod
     def find_by_name(name):
-        processors = Processor.query.filter_by(name=name).all()
-        if len(processors) > 1:
-            raise NotImplementedError("More than one processor with name %s" % name)
-        return Processor.query.filter_by(name=name).one_or_none()
+        processors = [
+            p for p in Processor.query.filter_by(name=name).all() if not p.deprecated
+        ]
+        if processors:
+            if len(processors) > 1:
+                raise NotImplementedError("More than one processor with name %s" % name)
+            return processors[0]
 
 
 task_parent_child_relation = db.Table(

@@ -74,7 +74,7 @@ class TaskPlanner(object):
         related_tasks = [
             rt
             for rt in sorted(related_tasks, key=lambda t: t.task_finished)
-            if rt.task_result is not None
+            if rt.task_result is not None and not rt.processor.deprecated
         ]
         if not related_tasks:
             return

@@ -131,5 +131,5 @@ class UtilityList(Resource):
         """
         Retrieve information on the available analysis utilities
         """
-        response = [p.dict() for p in Processor.query.all()]
+        response = [p.dict() for p in Processor.query.all() if not p.deprecated]
         return response

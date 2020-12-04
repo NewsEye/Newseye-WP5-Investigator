@@ -10,9 +10,16 @@ from flask import current_app
 class AnalysisUtility(Processor):
     @classmethod
     def make_processor(cls):
-        if not Processor.query.filter_by(
+
+        processors = Processor.query.filter_by(
             name=cls.__name__, import_path=cls.__module__
-        ).one_or_none():
+        ).all()
+
+        processors = [p for p in processors if not p.deprecated]
+
+        assert len(processors) <= 1
+
+        if not processors:
             db.session.add(cls._make_processor())
             db.session.commit()
 
@@ -26,7 +33,11 @@ class AnalysisUtility(Processor):
         if initialize:
             pass
         else:
-            processor = Processor.query.filter_by(name=self.__class__.__name__).all()
+            processor = [
+                p
+                for p in Processor.query.filter_by(name=self.__class__.__name__).all()
+                if not p.deprecated
+            ]
             if len(processor) > 1:
                 raise NotImplementedError(
                     "More than one processor with the same name %s"
