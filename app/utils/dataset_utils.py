@@ -75,7 +75,10 @@ def request_dataset(dataset_name, user):
 
 
 def make_dataset(dataset_name, user, document_list):
-    current_app.logger.debug("DATASET_NAME: %s USER: %s DOCUMENT_LIST %s" %(dataset_name, user, document_list))
+    current_app.logger.debug(
+        "DATASET_NAME: %s USER: %s DOCUMENT_LIST %s"
+        % (dataset_name, user, document_list)
+    )
     dataset = Dataset.query.filter_by(
         dataset_name=dataset_name, user=user
     ).one_or_none()

@@ -76,7 +76,7 @@ def generate_report(record, report_language, report_format, need_links=True):
         "links": json.dumps(need_links),
     }
 
-    current_app.logger.debug("PAYLOAD: %s" %json.dumps(payload))
+    current_app.logger.debug("PAYLOAD: %s" % json.dumps(payload))
 
     headers = {"content-type": "application/json"}
     response = requests.post(Config.REPORTER_URI + "/report", payload)

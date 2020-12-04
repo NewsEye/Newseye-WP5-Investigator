@@ -56,8 +56,6 @@ async def query_solr(
 
     solr_uri = Config.SOLR_URI + solr_index
 
-    current_app.logger.debug("SOLR_URI: %s" %solr_uri)
-    
     # First read the default parameters for the query
     parameters = {
         key: value for key, value in Config.SOLR_PARAMETERS["default"].items()
@@ -72,7 +70,7 @@ async def query_solr(
 
     async with session.get(solr_uri, json={"params": parameters}) as response:
         current_app.logger.debug("SOLR_URI %s" % solr_uri)
-        current_app.logger.debug("parameters %s" % parameters)
+        #        current_app.logger.debug("parameters %s" % parameters)
         current_app.logger.debug("response.status: %s" % response.status)
 
         if response.status == 401:
@@ -89,7 +87,6 @@ async def query_solr(
             )
             num_results = max_return_value
 
-           
         # TODO: parameter, move to config
         # keeping them here is easier to debug, I don't yet know the best numbers
         rows_in_one_query = 60
@@ -129,7 +126,9 @@ async def query_solr(
         return result_dict
 
     # For retrieving docids, retrieve all of them, unless the number of rows is specified in the query
-    if retrieve in ["docids"] and "rows" not in query.keys():
+    # try to do the same with names -- the output does is not too big; if it causes problems will query in batches, same as tokens
+
+    if retrieve in ["docids", "names"] and "rows" not in query.keys():
         num_results = response["response"]["numFound"]
         # Set a limit for the maximum number of documents to fetch at one go to 100000
         parameters["rows"] = min(num_results, max_return_value)
@@ -179,13 +178,13 @@ def convert_vector_response_to_dictionary(term_vectors, result_dict):
     for article in term_vectors:
         if article[0] == "uniqueKey":
             article_id = article[1]
-            #current_app.logger.debug("ARTICLE_ID: %s" %article_id)
+            # current_app.logger.debug("ARTICLE_ID: %s" %article_id)
             try:
                 word_list = article[3]
             except Exception as e:
-                current_app.logger.debug("WRONG WORD_LIST: %s" %article)
+                current_app.logger.debug("WRONG WORD_LIST: %s" % article)
                 continue
-                
+
             article_dict = {}
             for i in range(0, len(word_list), 2):
                 word = word_list[i]

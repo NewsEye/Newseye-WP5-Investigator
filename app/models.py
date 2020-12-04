@@ -277,7 +277,9 @@ class Task(db.Model):
         elif self.solr_query:
             return {"search_query": self.solr_query.search_query}
         elif self.processor.name in Config.PROCESSOR_EXCEPTION_LIST:
-            return {k: v for k, v in self.parameters.items() if k.startswith("collection")}
+            return {
+                k: v for k, v in self.parameters.items() if k.startswith("collection")
+            }
 
     def dict(self, style="status"):
         ret = {

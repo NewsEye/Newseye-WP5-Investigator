@@ -18,6 +18,7 @@ from app.analysis.data_transformation import (
     Comparison,
     FindBestSplitFromTimeseries,
 )
+from app.analysis.name_processors import ExtractNames
 
 
 def initialize_processors(app):
@@ -35,5 +36,6 @@ def initialize_processors(app):
             SplitByFacet,
             Comparison,
             FindBestSplitFromTimeseries,
+            ExtractNames,
         ]:
             cls(initialize=True).make_processor()

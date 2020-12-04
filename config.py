@@ -120,6 +120,7 @@ class Config(object):
             "qf": "id",
         },
         "pages": {"qs": 1, "ps": 2, "tie": 0.01, "fl": "member_ids_ssim",},
+        "names": {"wt": "json"},
     }
 
     SUPPORTED_LANGUAGES = ["fi", "de", "fr"]

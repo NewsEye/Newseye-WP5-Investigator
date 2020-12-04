@@ -10,6 +10,7 @@ import numpy as np
 from werkzeug.exceptions import BadRequest
 import datetime
 
+
 class SplitByFacet(AnalysisUtility):
     @classmethod
     def _make_processor(cls):
@@ -133,51 +134,62 @@ class FindBestSplitFromTimeseries(AnalysisUtility):
         if isinstance(fq, str):
             fq = [fq]
 
-
         query1 = copy(search_query)
-        query1["fq"] = [*fq,
-                        "{}:{}".format(facet_field, self.input_data["key"]),
-                       "date_created_dtsi:%s" %self.format_period(start, self.split_point)]
+        query1["fq"] = [
+            *fq,
+            "{}:{}".format(facet_field, self.input_data["key"]),
+            "date_created_dtsi:%s" % self.format_period(start, self.split_point),
+        ]
 
         query2 = copy(search_query)
-        query2["fq"] = [*fq,
-                        "{}:{}".format(facet_field, self.input_data["key"]),
-                       "date_created_dtsi:%s" %self.format_period(self.split_point+1, end)]
+        query2["fq"] = [
+            *fq,
+            "{}:{}".format(facet_field, self.input_data["key"]),
+            "date_created_dtsi:%s" % self.format_period(self.split_point + 1, end),
+        ]
 
-
-        return {"query1":query1,
-                "query2":query2
-        }
-
+        return {"query1": query1, "query2": query2}
 
     async def estimate_interestingness(self):
-        total1 = sum([v for k,v in self.input_data["data"]["absolute_counts"][self.input_data["key"]].items()
-                      if k.isdigit() and int(k)<= self.split_point])
-        total2 = sum([v for k,v in self.input_data["data"]["absolute_counts"][self.input_data["key"]].items()
-                      if k.isdigit() and int(k)> self.split_point])
-        
-        return {"query1":total1 / (total1 + total2),
-                "query2":total2 / (total1 + total2)}
-    
+        total1 = sum(
+            [
+                v
+                for k, v in self.input_data["data"]["absolute_counts"][
+                    self.input_data["key"]
+                ].items()
+                if k.isdigit() and int(k) <= self.split_point
+            ]
+        )
+        total2 = sum(
+            [
+                v
+                for k, v in self.input_data["data"]["absolute_counts"][
+                    self.input_data["key"]
+                ].items()
+                if k.isdigit() and int(k) > self.split_point
+            ]
+        )
+
+        return {
+            "query1": total1 / (total1 + total2),
+            "query2": total2 / (total1 + total2),
+        }
+
     async def _estimate_interestingness(self):
         interestingness = await self.estimate_interestingness()
-        interestingness.update(
-            {"overall": max(self.diffs.values())}
-        )
+        interestingness.update({"overall": max(self.diffs.values())})
         return interestingness
 
-    
-    
     @staticmethod
     def format_period(start_year, end_year):
         # should it go to db utils?
         date_format = "%Y-%m-%dT%H:%M:%SZ"
-        return "[%s TO %s]" %(datetime.datetime(start_year, 1, 1).strftime(date_format),
-                              datetime.datetime(end_year, 12, 31, 23, 59, 59).strftime(date_format))
-    
-        
+        return "[%s TO %s]" % (
+            datetime.datetime(start_year, 1, 1).strftime(date_format),
+            datetime.datetime(end_year, 12, 31, 23, 59, 59).strftime(date_format),
+        )
 
-                  
+
 class Comparison(AnalysisUtility):
     @classmethod
     def _make_processor(cls):
