@@ -14,7 +14,7 @@ from app.utils.dataset_utils import get_dataset
 
 async def get_search_documents(search_query):
     search = await search_database(
-        search_query, retrieve="all", max_return_value=10000
+        search_query, retrieve="docids", max_return_value=10000
     )  # Hack to avoid "payload too big" problem in TM API
     return search
 
