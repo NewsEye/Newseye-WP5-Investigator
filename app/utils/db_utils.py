@@ -189,9 +189,9 @@ def generate_task(query, user=current_user, parent_id=None, return_task=False):
         task.solr_query = task.parents[0].solr_query
         task.dataset = task.parents[0].dataset
 
-    current_app.logger.debug(
-        "****TASK_PARAMETERS: %s PROCESSOR: %s" % (task_parameters, processor)
-    )
+    #current_app.logger.debug(
+    #    "****TASK_PARAMETERS: %s PROCESSOR: %s" % (task_parameters, processor)
+    #)
     current_app.logger.debug("task.parents %s" % task.parents)
     check_uuid_and_commit(task)
     current_app.logger.debug("TASK: %s" % task)

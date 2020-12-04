@@ -10,6 +10,7 @@ processorsets = {
         {"name": "ExtractWords", "parameters": {"unit": "tokens"}},
         {"name": "ExtractBigrams", "parameters": {"unit": "tokens"}},
         {"name": "GenerateTimeSeries", "parameters": {}},
+        {"name": "ExtractNames", "parameters": {}}
     ],
     "SPLIT": [
         {"name": "SplitByFacet", "parameters": {"facet": "LANGUAGE"}},
