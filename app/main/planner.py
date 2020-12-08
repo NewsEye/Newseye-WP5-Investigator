@@ -198,7 +198,7 @@ class TaskPlanner(object):
         related_processors = [
             p.name
             for p in Processor.query.all()
-            if p.output_type == task.processor.input_type
+            if p.output_type == task.processor.input_type and not p.deprecated
         ]
 
         if not related_processors:
