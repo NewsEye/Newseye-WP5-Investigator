@@ -50,10 +50,9 @@ class AnalysisUtility(Processor):
         self.task = task
         self.input_data = await self._get_input_data()
         self.result = await self.make_result()
-        current_app.logger.debug("################## MAKING IMAGES")
-        self.image = await self.make_images()
+        self.images = await self.make_images()
         self.interestingness = await self._estimate_interestingness()
-        return {"result": self.result, "interestingness": self.interestingness}
+        return {"result": self.result, "interestingness": self.interestingness, "images":self.images}
 
     @staticmethod
     def get_input_task(task):
