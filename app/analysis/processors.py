@@ -80,15 +80,14 @@ class AnalysisUtility(Processor):
                                 % self.input_task.uuid
                             )
                 if len(parent_uuids) == 1:
-                    return await self.get_input_data(self.input_task.task_result)
-                    #try:
-                    #    return await self.get_input_data(self.input_task.task_result)
-                    #except Exception as e:
-                    #    current_app.logger.debug(
-                    #        "!!!!!!!!Don't know how to use previous_task_result for %s Result: %s Exception: %s"
-                    #        % (self.processor.name, self.input_task.task_result, e)
-                    #    )
-                    #    pass  # try to call get_input_data in a standard way, without parameters
+                    try:
+                        return await self.get_input_data(self.input_task.task_result)
+                    except Exception as e:
+                        current_app.logger.debug(
+                            "!!!!!!!!Don't know how to use previous_task_result for %s Result: %s Exception: %s"
+                            % (self.processor.name, self.input_task.task_result, e)
+                        )
+                        pass  # try to call get_input_data in a standard way, without parameters
         return await self.get_input_data()
 
     async def get_input_data(self, previous_task_result=None):

@@ -197,10 +197,7 @@ class TrackNameSentiment(NameProcessor):
                 nonneutral_count[name_id]+=1
 
 
-            if name_id == "entity_LOC_Q636051":
-                current_app.logger.debug("!!!!!MENTION: %s" %mention)
-                current_app.logger.debug("mention_data[name_id]: %s" %mention_data[name_id])
-                current_app.logger.debug("nonneutral_count[name_id] %s" %nonneutral_count[name_id])
+            
 
         selected_mentions = {m:mention_data[m] for m in sorted(mention_data, key=lambda m: nonneutral_count[m], reverse=True) if nonneutral_count[m] > 0}
                 
@@ -278,9 +275,6 @@ class TrackNameSentiment(NameProcessor):
         return images
                 
     async def make_result(self):
-        current_app.logger.debug("INPUT_DATA: %s" %self.input_data)
-
-        
         start_y = self.input_data["start_year"]
         end_y = self.input_data["end_year"]
 
@@ -289,9 +283,6 @@ class TrackNameSentiment(NameProcessor):
             for i,y in enumerate(range(start_y, end_y+1)):
                 sentiment = ts[i][2] - ts[i][0]
                 ent_sentiment[ent][y] = sentiment/sum(ts[i]) if sentiment else 0.0
-                if ent == 'entity_LOC_Q636051':
-                    current_app.logger.debug("I %s Y %s TS[I] %s SUM(TS[I]) %s"  %(i,y,ts[i],sum(ts[i])))
-                    current_app.logger.debug("ent_sentiment[ent][y] %s" %ent_sentiment[ent][y])
                 
             ent_sentiment[ent]["names"] = self.input_data["entity_info"][ent].get("names")
             
