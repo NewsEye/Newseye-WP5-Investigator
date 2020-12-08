@@ -50,6 +50,8 @@ class AnalysisUtility(Processor):
         self.task = task
         self.input_data = await self._get_input_data()
         self.result = await self.make_result()
+        current_app.logger.debug("################## MAKING IMAGES")
+        self.image = await self.make_images()
         self.interestingness = await self._estimate_interestingness()
         return {"result": self.result, "interestingness": self.interestingness}
 
@@ -79,14 +81,15 @@ class AnalysisUtility(Processor):
                                 % self.input_task.uuid
                             )
                 if len(parent_uuids) == 1:
-                    try:
-                        return await self.get_input_data(self.input_task.task_result)
-                    except:
-                        current_app.logger.debug(
-                            "!!!!!!!!Don't know how to use previous_task_result for %s Result: %s"
-                            % (self.processor.name, self.input_task.task_result)
-                        )
-                        pass  # try to call get_input_data in a standard way, without parameters
+                    return await self.get_input_data(self.input_task.task_result)
+                    #try:
+                    #    return await self.get_input_data(self.input_task.task_result)
+                    #except Exception as e:
+                    #    current_app.logger.debug(
+                    #        "!!!!!!!!Don't know how to use previous_task_result for %s Result: %s Exception: %s"
+                    #        % (self.processor.name, self.input_task.task_result, e)
+                    #    )
+                    #    pass  # try to call get_input_data in a standard way, without parameters
         return await self.get_input_data()
 
     async def get_input_data(self, previous_task_result=None):
@@ -104,6 +107,10 @@ class AnalysisUtility(Processor):
     async def make_result(self, task):
         return {"error": "This utility has not yet been implemented"}
 
+
+    async def make_images(self):
+        pass
+    
     async def _estimate_interestingness(self):
         """
         Computes overall interestingness of the result as a single number.

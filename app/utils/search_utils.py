@@ -30,6 +30,9 @@ async def search_database(queries, **kwargs):
 async def query_solr(
     session, query, retrieve="all", max_return_value=Config.SOLR_MAX_RETURN_VALUES,
 ):
+
+    #### TODO: "all" returns only first 10 rows, is it ok?
+    
     #### TODO: store queries and outputs, check if output exists, and reuse
 
     #    current_app.logger.debug(
