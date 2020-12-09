@@ -22,7 +22,15 @@ class WordProcessor(AnalysisUtility):
                     "default": "stems",
                     "required": False,
                     "values": ["tokens", "stems"],
+                },
+                                {
+                    "name": "max_number",
+                    "description": "number of results to return. 0 means all. default 30",
+                    "type": "integer",
+                    "default": 30,
+                    "required": False,
                 }
+
             ],
             input_type="dataset",
         )
@@ -66,12 +74,20 @@ class ExtractWords(WordProcessor):
             word: (tf[word], tf[word] / total, tf[word] * log(total / df[word]))
             for word in tf
         }
+
+        max_number = self.task.parameters.get("max_number")
+        count = 0
+        vocabulary = {}
+        # sort by tf-idf:
+        for k in sorted(result, key=lambda x: (result[x][2], x), reverse=True):
+            vocabulary[k] = result[k]
+            count+=1
+            if max_number and count == max_number:
+                break
+        
         return {
             "total": int(total),
-            "vocabulary": {  # sort by tf-idf:
-                k: result[k]
-                for k in sorted(result, key=lambda x: (result[x][2], x), reverse=True)
-            },
+            "vocabulary": "vocabulary",
         }
 
     async def estimate_interestingness(self):
@@ -126,14 +142,21 @@ class ExtractBigrams(WordProcessor):
             for b in bigram_count
         }
 
-        return {
-            " ".join(b): (
+        res = {}
+        count = 0
+        max_number = self.task.parameters.get("max_number")
+        # sort by dice_score:
+        for b in sorted(dice_score, key=lambda b: dice_score[b], reverse=True):
+            res[" ".join(b)] = (
                 bigram_count[b],
                 bigram_count[b] / total,
                 dice_score[b],
-            )  # sort by dice_score:
-            for b in sorted(dice_score, key=lambda b: dice_score[b], reverse=True)
-        }
+            )  
+            count += 1
+            if count == max_number:
+                break
+            
+        return res
 
     @staticmethod
     async def collect_document_counts(doc_dict):
