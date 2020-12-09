@@ -299,10 +299,8 @@ class Task(db.Model):
 
         elif style == "result":
             ret.update(
-                {"task_result": self.result_with_interestingness})
-            if self.task_result.images:
-                ret.update(
-                 {"images": self.task_result.images})
+                {"task_result": self.result_with_interestingness_and_images})
+            
 
         elif style == "reporter":
             ret.update(
@@ -359,8 +357,17 @@ class Task(db.Model):
         if self.task_result:
             return {
                 "result": self.task_result.result,
-                "interestingness": self.task_result.interestingness,
-            }
+                "interestingness": self.task_result.interestingness
+                }
+
+    @property
+    def result_with_interestingness_and_images(self):
+        if self.task_result:
+            res = self.result_with_interestingness
+            res.update({"images": self.task_result.images})
+            return res
+        
+        
 
     @property
     def interestingness(self):
