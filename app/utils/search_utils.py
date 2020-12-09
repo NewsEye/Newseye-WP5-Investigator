@@ -131,6 +131,8 @@ async def query_solr(
     # For retrieving docids, retrieve all of them, unless the number of rows is specified in the query
     # try to do the same with names -- the output does is not too big; if it causes problems will query in batches, same as tokens
 
+    # TODO: proper paging for names
+    
     if retrieve in ["docids", "names"] and "rows" not in query.keys():
         num_results = response["response"]["numFound"]
         # Set a limit for the maximum number of documents to fetch at one go to 100000

@@ -87,7 +87,8 @@ class TopicModelDocumentLinking(TopicProcessor):
                 },
                 {
                     "name": "model_name",
-                    "description": "The name of the topic model to use. If this is not specified, the system will use the first model offered by the topic modelling API.",
+                    "description": "The name of the topic model to use.",
+                    "values":["LDA-FR", "LDA-FI", "LDA-DE", "DTM-FR", "DTM-FI", "DTM-DE"],
                     "type": "string",
                     "default": None,
                     "required": True,
@@ -123,17 +124,19 @@ class QueryTopicModel(TopicProcessor):
             import_path=cls.__module__,
             description="Queries the selected topic model.",
             parameter_info=[
-                {
-                    "name": "model_type",
-                    "description": "The type of the topic model to use",
+                               {
+                    "name": "model_name",
+                    "description": "The name of the topic model to use. If topic_name is specified, 'model_type' and 'language' are not used.",
+                    "values":["LDA-FR", "LDA-FI", "LDA-DE", "DTM-FR", "DTM-FI", "DTM-DE"],
                     "type": "string",
                     "default": None,
                     "required": False,
                 },
                 {
-                    "name": "model_name",
-                    "description": "The name of the topic model to use. If this is not specified, the system will use the first model offered by the topic modelling API.",
+                    "name": "model_type",
+                    "description": "The type of the topic model to use",
                     "type": "string",
+                    "values": ["LDA", "DTM"],
                     "default": None,
                     "required": False,
                 },
@@ -141,6 +144,7 @@ class QueryTopicModel(TopicProcessor):
                     "name": "language",
                     "description": "Language for which the model is needed",
                     "type": "string",
+                    "values": ["FR", "DE", "FI"],
                     "default": None,
                     "required": False,
                 },
@@ -246,6 +250,7 @@ class TopicModelDocsetComparison(TopicProcessor):
                 {
                     "name": "language",
                     "description": "Language of the documents. Only documents in this language will be used.",
+                    "values": ["FR", "DE", "FI"],
                     "type": "string",
                     "default": None,
                     "required": True,
@@ -259,6 +264,7 @@ class TopicModelDocsetComparison(TopicProcessor):
                 },
                 {
                     "name": "model_type",
+                    "values": ["LDA", "DTM"],
                     "description": "The type of the topic model to use",
                     "type": "string",
                     "default": "lda",

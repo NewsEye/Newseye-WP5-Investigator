@@ -21,6 +21,7 @@ class WordProcessor(AnalysisUtility):
                     "type": "string",
                     "default": "stems",
                     "required": False,
+                    "values": ["tokens", "stems"]
                 }
             ],
             input_type="dataset",

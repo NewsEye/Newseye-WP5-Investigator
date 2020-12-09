@@ -16,6 +16,7 @@ class Summarization(AnalysisUtility):
         return Processor(
             name=cls.__name__,
             import_path=cls.__module__,
+            description="Summarizes set of texts. Not recommended to feed more than 25 documents",
             parameter_info=[
                 {
                     "name": "summary_length",
@@ -35,6 +36,7 @@ class Summarization(AnalysisUtility):
                     "name": "type_summary",
                     "type": "string",
                     "default": "ai",
+                    "values":["ai", "mr"],
                     "description": "Most relevant (mr) or additional information (ai)",
                     "required": False,
                 },
@@ -49,6 +51,7 @@ class Summarization(AnalysisUtility):
                     "name": "type_sentence_representation",
                     "type": "string",
                     "default": "mean",
+                    "values":["mean", "sum"],
                     "description": "Type of sentence representation using word embeddings: 'sum' (Sum all word embeddings in a sentence) or 'mean' (Mean of all word embeddings in a sentence). Default is 'mean'",
                     "required": False,
                 },
@@ -56,6 +59,7 @@ class Summarization(AnalysisUtility):
                     "name": "ts_approach",
                     "type": "string",
                     "default": "textrank",
+                    "values":["textrank", "mmr"],
                     "description": "Text Summarization approach: 'textrank' or 'mmr' (Maximal Marginal Relevance).",
                     "required": False,
                 },

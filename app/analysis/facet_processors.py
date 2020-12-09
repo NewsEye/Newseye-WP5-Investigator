@@ -79,6 +79,7 @@ class GenerateTimeSeries(AnalysisUtility):
                     "description": "the facet to be analysed",
                     "type": "string",
                     "default": "NEWSPAPER_NAME",
+                    "values":["LANGUAGE", "NEWSPAPER_NAME"],
                     "required": False,
                 },
                 ## TODO: Add a parameter for choosing what to do with missing data

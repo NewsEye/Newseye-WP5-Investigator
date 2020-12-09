@@ -21,10 +21,12 @@ class SplitByFacet(AnalysisUtility):
             parameter_info=[
                 {
                     "name": "facet",
-                    "description": "facet used to split data, could be LANGUAGE, NEWSPAPER_NAME or PUB_YEAR",
+                    "description": "facet used to split data, default LANGUAGE",
                     "type": "string",
                     "default": "LANGUAGE",
                     "required": False,
+                    "values":["LANGUAGE", "NEWSPAPER_NAME", "PUB_YEAR"]
+                    
                 }
             ],
             input_type="facet_list",
@@ -203,6 +205,7 @@ class Comparison(AnalysisUtility):
                     "description": "If compare by facet, can specify the facet",
                     "default": "PUB_YEAR",
                     "required": False,
+                    "values":["LANGUAGE", "NEWSPAPER_NAME", "PUB_YEAR"]
                 }
             ],
             input_type="task_id_list",
