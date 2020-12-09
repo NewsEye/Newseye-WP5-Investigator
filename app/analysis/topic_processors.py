@@ -88,7 +88,14 @@ class TopicModelDocumentLinking(TopicProcessor):
                 {
                     "name": "model_name",
                     "description": "The name of the topic model to use.",
-                    "values":["LDA-FR", "LDA-FI", "LDA-DE", "DTM-FR", "DTM-FI", "DTM-DE"],
+                    "values": [
+                        "LDA-FR",
+                        "LDA-FI",
+                        "LDA-DE",
+                        "DTM-FR",
+                        "DTM-FI",
+                        "DTM-DE",
+                    ],
                     "type": "string",
                     "default": None,
                     "required": True,
@@ -124,10 +131,17 @@ class QueryTopicModel(TopicProcessor):
             import_path=cls.__module__,
             description="Queries the selected topic model.",
             parameter_info=[
-                               {
+                {
                     "name": "model_name",
                     "description": "The name of the topic model to use. If topic_name is specified, 'model_type' and 'language' are not used.",
-                    "values":["LDA-FR", "LDA-FI", "LDA-DE", "DTM-FR", "DTM-FI", "DTM-DE"],
+                    "values": [
+                        "LDA-FR",
+                        "LDA-FI",
+                        "LDA-DE",
+                        "DTM-FR",
+                        "DTM-FI",
+                        "DTM-DE",
+                    ],
                     "type": "string",
                     "default": None,
                     "required": False,

@@ -32,7 +32,7 @@ async def query_solr(
 ):
 
     #### TODO: "all" returns only first 10 rows, is it ok?
-    
+
     #### TODO: store queries and outputs, check if output exists, and reuse
 
     #    current_app.logger.debug(
@@ -72,9 +72,9 @@ async def query_solr(
         parameters[key] = value
 
     async with session.get(solr_uri, json={"params": parameters}) as response:
-        #current_app.logger.debug("SOLR_URI %s" % solr_uri)
+        # current_app.logger.debug("SOLR_URI %s" % solr_uri)
         ##        current_app.logger.debug("parameters %s" % parameters)
-        #current_app.logger.debug("response.status: %s" % response.status)
+        # current_app.logger.debug("response.status: %s" % response.status)
 
         if response.status == 401:
             raise Unauthorized
@@ -132,7 +132,7 @@ async def query_solr(
     # try to do the same with names -- the output does is not too big; if it causes problems will query in batches, same as tokens
 
     # TODO: proper paging for names
-    
+
     if retrieve in ["docids", "names"] and "rows" not in query.keys():
         num_results = response["response"]["numFound"]
         # Set a limit for the maximum number of documents to fetch at one go to 100000
@@ -233,7 +233,7 @@ def format_facets(facet_dict):
         "linked_locations_ssim": "Location",
         "linked_organisations_ssim": "Organizations",
         "month_isi": "Month",
-        "day_isi" : "Day"
+        "day_isi": "Day",
     }
     facet_list = [
         {

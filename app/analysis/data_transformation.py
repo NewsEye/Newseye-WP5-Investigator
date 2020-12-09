@@ -25,8 +25,7 @@ class SplitByFacet(AnalysisUtility):
                     "type": "string",
                     "default": "LANGUAGE",
                     "required": False,
-                    "values":["LANGUAGE", "NEWSPAPER_NAME", "PUB_YEAR"]
-                    
+                    "values": ["LANGUAGE", "NEWSPAPER_NAME", "PUB_YEAR"],
                 }
             ],
             input_type="facet_list",
@@ -205,7 +204,7 @@ class Comparison(AnalysisUtility):
                     "description": "If compare by facet, can specify the facet",
                     "default": "PUB_YEAR",
                     "required": False,
-                    "values":["LANGUAGE", "NEWSPAPER_NAME", "PUB_YEAR"]
+                    "values": ["LANGUAGE", "NEWSPAPER_NAME", "PUB_YEAR"],
                 }
             ],
             input_type="task_id_list",

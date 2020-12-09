@@ -13,6 +13,7 @@ import base64
 STANCE_TYPES = ["NEG", "NEU", "POS"]
 COLORS = ["r", "grey", "b"]
 
+
 class NameProcessor(AnalysisUtility):
     async def query_mentions_for_collection(self):
         if self.task.dataset:
@@ -27,6 +28,7 @@ class NameProcessor(AnalysisUtility):
         }
 
         return await search_database(query, retrieve="names")
+
 
 class ExtractNames(NameProcessor):
     @classmethod
@@ -82,7 +84,7 @@ class ExtractNames(NameProcessor):
         for mention in self.input_data["docs"]:
             doc_mentions[mention["article_id_ssi"]].append(
                 {
-                    "ent": mention["linked_entity_ssi"] or  mention["mention_ssi"],
+                    "ent": mention["linked_entity_ssi"] or mention["mention_ssi"],
                     "stance": mention["stance_fsi"],
                     "start_position": mention["article_index_start_isi"],
                 }
@@ -148,7 +150,6 @@ class ExtractNames(NameProcessor):
         }
 
 
-
 class TrackNameSentiment(NameProcessor):
     @classmethod
     def _make_processor(cls):
@@ -156,59 +157,73 @@ class TrackNameSentiment(NameProcessor):
             name=cls.__name__,
             import_path=cls.__module__,
             description="Builds sentiment timeseries for most salient names in the collection",
-            parameter_info = [],
-            input_type = "name_list",
-            output_type = "timeseries"
-            )
-
+            parameter_info=[],
+            input_type="name_list",
+            output_type="timeseries",
+        )
 
     async def get_input_data(self, previous_task_result):
         # non-optimal, this query has been run already...
         mentions = await self.query_mentions_for_collection()
         mentions = mentions["docs"]
 
-        mentions = [m for m in mentions if m["linked_entity_ssi"] in previous_task_result.result or m["mention_ssi"] in previous_task_result.result]
+        mentions = [
+            m
+            for m in mentions
+            if m["linked_entity_ssi"] in previous_task_result.result
+            or m["mention_ssi"] in previous_task_result.result
+        ]
         docids = set([m["article_id_ssi"] for m in mentions])
 
         # query year for each doc --- is it possible to avoid somehow???
-        query = {"q" : "*:*",
-                 "fq": "{!terms f=id}" + ",".join([docid for docid in docids]),
-                 "fl": "year_isi, id"}
+        query = {
+            "q": "*:*",
+            "fq": "{!terms f=id}" + ",".join([docid for docid in docids]),
+            "fl": "year_isi, id",
+        }
         res = await search_database(query, retrieve="docids")
-        doc_to_year = {r["id"]:int(r["year_isi"]) for r in res['docs']}
+        doc_to_year = {r["id"]: int(r["year_isi"]) for r in res["docs"]}
 
         years = list(doc_to_year.values())
         min_y, max_y = min(years), max(years)
-        
-        # for each entity: create an array 3 sentiments times years
-        mention_data = defaultdict(lambda: np.zeros((max_y-min_y+1,3)))
 
-        year_index = {y:i for i,y in enumerate(range(min_y, max_y+1))}
-        stance_index = {-1.0:0, 0.0:1, 1.0:2}
+        # for each entity: create an array 3 sentiments times years
+        mention_data = defaultdict(lambda: np.zeros((max_y - min_y + 1, 3)))
+
+        year_index = {y: i for i, y in enumerate(range(min_y, max_y + 1))}
+        stance_index = {-1.0: 0, 0.0: 1, 1.0: 2}
 
         nonneutral_count = defaultdict(int)
-        
+
         for mention in mentions:
             name_id = mention["linked_entity_ssi"] or mention["mention_ssi"]
             year = doc_to_year[mention["article_id_ssi"]]
             stance = mention["stance_fsi"]
-            mention_data[name_id][year_index[year],stance_index[stance]] += 1            
+            mention_data[name_id][year_index[year], stance_index[stance]] += 1
             if stance != 0.0:
-                nonneutral_count[name_id]+=1
+                nonneutral_count[name_id] += 1
 
+        selected_mentions = {
+            m: mention_data[m]
+            for m in sorted(
+                mention_data, key=lambda m: nonneutral_count[m], reverse=True
+            )
+            if nonneutral_count[m] > 0
+        }
 
-            
-
-        selected_mentions = {m:mention_data[m] for m in sorted(mention_data, key=lambda m: nonneutral_count[m], reverse=True) if nonneutral_count[m] > 0}
-                
-        return {"start_year":min_y,
-                "end_year":max_y,
-                "entity_timeseries": selected_mentions,
-                "entity_info": {e:i for e,i in previous_task_result.result.items() if e in selected_mentions}}
-
+        return {
+            "start_year": min_y,
+            "end_year": max_y,
+            "entity_timeseries": selected_mentions,
+            "entity_info": {
+                e: i
+                for e, i in previous_task_result.result.items()
+                if e in selected_mentions
+            },
+        }
 
     def visualize_stance_media_evol(self, entity, plot_type):
-        #current_app.logger.debug("ENTITY: %s PLOT_TYPE: %s" %(entity, plot_type))
+        # current_app.logger.debug("ENTITY: %s PLOT_TYPE: %s" %(entity, plot_type))
         s = io.BytesIO()
 
         start_year = self.input_data["start_year"]
@@ -219,9 +234,12 @@ class TrackNameSentiment(NameProcessor):
         fig, ax = plt.subplots(1, 1)
 
         locs, labels = plt.xticks()
-        year_offset = 1 if int(length / locs.shape[0]) == 0 else int(length / locs.shape[0])
-        new_list_years = list(range(start_year, end_year + year_offset + 1, year_offset))
-
+        year_offset = (
+            1 if int(length / locs.shape[0]) == 0 else int(length / locs.shape[0])
+        )
+        new_list_years = list(
+            range(start_year, end_year + year_offset + 1, year_offset)
+        )
 
         xx = np.array([i * year_offset for i in list(range(len(new_list_years)))])
         plt.xticks(xx, [str(i) for i in new_list_years])
@@ -229,20 +247,19 @@ class TrackNameSentiment(NameProcessor):
         stance_arr = self.input_data["entity_timeseries"][entity]
 
         ax.set_title(
-                "Stance evolution of "
-                + entity
-                + " from "
-                + str(start_year)
-                + " to "
-                + str(end_year)
-            )
+            "Stance evolution of "
+            + entity
+            + " from "
+            + str(start_year)
+            + " to "
+            + str(end_year)
+        )
         if plot_type == "line":
             max_of_max_arr = np.max(np.max(stance_arr, axis=1))
             max_arr = np.repeat(max_of_max_arr, stance_arr.shape[0])
             visual_data = (stance_arr[:, 0] - stance_arr[:, 2]) / max_arr
-            ax.plot(range(0, length), visual_data)            
+            ax.plot(range(0, length), visual_data)
             ax.set_ylim([-1, 1])
-            
 
         elif plot_type == "bar":
             width = 0.25
@@ -256,39 +273,38 @@ class TrackNameSentiment(NameProcessor):
         ax.set_xlabel("Year")
         ax.axhline(0, color="black", lw=0.5)
 
-            
-        plt.savefig(s, format='png', bbox_inches="tight")
+        plt.savefig(s, format="png", bbox_inches="tight")
         plt.close()
         s = base64.b64encode(s.getvalue()).decode("utf-8").replace("\n", "")
 
         return s
 
-
     async def make_images(self):
         images = {}
-        
+
         for entity in self.input_data["entity_timeseries"]:
-            images[entity] = {"line": self.visualize_stance_media_evol(entity, "line"),
-                              "bar" : self.visualize_stance_media_evol(entity, "bar")
+            images[entity] = {
+                "line": self.visualize_stance_media_evol(entity, "line"),
+                "bar": self.visualize_stance_media_evol(entity, "bar"),
             }
-           
+
         return images
-                
+
     async def make_result(self):
         start_y = self.input_data["start_year"]
         end_y = self.input_data["end_year"]
 
         ent_sentiment = defaultdict(dict)
         for ent, ts in self.input_data["entity_timeseries"].items():
-            for i,y in enumerate(range(start_y, end_y+1)):
+            for i, y in enumerate(range(start_y, end_y + 1)):
                 sentiment = ts[i][2] - ts[i][0]
-                ent_sentiment[ent][y] = sentiment/sum(ts[i]) if sentiment else 0.0
-                
-            ent_sentiment[ent]["names"] = self.input_data["entity_info"][ent].get("names")
-            
+                ent_sentiment[ent][y] = sentiment / sum(ts[i]) if sentiment else 0.0
+
+            ent_sentiment[ent]["names"] = self.input_data["entity_info"][ent].get(
+                "names"
+            )
 
         return dict(ent_sentiment)
-
 
     async def estimate_interestingness(self):
         interestingness = defaultdict(dict)
@@ -296,9 +312,6 @@ class TrackNameSentiment(NameProcessor):
         end_y = self.input_data["end_year"]
         for ent, ts in self.input_data["entity_timeseries"].items():
             tot = np.sum(ts)
-            for i,y in enumerate(range(start_y, end_y+1)):
-                interestingness[ent][y] = np.sum(ts[i])/tot
+            for i, y in enumerate(range(start_y, end_y + 1)):
+                interestingness[ent][y] = np.sum(ts[i]) / tot
         return interestingness
-            
-            
-        

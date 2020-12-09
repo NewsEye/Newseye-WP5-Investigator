@@ -52,7 +52,11 @@ class AnalysisUtility(Processor):
         self.result = await self.make_result()
         self.images = await self.make_images()
         self.interestingness = await self._estimate_interestingness()
-        return {"result": self.result, "interestingness": self.interestingness, "images":self.images}
+        return {
+            "result": self.result,
+            "interestingness": self.interestingness,
+            "images": self.images,
+        }
 
     @staticmethod
     def get_input_task(task):
@@ -105,10 +109,9 @@ class AnalysisUtility(Processor):
     async def make_result(self, task):
         return {"error": "This utility has not yet been implemented"}
 
-
     async def make_images(self):
         pass
-    
+
     async def _estimate_interestingness(self):
         """
         Computes overall interestingness of the result as a single number.

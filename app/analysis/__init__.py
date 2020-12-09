@@ -37,8 +37,6 @@ def initialize_processors(app):
             Comparison,
             FindBestSplitFromTimeseries,
             ExtractNames,
-            TrackNameSentiment
+            TrackNameSentiment,
         ]:
             cls(initialize=True).make_processor()
-
-            

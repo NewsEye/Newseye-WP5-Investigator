@@ -16,7 +16,7 @@ AVAILABLE_FACETS = {
     "LANGUAGE": "language_ssi",
     "NEWSPAPER_NAME": "member_of_collection_ids_ssim",
     "PUB_YEAR": "year_isi",
-    "DATE": "date_created_dtsi"
+    "DATE": "date_created_dtsi",
 }
 
 
@@ -45,7 +45,6 @@ class ExtractFacets(AnalysisUtility):
             if feature[FACET_ID_KEY] in available_facets:
                 facets[available_facets[feature[FACET_ID_KEY]]] = values
 
-
         if not "PUB_YEAR" in facets:
             facets["PUB_YEAR"] = defaultdict(int)
             # try to recover from dates
@@ -56,9 +55,8 @@ class ExtractFacets(AnalysisUtility):
         if "DATE" in facets:
             del facets["DATE"]
 
-        
         years = [int(y) for y in facets["PUB_YEAR"]]
-        
+
         for y in range(min(years), max(years)):
             if y not in years:
                 facets["PUB_YEAR"][str(y)] = 0
@@ -79,7 +77,7 @@ class GenerateTimeSeries(AnalysisUtility):
                     "description": "the facet to be analysed",
                     "type": "string",
                     "default": "NEWSPAPER_NAME",
-                    "values":["LANGUAGE", "NEWSPAPER_NAME"],
+                    "values": ["LANGUAGE", "NEWSPAPER_NAME"],
                     "required": False,
                 },
                 ## TODO: Add a parameter for choosing what to do with missing data

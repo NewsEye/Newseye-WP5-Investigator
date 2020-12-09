@@ -298,9 +298,7 @@ class Task(db.Model):
             pass
 
         elif style == "result":
-            ret.update(
-                {"task_result": self.result_with_interestingness_and_images})
-            
+            ret.update({"task_result": self.result_with_interestingness_and_images})
 
         elif style == "reporter":
             ret.update(
@@ -357,8 +355,8 @@ class Task(db.Model):
         if self.task_result:
             return {
                 "result": self.task_result.result,
-                "interestingness": self.task_result.interestingness
-                }
+                "interestingness": self.task_result.interestingness,
+            }
 
     @property
     def result_with_interestingness_and_images(self):
@@ -366,8 +364,6 @@ class Task(db.Model):
             res = self.result_with_interestingness
             res.update({"images": self.task_result.images})
             return res
-        
-        
 
     @property
     def interestingness(self):
@@ -394,8 +390,6 @@ class Result(db.Model):
     last_updated = db.Column(db.DateTime, default=datetime.utcnow)
     result_reports = db.relationship("Report", back_populates="result")
 
-    
-    
     def __repr__(self):
         return "<Result id: {} date: {} tasks: {} >".format(
             self.id, self.last_updated, self.tasks
@@ -433,8 +427,6 @@ class Report(db.Model):
     report_generated = db.Column(db.DateTime, default=datetime.utcnow)
     need_links = db.Column(db.Boolean)
 
-    
-    
     def dict(self):
         ret = self.report_content
         ret.update({"language": self.report_language})
