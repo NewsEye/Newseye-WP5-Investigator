@@ -6,6 +6,8 @@ from flask import current_app
 from collections import defaultdict
 import numpy as np
 import asyncio
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import io
 import base64
@@ -26,7 +28,7 @@ class NameProcessor(AnalysisUtility):
             "q": "*:*",
             "fq": "{!terms f=article_id_ssi}" + ",".join([d_id for d_id in docids]),
         }
-
+        
         return await search_database(query, retrieve="names")
 
 
@@ -61,10 +63,11 @@ class ExtractNames(NameProcessor):
     @staticmethod
     async def get_name(entity):
         query = {
-            "fl": "label_fi_ssi,label_fr_ssi,label_sv_ssi,label_de_ssi",
+            "fl": "label_fi_ssi,label_fr_ssi,label_sv_ssi,label_de_ssi,label_en_ssi",
             "fq": "id:%s" % entity,
         }
         res = await search_database(query)
+        
         return (
             entity,
             {
@@ -78,10 +81,11 @@ class ExtractNames(NameProcessor):
 
     async def make_result(self):
         # current_app.logger.debug("INPUT_DATA: %s" %self.input_data)
-
+        
         doc_mentions = defaultdict(list)
 
-        for mention in self.input_data["docs"]:
+        for mention in self.input_data:
+            #current_app.logger.debug("MENTION: %s" %mention)
             doc_mentions[mention["article_id_ssi"]].append(
                 {
                     "ent": mention["linked_entity_ssi"] or mention["mention_ssi"],
@@ -165,7 +169,6 @@ class TrackNameSentiment(NameProcessor):
     async def get_input_data(self, previous_task_result):
         # non-optimal, this query has been run already...
         mentions = await self.query_mentions_for_collection()
-        mentions = mentions["docs"]
 
         mentions = [
             m
@@ -311,7 +314,11 @@ class TrackNameSentiment(NameProcessor):
         start_y = self.input_data["start_year"]
         end_y = self.input_data["end_year"]
         for ent, ts in self.input_data["entity_timeseries"].items():
-            tot = np.sum(ts)
+            #tot = np.sum(ts)
+            # MORE WIGHT TO NON-NEUTRAL:
+            tot = sum(ts[:,0])*10 + sum(ts[:,1]) + sum(ts[:,2])*10
+            
             for i, y in enumerate(range(start_y, end_y + 1)):
-                interestingness[ent][y] = np.sum(ts[i]) / tot
+                #interestingness[ent][y] = np.sum(ts[i]) / tot
+                interestingness[ent][y] = (ts[i,0]*10 + ts[i,1] + ts[i,2]*10)/tot
         return interestingness

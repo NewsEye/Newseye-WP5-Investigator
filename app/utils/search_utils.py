@@ -90,6 +90,8 @@ async def query_solr(
             )
             num_results = max_return_value
 
+
+        current_app.logger.debug("NUM_RESULTS: %d" %num_results)
         # TODO: parameter, move to config
         # keeping them here is easier to debug, I don't yet know the best numbers
         rows_in_one_query = 60
@@ -101,7 +103,7 @@ async def query_solr(
             parameters["start"] = start
             parameters["rows"] = rows_in_one_query
             current_app.logger.debug("START: %d" % start)
-            current_app.logger.debug("parameters %s" % parameters)
+#            current_app.logger.debug("parameters %s" % parameters)
             pages.append(parameters.copy())
             page_count += 1
             if page_count >= pages_in_parallel:
@@ -128,12 +130,62 @@ async def query_solr(
 
         return result_dict
 
+    # NAMES:
+    if retrieve in ["names"] and "rows" not in query.keys():
+        num_results = response["response"]["numFound"]
+        # Set a limit for the maximum number of documents to fetch at one go to 100000
+        parameters["rows"] = min(num_results, max_return_value)
+        if num_results > max_return_value:
+            current_app.logger.info(
+                "TOO MANY ROWS TO RETURN, returning %d" % max_return_value
+            )
+            num_results = max_return_value
+
+        current_app.logger.debug("NUM_RESULTS: %d" %num_results)
+            
+        # copy from above
+        # TODO: function
+        rows_in_one_query = 1600
+        pages_in_parallel = 3
+        pages = []
+        result = []
+        page_count = 0
+
+        for start in range(0, num_results, rows_in_one_query):
+            parameters["start"] = start
+            parameters["rows"] = rows_in_one_query
+            current_app.logger.debug("START: %d" % start)
+            pages.append(parameters.copy())
+            page_count+=1
+            if page_count >= pages_in_parallel:
+                for response in asyncio.as_completed(
+                    [get_response(session, solr_uri, page) for page in pages]
+                ):
+                    response = await response
+                    result.extend(response["response"]["docs"])
+                pages = []
+                page_count = 0
+
+        # Last batch:
+        for response in asyncio.as_completed(
+            [get_response(session, solr_uri, page) for page in pages]
+        ):
+            response = await response
+            result.extend(response["response"]["docs"])
+
+        return result
+
+
+
+        
+        async with session.get(solr_uri, json={"params": parameters}) as response:
+            if response.status == 401:
+                raise Unauthorized
+            response = await response.json()
+
     # For retrieving docids, retrieve all of them, unless the number of rows is specified in the query
-    # try to do the same with names -- the output does is not too big; if it causes problems will query in batches, same as tokens
 
-    # TODO: proper paging for names
-
-    if retrieve in ["docids", "names"] and "rows" not in query.keys():
+    if retrieve in ["docids"] and "rows" not in query.keys():
         num_results = response["response"]["numFound"]
         # Set a limit for the maximum number of documents to fetch at one go to 100000
         parameters["rows"] = min(num_results, max_return_value)
