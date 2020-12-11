@@ -1,7 +1,6 @@
 from app import db, analysis
 from app.utils.db_utils import generate_task, store_results
 from app.models import Task, Processor
-from app.utils.search_utils import search_database
 
 # from app.analysis import UTILITY_MAP, INPUT_TYPE_MAP
 from datetime import datetime
@@ -13,8 +12,9 @@ from config import Config
 
 
 class TaskPlanner(object):
-    def __init__(self, user):
+    def __init__(self, user, solr_controller):
         self.user = user
+        self.solr_controller = solr_controller
 
     async def execute_user_task(self, task_uuid=None):
         task = Task.query.filter(Task.uuid == task_uuid).all()
@@ -36,7 +36,8 @@ class TaskPlanner(object):
                 __import__(task.processor.import_path, fromlist=[task.processor.name]),
                 task.processor.name,
             )
-            processor = Processor()
+            current_app.logger.debug("!!!SOLR_CONTROLLER: %s" %self.solr_controller)
+            processor = Processor(solr_controller = self.solr_controller)
 
             async_tasks.append(processor(task))
 

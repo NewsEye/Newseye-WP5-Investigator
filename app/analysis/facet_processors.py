@@ -1,6 +1,5 @@
 from app.analysis.processors import AnalysisUtility
 from app.models import Processor
-from app.utils.search_utils import search_database
 from app.analysis import assessment
 import pandas as pd
 from flask import current_app
@@ -131,7 +130,7 @@ class GenerateTimeSeries(AnalysisUtility):
         # else:
         #     raise NotImplementedError
 
-        query_results = await search_database(queries, retrieve="facets")
+        query_results = await self.search_database(queries, retrieve="facets")
 
         f_counts = []
         for year, result in zip(years, query_results):

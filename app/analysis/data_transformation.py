@@ -1,6 +1,5 @@
 from app.models import Processor, Task
 from app.analysis.processors import AnalysisUtility
-from app.utils.search_utils import search_database
 from app.analysis import assessment
 from flask import current_app
 from app.analysis.facet_processors import AVAILABLE_FACETS

@@ -7,6 +7,9 @@ from app.models import Task, User, InvestigatorRun
 import threading
 import time
 import asyncio
+from app.main.solr_controller import SolrController
+
+solr_controller = SolrController()
 
 
 def execute_task(args):
@@ -22,7 +25,12 @@ def execute_task(args):
     # currently each user query starts  a new thred (why?) and it's impossible to call tasks that are already running
     t = threading.Thread(
         target=task_thread,
-        args=[current_app._get_current_object(), current_user.id, task_uuid],
+        args=[
+            current_app._get_current_object(),
+            current_user.id,
+            task_uuid,
+            solr_controller,
+        ],
     )
     t.setDaemon(False)
     t.start()
@@ -39,9 +47,9 @@ def execute_task(args):
     return Task.query.filter(Task.uuid == task_uuid).one_or_none()
 
 
-def task_thread(app, user_id, task_uuid):
+def task_thread(app, user_id, task_uuid, solr_controller):
     with app.app_context():
-        planner = TaskPlanner(User.query.get(user_id))
+        planner = TaskPlanner(User.query.get(user_id), solr_controller)
         asyncio.run(planner.execute_user_task(task_uuid))
 
 
@@ -55,7 +63,13 @@ def investigator_run(args):
 
     t = threading.Thread(
         target=run_thread,
-        args=[current_app._get_current_object(), current_user.id, run_uuid, args],
+        args=[
+            current_app._get_current_object(),
+            current_user.id,
+            run_uuid,
+            solr_controller,
+            args,
+        ],
     )
     t.setDaemon(False)
     t.start()
@@ -71,9 +85,9 @@ def investigator_run(args):
     return InvestigatorRun.query.filter(InvestigatorRun.uuid == run_uuid).one_or_none()
 
 
-def run_thread(app, user_id, run_uuid, user_args):
+def run_thread(app, user_id, run_uuid, solr_controller, user_args):
     with app.app_context():
-        planner = TaskPlanner(User.query.get(user_id))
+        planner = TaskPlanner(User.query.get(user_id), solr_controller)
         investigator = Investigator(run_uuid, planner)
         asyncio.run(investigator.initialize_run(user_args))
         asyncio.run(investigator.act())

@@ -1,13 +1,13 @@
 from app.analysis.processors import AnalysisUtility
 from app.models import Processor
-from app.utils.search_utils import search_database
 from app.analysis import assessment
 from flask import current_app
 from collections import defaultdict
 import numpy as np
 import asyncio
 import matplotlib
-matplotlib.use('Agg')
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import io
 import base64
@@ -21,15 +21,17 @@ class NameProcessor(AnalysisUtility):
         if self.task.dataset:
             docids = [d.document.solr_id for d in self.task.dataset.documents]
         elif self.task.search_query:
-            search = await search_database(self.task.search_query, retrieve="docids")
+            search = await self.search_database(
+                self.task.search_query, retrieve="docids"
+            )
             docids = [d["id"] for d in search["docs"]]
 
         query = {
             "q": "*:*",
             "fq": "{!terms f=article_id_ssi}" + ",".join([d_id for d_id in docids]),
         }
-        
-        return await search_database(query, retrieve="names")
+
+        return await self.search_database(query, retrieve="names")
 
 
 class ExtractNames(NameProcessor):
@@ -60,14 +62,13 @@ class ExtractNames(NameProcessor):
             ],
         )
 
-    @staticmethod
-    async def get_name(entity):
+    async def get_name(self, entity):
         query = {
             "fl": "label_fi_ssi,label_fr_ssi,label_sv_ssi,label_de_ssi,label_en_ssi",
             "fq": "id:%s" % entity,
         }
-        res = await search_database(query)
-        
+        res = await self.search_database(query)
+
         return (
             entity,
             {
@@ -81,11 +82,11 @@ class ExtractNames(NameProcessor):
 
     async def make_result(self):
         # current_app.logger.debug("INPUT_DATA: %s" %self.input_data)
-        
+
         doc_mentions = defaultdict(list)
 
         for mention in self.input_data:
-            #current_app.logger.debug("MENTION: %s" %mention)
+            # current_app.logger.debug("MENTION: %s" %mention)
             doc_mentions[mention["article_id_ssi"]].append(
                 {
                     "ent": mention["linked_entity_ssi"] or mention["mention_ssi"],
@@ -184,7 +185,7 @@ class TrackNameSentiment(NameProcessor):
             "fq": "{!terms f=id}" + ",".join([docid for docid in docids]),
             "fl": "year_isi, id",
         }
-        res = await search_database(query, retrieve="docids")
+        res = await self.search_database(query, retrieve="docids")
         doc_to_year = {r["id"]: int(r["year_isi"]) for r in res["docs"]}
 
         years = list(doc_to_year.values())
@@ -314,11 +315,13 @@ class TrackNameSentiment(NameProcessor):
         start_y = self.input_data["start_year"]
         end_y = self.input_data["end_year"]
         for ent, ts in self.input_data["entity_timeseries"].items():
-            #tot = np.sum(ts)
+            # tot = np.sum(ts)
             # MORE WIGHT TO NON-NEUTRAL:
-            tot = sum(ts[:,0])*10 + sum(ts[:,1]) + sum(ts[:,2])*10
-            
+            tot = sum(ts[:, 0]) * 10 + sum(ts[:, 1]) + sum(ts[:, 2]) * 10
+
             for i, y in enumerate(range(start_y, end_y + 1)):
-                #interestingness[ent][y] = np.sum(ts[i]) / tot
-                interestingness[ent][y] = (ts[i,0]*10 + ts[i,1] + ts[i,2]*10)/tot
+                # interestingness[ent][y] = np.sum(ts[i]) / tot
+                interestingness[ent][y] = (
+                    ts[i, 0] * 10 + ts[i, 1] + ts[i, 2] * 10
+                ) / tot
         return interestingness

@@ -2,7 +2,7 @@ import heapq
 import itertools
 from app import db
 from app.utils.db_utils import generate_task, generate_investigator_node
-from app.utils.search_utils import search_database
+from app.utils.search_utils import DatabaseSearch
 from app.models import (
     Task,
     Processor,
@@ -31,7 +31,7 @@ class Investigator:
 
         current_app.logger.debug("RUN: %s" % self.run)
 
-        self.root_documentset = Run_Collection(self.user, self.run.id, "root")
+        self.root_documentset = RunCollection(self.user, self.run.id, "root", self.planner.solr_controller)
         self.root_documentset.make_root_collection(self.run)
         self.run.collections = [self.root_documentset.dict()]
 
@@ -381,8 +381,8 @@ class Investigator:
         else:
             thr = 0.001
         collections = [
-            Run_Collection(
-                self.user, self.run.id, origin, query=split.result[lang], lang=lang
+            RunCollection(
+                self.user, self.run.id, origin, self.planner.solr_controller, query=split.result[lang], lang=lang
             )
             for lang in split.result
             if split.interestingness[lang] >= thr
@@ -504,11 +504,13 @@ class TaskQueue:
         return [t[2].id for t in self.taskq]
 
 
-class Run_Collection:
+class RunCollection:
     collection_no = 0
 
-    def __init__(self, user, run_id, origin, query=None, lang=None):
-        Run_Collection.collection_no += 1
+    def __init__(self, user, run_id, origin, solr_controller, query=None, lang=None):
+        self.solr_controller = solr_controller
+
+        RunCollection.collection_no += 1
         self.processors = []
         self.tasks = []
         self.user = user
@@ -524,14 +526,14 @@ class Run_Collection:
 
             self.collection = Collection(
                 run_id=run_id,
-                collection_no=Run_Collection.collection_no,
+                collection_no=RunCollection.collection_no,
                 data_type=self.data_type,
                 data_id=solr_query.id,
             )
 
         else:
             self.collection = Collection(
-                run_id=run_id, collection_no=Run_Collection.collection_no
+                run_id=run_id, collection_no=RunCollection.collection_no
             )
 
         if not isinstance(origin, list):
@@ -581,7 +583,7 @@ class Run_Collection:
             "parameters": task_parameters,
         }
 
-        current_app.logger.debug("!!!! InVESTIGATOR  task_dict %s" % task_dict)
+        current_app.logger.debug("!!!! INVESTIGATOR  task_dict %s" % task_dict)
 
         if source_uuid:
             task_dict["source_uuid"] = source_uuid
@@ -595,7 +597,8 @@ class Run_Collection:
         if self.data_type == "dataset":
             raise NotImplementedError
         else:
-            search_result = await search_database(
+            database_search = DatabaseSearch(self.solr_controller)
+            search_result = await database_search.search(
                 {"rows": 0, **self.data}, retrieve="docids"
             )
         return search_result["numFound"]

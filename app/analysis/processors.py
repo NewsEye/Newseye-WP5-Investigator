@@ -1,6 +1,6 @@
 from app import db
 from app.models import Processor, Task
-from app.utils.search_utils import search_database
+from app.utils.search_utils import DatabaseSearch
 from app.analysis import assessment
 import asyncio
 from werkzeug.exceptions import BadRequest
@@ -10,7 +10,6 @@ from flask import current_app
 class AnalysisUtility(Processor):
     @classmethod
     def make_processor(cls):
-
         processors = Processor.query.filter_by(
             name=cls.__name__, import_path=cls.__module__
         ).all()
@@ -29,10 +28,12 @@ class AnalysisUtility(Processor):
             name=cls.__name__, import_path=cls.__module__, parameter_info=[]
         )
 
-    def __init__(self, initialize=False):
+    def __init__(self, initialize=False, solr_controller=None):
         if initialize:
             pass
         else:
+            assert solr_controller
+            self.solr_controller = solr_controller
             processor = [
                 p
                 for p in Processor.query.filter_by(name=self.__class__.__name__).all()
@@ -45,6 +46,15 @@ class AnalysisUtility(Processor):
                 )
             processor = processor[0]
             self.processor = processor
+
+
+    async def search_database(self, queries, **kwargs):
+
+        current_app.logger.info("PROCESSOR %s STARTS SOLR SEARCH" %self.__class__.__name__)
+        database_search = DatabaseSearch(self.solr_controller)
+        res = await database_search.search(queries, **kwargs)
+        current_app.logger.info("PROCESSOR %s DONE SOLR SEARCH" %self.__class__.__name__)      
+        return res
 
     async def __call__(self, task):
         self.task = task
@@ -101,7 +111,7 @@ class AnalysisUtility(Processor):
                 % (self.processor.name, previous_task_result)
             )
         else:
-            return await search_database(self.task.search_query, retrieve="all")
+            return await self.search_database(self.task.search_query, retrieve="all")
 
     def get_description(self):
         return self.processor.dict()

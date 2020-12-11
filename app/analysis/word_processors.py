@@ -1,6 +1,5 @@
 from app.models import Processor
 from app.analysis.processors import AnalysisUtility
-from app.utils.search_utils import search_database
 from app.analysis import assessment
 from math import log, exp
 from collections import defaultdict
@@ -23,20 +22,19 @@ class WordProcessor(AnalysisUtility):
                     "required": False,
                     "values": ["tokens", "stems"],
                 },
-                                {
+                {
                     "name": "max_number",
                     "description": "number of results to return. 0 means all. default 30",
                     "type": "integer",
                     "default": 30,
                     "required": False,
-                }
-
+                },
             ],
             input_type="dataset",
         )
 
     async def get_input_data(self):
-        return await search_database(
+        return await self.search_database(
             self.task.search_query, retrieve=self.task.parameters["unit"]
         )
 
@@ -81,13 +79,13 @@ class ExtractWords(WordProcessor):
         # sort by tf-idf:
         for k in sorted(result, key=lambda x: (result[x][2], x), reverse=True):
             vocabulary[k] = result[k]
-            count+=1
+            count += 1
             if max_number and count == max_number:
                 break
-        
+
         return {
             "total": int(total),
-            "vocabulary": "vocabulary",
+            "vocabulary": vocabulary
         }
 
     async def estimate_interestingness(self):
@@ -151,11 +149,11 @@ class ExtractBigrams(WordProcessor):
                 bigram_count[b],
                 bigram_count[b] / total,
                 dice_score[b],
-            )  
+            )
             count += 1
             if count == max_number:
                 break
-            
+
         return res
 
     @staticmethod

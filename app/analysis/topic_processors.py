@@ -4,7 +4,6 @@ import json
 from config import Config
 from app.models import Processor
 from app.analysis.processors import AnalysisUtility
-from app.utils.search_utils import search_database
 from app.analysis import assessment
 from werkzeug.exceptions import BadRequest, RequestTimeout
 from flask import current_app
@@ -12,18 +11,18 @@ import random
 from app.utils.dataset_utils import get_dataset
 
 
-async def get_search_documents(search_query):
-    search = await search_database(
-        search_query, retrieve="docids", max_return_value=10000
-    )  # Hack to avoid "payload too big" problem in TM API
-    return search
-
-
 class TopicProcessor(AnalysisUtility):
+    async def get_search_documents(self, search_query):
+        search = await self.search_database(
+            search_query, retrieve="docids", max_return_value=10000
+        )  # Hack to avoid "payload too big" problem in TM API
+        return search
+
+    
     async def get_input_data(self):
         if self.task.dataset:
             return [d.document.solr_id for d in self.task.dataset.documents]
-        search = await get_search_documents(self.task.search_query)
+        search = await self.get_search_documents(self.task.search_query)
         return [d["id"] for d in search["docs"]]
 
     async def request_result_from_tm(
@@ -324,7 +323,7 @@ class TopicModelDocsetComparison(TopicProcessor):
                 )
             )
 
-        search = await get_search_documents(search_query)
+        search = await self.get_search_documents(search_query)
         collection = [d["id"] for d in search["docs"] if d["language_ssi"] == language]
 
         return collection
