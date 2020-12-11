@@ -53,7 +53,7 @@ class Config(object):
 
     SOLR_URI = os.environ.get("SOLR_URI")
     SOLR_MAX_RETURN_VALUES = 100000
-    SOLR_MAX_SESSIONS = 20 # maximum number of sessions to open in the same time
+    SOLR_MAX_SESSIONS = 30 # maximum number of sessions to open in the same time
     
     # SOLR_URI = "http://localhost:9983/solr/hydra-development/select"
     # test DB:
