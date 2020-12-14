@@ -47,7 +47,7 @@ class AnalysisUtility(Processor):
             processor = processor[0]
             self.processor = processor
 
-
+        
     async def search_database(self, queries, **kwargs):
 
         current_app.logger.info("PROCESSOR %s STARTS SOLR SEARCH" %self.__class__.__name__)

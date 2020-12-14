@@ -75,6 +75,7 @@ def verify_analysis_parameters(args):
     current_app.logger.debug("PROCESSOR: %s" % processor)
 
     parameter_info = processor.parameter_info
+
     query_parameters = args.get("parameters", {})
     current_app.logger.debug("PARAMETERS: %s" % query_parameters)
     current_app.logger.debug("PARAMETER_INFO: %s" % parameter_info)
@@ -83,7 +84,12 @@ def verify_analysis_parameters(args):
     for parameter in parameter_info:
         parameter_name = parameter["name"]
         if parameter_name in query_parameters.keys():
-            new_parameters[parameter_name] = query_parameters[parameter_name]
+            if parameter["type"] == "integer":
+                new_parameters[parameter_name] = int(query_parameters[parameter_name])
+            elif parameter["type"] == "float":
+                new_parameters[parameter_name] = float(query_parameters[parameter_name])
+            else:
+                new_parameters[parameter_name] = query_parameters[parameter_name]
         else:
             if parameter["required"]:
                 raise BadRequest(
