@@ -200,10 +200,7 @@ class DatabaseSearch:
                     "TOO MANY ROWS TO RETURN, returning %d" % max_return_value
                 )
 
-            async with session.get(solr_uri, json={"params": parameters}) as response:
-                if response.status == 401:
-                    raise Unauthorized
-                response = await response.json()
+            await self.get_response(session, solr_uri, parameters)
 
         result = {
             "numFound": response["response"]["numFound"],
@@ -215,6 +212,8 @@ class DatabaseSearch:
     async def get_response(self, session, solr_uri, parameters, max_retry=10):
         try:
             async with session.get(solr_uri, json={"params": parameters}) as response:
+                if response.status == 401:
+                    raise Unauthorized
                 return await response.json()
         except asyncio.TimeoutError as e:
             current_app.logger.info("timeout_error!!! try a new session")
