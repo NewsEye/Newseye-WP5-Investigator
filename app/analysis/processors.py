@@ -50,10 +50,10 @@ class AnalysisUtility(Processor):
         
     async def search_database(self, queries, **kwargs):
 
-        current_app.logger.info("PROCESSOR %s STARTS SOLR SEARCH" %self.__class__.__name__)
+        current_app.logger.debug("PROCESSOR %s STARTS SOLR SEARCH" %self.__class__.__name__)
         database_search = DatabaseSearch(self.solr_controller)
         res = await database_search.search(queries, **kwargs)
-        current_app.logger.info("PROCESSOR %s DONE SOLR SEARCH" %self.__class__.__name__)      
+        current_app.logger.debug("PROCESSOR %s DONE SOLR SEARCH" %self.__class__.__name__)      
         return res
 
     async def __call__(self, task):
