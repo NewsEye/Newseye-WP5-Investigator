@@ -200,7 +200,7 @@ class DatabaseSearch:
                     "TOO MANY ROWS TO RETURN, returning %d" % max_return_value
                 )
 
-            await self.get_response(session, solr_uri, parameters)
+            response = await self.get_response(session, solr_uri, parameters)
 
         result = {
             "numFound": response["response"]["numFound"],

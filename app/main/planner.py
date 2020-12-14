@@ -36,7 +36,6 @@ class TaskPlanner(object):
                 __import__(task.processor.import_path, fromlist=[task.processor.name]),
                 task.processor.name,
             )
-            current_app.logger.debug("!!!SOLR_CONTROLLER: %s" %self.solr_controller)
             processor = Processor(solr_controller = self.solr_controller)
 
             async_tasks.append(processor(task))

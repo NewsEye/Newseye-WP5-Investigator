@@ -187,7 +187,6 @@ class TrackNameSentiment(NameProcessor):
         }
         res = await self.search_database(query, retrieve="docids")
         doc_to_year = {r["id"]: int(r["year_isi"]) for r in res["docs"]}
-
         years = list(doc_to_year.values())
         min_y, max_y = min(years), max(years)
 
