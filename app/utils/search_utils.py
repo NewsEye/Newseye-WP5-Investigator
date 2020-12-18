@@ -73,14 +73,26 @@ class DatabaseSearch:
         parameters = {
             key: value for key, value in Config.SOLR_PARAMETERS["default"].items()
         }
+        
         # If parameters specific to the chosen retrieve value are found, they override the defaults
         if retrieve in Config.SOLR_PARAMETERS.keys():
             for key, value in Config.SOLR_PARAMETERS[retrieve].items():
                 parameters[key] = value
+
         # Parameters specifically defined in the query override everything else
         for key, value in query.items():
-            parameters[key] = value
+            if retrieve == "facets" and key == "facet.field":
+                # Special case: ensure that all facets are added into the output
+                if isinstance(query[key], list):
+                    parameters[key].extend(query[key])
+                else:
+                    parameters[key].append(query[key])
+            else:
+                # Otherwise just overwrite
+                parameters[key] = value
 
+            
+            
         async with session.get(solr_uri, json={"params": parameters}) as response:
             #current_app.logger.debug("SOLR_URI %s" % solr_uri)
             #current_app.logger.debug("parameters %s" % parameters)
