@@ -18,7 +18,6 @@ class TopicProcessor(AnalysisUtility):
         )  # Hack to avoid "payload too big" problem in TM API
         return search
 
-    
     async def get_input_data(self):
         if self.task.dataset:
             return [d.document.solr_id for d in self.task.dataset.documents]

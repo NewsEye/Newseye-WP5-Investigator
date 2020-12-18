@@ -7,6 +7,7 @@ import copy
 from random import randint
 from config import Config
 
+
 class SolrController:
     def __init__(self):
         self.session_no = 0
@@ -14,7 +15,7 @@ class SolrController:
 
         self.lock = Lock()
         self.global_counter = 0
-        
+
     @asynccontextmanager
     async def acquire_session(self):
         try:
@@ -23,27 +24,27 @@ class SolrController:
                 current_entry = copy.copy(self.global_counter)
 
             while self.session_no >= self.max_session_no:
-                current_app.logger.info("%d SLEEP SESSION_NO: %d" %(current_entry, self.session_no))
-                await asyncio.sleep((randint(10,60)))
+                current_app.logger.info(
+                    "%d SLEEP SESSION_NO: %d" % (current_entry, self.session_no)
+                )
+                await asyncio.sleep((randint(10, 60)))
 
             with self.lock:
                 self.session_no += 1
-              
+
             session = aiohttp.ClientSession()
             current_app.logger.info(
-            "%d IN ACQUIRE: SESSION_NO: %d" % (current_entry, self.session_no)
+                "%d IN ACQUIRE: SESSION_NO: %d" % (current_entry, self.session_no)
             )
             yield session
         except Exception as e:
-            raise e 
+            raise e
         finally:
-            current_app.logger.debug("FINALLY: %s" %self.session_no)
+            current_app.logger.debug("FINALLY: %s" % self.session_no)
             await self.release_session(session)
 
     async def release_session(self, session):
         await session.close()
         with self.lock:
             self.session_no -= 1
-        current_app.logger.debug(
-            "RELEASE_SESSION: SESSION_NO: %d" % self.session_no
-        )
+        current_app.logger.debug("RELEASE_SESSION: SESSION_NO: %d" % self.session_no)

@@ -55,10 +55,10 @@ class ExtractFacets(AnalysisUtility):
             del facets["DATE"]
 
         years = [int(y) for y in facets["PUB_YEAR"]]
-
-        for y in range(min(years), max(years)):
-            if y not in years:
-                facets["PUB_YEAR"][str(y)] = 0
+        if years:
+            for y in range(min(years), max(years)):
+                if y not in years:
+                    facets["PUB_YEAR"][str(y)] = 0
 
         return facets
 
@@ -88,11 +88,12 @@ class GenerateTimeSeries(AnalysisUtility):
     async def get_input_data(self):
         return await self.search_database(self.task.search_query, retrieve="facets")
 
-    
     async def make_result(self):
         # This is example of the function, which would be trickier to adapt to another document structure
 
         facet_name = self.task.parameters["facet_name"]
+        current_app.logger.debug("FACET_NAME: %s" % facet_name)
+
         facet_string = AVAILABLE_FACETS.get(facet_name)
         if facet_string is None:
             raise TypeError(
@@ -124,8 +125,6 @@ class GenerateTimeSeries(AnalysisUtility):
             queries.append(q)
             years.append(year)
 
-
-            
         query_results = await self.search_database(queries, retrieve="facets")
 
         f_counts = []

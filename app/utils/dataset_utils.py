@@ -75,10 +75,6 @@ def request_dataset(dataset_name, user):
 
 
 def make_dataset(dataset_name, user, document_list):
-    #    current_app.logger.debug(
-    #        "DATASET_NAME: %s USER: %s DOCUMENT_LIST %s"
-    #        % (dataset_name, user, document_list)
-    #    )
     dataset = Dataset.query.filter_by(
         dataset_name=dataset_name, user=user
     ).one_or_none()
@@ -86,11 +82,10 @@ def make_dataset(dataset_name, user, document_list):
     if dataset:
         DocumentDatasetRelation.query.filter_by(dataset_id=dataset.id).delete()
     else:
-        dataset = Dataset(
-            dataset_name=dataset_name,
-            user=user,
-            hash_value=get_hash_value(dataset_name, user),
+        hash_value = (
+            dataset_name if user == "PRA" else get_hash_value(dataset_name, user)
         )
+        dataset = Dataset(dataset_name=dataset_name, user=user, hash_value=hash_value,)
         current_app.logger.debug("else: %s" % dataset)
         db.session.add(dataset)
     db.session.commit()

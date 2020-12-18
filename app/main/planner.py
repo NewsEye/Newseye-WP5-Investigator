@@ -1,14 +1,13 @@
 from app import db, analysis
 from app.utils.db_utils import generate_task, store_results
 from app.models import Task, Processor
-
-# from app.analysis import UTILITY_MAP, INPUT_TYPE_MAP
 from datetime import datetime
 from flask import current_app
 import asyncio
 from app.investigator.investigator import Investigator
 import warnings
 from config import Config
+import random
 
 
 class TaskPlanner(object):
@@ -36,7 +35,7 @@ class TaskPlanner(object):
                 __import__(task.processor.import_path, fromlist=[task.processor.name]),
                 task.processor.name,
             )
-            processor = Processor(solr_controller = self.solr_controller)
+            processor = Processor(solr_controller=self.solr_controller)
 
             async_tasks.append(processor(task))
 
@@ -206,9 +205,12 @@ class TaskPlanner(object):
                 "Cannot find processor with output_type %s" % task.processor.input_type
             )
         elif len(related_processors) > 1:
-            raise NotImplementedError(
-                "Don't know how to get a prerequisite task for %s, too many options: %s"
+            # TODO: input processor parameter
+            current_app.logger.debug(
+                "More than one prerequisite task for %s: %s choose randomly"
                 % (task.processor.input_type, " ".join(related_processors))
             )
+            return random.choice(related_processors)
+
         else:
             return related_processors[0]

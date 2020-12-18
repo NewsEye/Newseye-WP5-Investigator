@@ -4,7 +4,7 @@ from flask_restplus import Resource
 from app.auth import AuthParser
 from app.main import controller
 from app.analysis import ns
-from app.models import Task, Processor
+from app.models import Task, Processor, Dataset
 from uuid import UUID
 from werkzeug.exceptions import BadRequest, InternalServerError, NotFound
 from flask import current_app
@@ -133,3 +133,20 @@ class UtilityList(Resource):
         """
         response = [p.dict() for p in Processor.query.all() if not p.deprecated]
         return response
+
+
+@ns.route("/dataset/<string:dataset_name>")
+@ns.param("dataset_name", "The name of the dataset made by PRA")
+class DatasetInformation(Resource):
+    @login_required
+    @ns.expect(AuthParser())
+    def get(self, dataset_name):
+        """
+        Retrieve a list of documents that belong to a dataset
+        """
+        dataset = Dataset.query.filter_by(dataset_name=dataset_name).first()
+        current_app.logger.debug("DATASET: %s" % dataset)
+        if dataset:
+            return [d.document.solr_id for d in dataset.documents]
+        else:
+            raise NotFound

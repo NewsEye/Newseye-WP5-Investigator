@@ -47,14 +47,17 @@ class AnalysisUtility(Processor):
             processor = processor[0]
             self.processor = processor
 
-        
     async def search_database(self, queries, **kwargs):
 
-        current_app.logger.debug("PROCESSOR %s STARTS SOLR SEARCH" %self.__class__.__name__)
-        current_app.logger.debug("SEARCH: %s" %queries)
+        current_app.logger.debug(
+            "PROCESSOR %s STARTS SOLR SEARCH" % self.__class__.__name__
+        )
+        # current_app.logger.debug("SEARCH: %s" %queries)
         database_search = DatabaseSearch(self.solr_controller)
         res = await database_search.search(queries, **kwargs)
-        current_app.logger.debug("PROCESSOR %s DONE SOLR SEARCH" %self.__class__.__name__)      
+        current_app.logger.debug(
+            "PROCESSOR %s DONE SOLR SEARCH" % self.__class__.__name__
+        )
         return res
 
     async def __call__(self, task):
@@ -98,11 +101,12 @@ class AnalysisUtility(Processor):
                     try:
                         return await self.get_input_data(self.input_task.task_result)
                     except Exception as e:
-                        current_app.logger.debug(
-                            "!!!!!!!!Don't know how to use previous_task_result for %s Result: %s Exception: %s"
-                            % (self.processor.name, self.input_task.task_result, e)
-                        )
-                        pass  # try to call get_input_data in a standard way, without parameters
+                        raise e
+                        # current_app.logger.debug(
+                        #    "!!!!!!!!Don't know how to use previous_task_result for %s Result: %s Exception: %s"
+                        #    % (self.processor.name, self.input_task.task_result, e)
+                        # )
+                        # pass  # try to call get_input_data in a standard way, without parameters
         return await self.get_input_data()
 
     async def get_input_data(self, previous_task_result=None):

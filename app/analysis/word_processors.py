@@ -83,10 +83,7 @@ class ExtractWords(WordProcessor):
             if max_number and count == max_number:
                 break
 
-        return {
-            "total": int(total),
-            "vocabulary": vocabulary
-        }
+        return {"total": int(total), "vocabulary": vocabulary}
 
     async def estimate_interestingness(self):
         vocab = self.result["vocabulary"]

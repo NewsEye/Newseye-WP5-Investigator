@@ -31,7 +31,9 @@ class Investigator:
 
         current_app.logger.debug("RUN: %s" % self.run)
 
-        self.root_documentset = RunCollection(self.user, self.run.id, "root", self.planner.solr_controller)
+        self.root_documentset = RunCollection(
+            self.user, self.run.id, "root", self.planner.solr_controller
+        )
         self.root_documentset.make_root_collection(self.run)
         self.run.collections = [self.root_documentset.dict()]
 
@@ -382,7 +384,12 @@ class Investigator:
             thr = 0.001
         collections = [
             RunCollection(
-                self.user, self.run.id, origin, self.planner.solr_controller, query=split.result[lang], lang=lang
+                self.user,
+                self.run.id,
+                origin,
+                self.planner.solr_controller,
+                query=split.result[lang],
+                lang=lang,
             )
             for lang in split.result
             if split.interestingness[lang] >= thr

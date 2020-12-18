@@ -8,9 +8,34 @@ import asyncio
 import numpy as np
 from werkzeug.exceptions import BadRequest
 import datetime
+from app.utils.dataset_utils import make_dataset
 
 
-class SplitByFacet(AnalysisUtility):
+class SplitProcessor(AnalysisUtility):
+    async def make_dataset_from_query(self, f, query):
+        search = await self.search_database(query, retrieve="docids")
+        docids = [
+            {"id": d["id"], "type": "article", "relevancy": 1} for d in search["docs"]
+        ]
+        if docids:
+            dataset_name = "_".join(
+                [self.task.dataset.dataset_name, str(self.task.uuid), f]
+            )
+            make_dataset(dataset_name, "PRA", docids)
+            return f, dataset_name
+
+    async def make_datasets_from_queries(self, queries):
+        subsets = {}
+        for subset in asyncio.as_completed(
+            [self.make_dataset_from_query(f, q) for f, q in queries.items()]
+        ):
+            subset = await subset
+            if subset:
+                subsets[subset[0]] = subset[1]
+        return subsets
+
+
+class SplitByFacet(SplitProcessor):
     @classmethod
     def _make_processor(cls):
         return Processor(
@@ -35,10 +60,7 @@ class SplitByFacet(AnalysisUtility):
         return previous_task_result.result[self.task.parameters["facet"]]
 
     async def make_result(self):
-        # if len(self.input_data) == 1:
-        #     return []
         facet_field = AVAILABLE_FACETS[self.task.parameters["facet"]]
-
         current_app.logger.debug("******FACET_FIELD: %s" % facet_field)
 
         search_query = self.task.search_query
@@ -51,6 +73,8 @@ class SplitByFacet(AnalysisUtility):
             q["fq"] = [*fq, "{}:{}".format(facet_field, f)]
             queries[f] = q
 
+        if self.task.dataset:
+            return await self.make_datasets_from_queries(queries)
         return queries
 
     async def estimate_interestingness(self):
@@ -71,7 +95,7 @@ class SplitByFacet(AnalysisUtility):
         return interestingness
 
 
-class FindBestSplitFromTimeseries(AnalysisUtility):
+class FindBestSplitFromTimeseries(SplitProcessor):
     @classmethod
     def _make_processor(cls):
         return Processor(
@@ -86,6 +110,7 @@ class FindBestSplitFromTimeseries(AnalysisUtility):
     async def get_input_data(self, previous_task_result):
         # choose most interesting timeseries
         max_interestingness = (None, 0)
+
         for k, v in previous_task_result.interestingness.items():
             if k == "overall":
                 continue
@@ -96,14 +121,15 @@ class FindBestSplitFromTimeseries(AnalysisUtility):
 
     async def make_result(self):
         # get a single, the most interesting timeseries
+        data = self.input_data["data"].get("relative_counts") or self.input_data["data"]
+
         timeseries = {
             int(k): v
-            for k, v in self.input_data["data"]["relative_counts"][
+            for k, v in data[
                 self.input_data["key"]  # key to choose the most interesting timeseries
             ].items()
             if k.isdigit()  # only choose years
         }
-
         # strip zeros in the beginning and end:
         for k, v in sorted(timeseries.items()):
             if v != 0:
@@ -118,16 +144,22 @@ class FindBestSplitFromTimeseries(AnalysisUtility):
             k: v for k, v in sorted(timeseries.items()) if k >= start and k <= end
         }
 
-        # compute distances
-        self.diffs = {
-            k1: abs(timeseries[k1] - timeseries[k2])
-            for k1, k2 in zip(list(timeseries.keys())[:-1], list(timeseries.keys())[1:])
-        }
-        # choose split point at max distance
-        self.split_point = max(self.diffs, key=self.diffs.get)
+        if len(timeseries) == 1:
+            self.split_point = list(timeseries.keys())[0]
+        else:
+            # compute distances
+            self.diffs = {
+                k1: abs(timeseries[k1] - timeseries[k2])
+                for k1, k2 in zip(
+                    list(timeseries.keys())[:-1], list(timeseries.keys())[1:]
+                )
+            }
+            # choose split point at max distance
+            self.split_point = max(self.diffs, key=self.diffs.get)
 
         # now make new queries
-        facet_field = AVAILABLE_FACETS[self.input_task.parameters["facet_name"]]
+        # current_app.logger.debug("INPUT_TASK: %s" %self.input_task)
+        # current_app.logger.debug('self.input_task.parameters["facet_name"] %s' %self.input_task.parameters["facet_name"])
 
         search_query = self.task.search_query
         fq = search_query.get("fq", [])
@@ -137,35 +169,42 @@ class FindBestSplitFromTimeseries(AnalysisUtility):
         query1 = copy(search_query)
         query1["fq"] = [
             *fq,
-            "{}:{}".format(facet_field, self.input_data["key"]),
             "date_created_dtsi:%s" % self.format_period(start, self.split_point),
         ]
 
         query2 = copy(search_query)
         query2["fq"] = [
             *fq,
-            "{}:{}".format(facet_field, self.input_data["key"]),
             "date_created_dtsi:%s" % self.format_period(self.split_point + 1, end),
         ]
 
-        return {"query1": query1, "query2": query2}
+        #        if self.input_task.parameters.get("facet_name"):
+        #            facet_field = AVAILABLE_FACETS[self.input_task.parameters["facet_name"]]
+        #            facet_q = "{}:{}".format(facet_field, self.input_data["key"])
+        #            query1["fq"].append(facet_q)
+        #            query2["fq"].append(facet_q)
+
+        result = {"query1": query1, "query2": query2}
+
+        if self.task.dataset:
+            return await self.make_datasets_from_queries(result)
+        return result
 
     async def estimate_interestingness(self):
+        if len(self.result) < 2:
+            return {"overall": 0.0}
+        data = self.input_data["data"].get("absolute_counts") or self.input_data["data"]
         total1 = sum(
             [
                 v
-                for k, v in self.input_data["data"]["absolute_counts"][
-                    self.input_data["key"]
-                ].items()
+                for k, v in data[self.input_data["key"]].items()
                 if k.isdigit() and int(k) <= self.split_point
             ]
         )
         total2 = sum(
             [
                 v
-                for k, v in self.input_data["data"]["absolute_counts"][
-                    self.input_data["key"]
-                ].items()
+                for k, v in data[self.input_data["key"]].items()
                 if k.isdigit() and int(k) > self.split_point
             ]
         )
@@ -177,7 +216,12 @@ class FindBestSplitFromTimeseries(AnalysisUtility):
 
     async def _estimate_interestingness(self):
         interestingness = await self.estimate_interestingness()
-        interestingness.update({"overall": max(self.diffs.values())})
+        if "overall" in interestingness:
+            return interestingness
+        try:
+            interestingness.update({"overall": max(self.diffs.values())})
+        except AttributeError:
+            interestingness.update({"overall": 0.0})
         return interestingness
 
     @staticmethod

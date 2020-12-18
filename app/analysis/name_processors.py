@@ -323,4 +323,11 @@ class TrackNameSentiment(NameProcessor):
                 interestingness[ent][y] = (
                     ts[i, 0] * 10 + ts[i, 1] + ts[i, 2] * 10
                 ) / tot
-        return interestingness
+
+        return {
+            k: (
+                1 - assessment.normalized_entropy(v.values()),
+                v,
+            )  # we want minimal entropy, which means sharpest peak
+            for k, v in interestingness.items()
+        }

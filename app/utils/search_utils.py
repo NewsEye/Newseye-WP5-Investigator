@@ -21,7 +21,7 @@ class DatabaseSearch:
         current_app.logger.info("Trying to get session")
         async with self.solr_controller.acquire_session() as session:
             # if queries: current_app.logger.info("Log, appending searches: {}".format(queries))
-            current_app.logger.info("Got session %s" %session)
+            current_app.logger.info("Got session %s" % session)
             for query in queries:
                 tasks.append(self.query_solr(session, query, **kwargs))
             results = await asyncio.gather(
@@ -73,7 +73,7 @@ class DatabaseSearch:
         parameters = {
             key: value for key, value in Config.SOLR_PARAMETERS["default"].items()
         }
-        
+
         # If parameters specific to the chosen retrieve value are found, they override the defaults
         if retrieve in Config.SOLR_PARAMETERS.keys():
             for key, value in Config.SOLR_PARAMETERS[retrieve].items():
@@ -91,17 +91,15 @@ class DatabaseSearch:
                 # Otherwise just overwrite
                 parameters[key] = value
 
-            
-            
         async with session.get(solr_uri, json={"params": parameters}) as response:
-            #current_app.logger.debug("SOLR_URI %s" % solr_uri)
-            #current_app.logger.debug("parameters %s" % parameters)
-            #current_app.logger.debug("response.status: %s" % response.status)
+            # current_app.logger.debug("SOLR_URI %s" % solr_uri)
+            # current_app.logger.debug("parameters %s" % parameters)
+            # current_app.logger.debug("response.status: %s" % response.status)
 
             if response.status == 401:
                 raise Unauthorized
             response = await response.json()
-            #current_app.logger.debug("RESPONSE in search_utils: %s" %response)
+            # current_app.logger.debug("RESPONSE in search_utils: %s" %response)
 
         if retrieve in ["tokens", "stems"]:
             num_results = response["response"]["numFound"]
@@ -234,10 +232,12 @@ class DatabaseSearch:
                 current_app.logger.info("GET_RESPONSE: Trying to get session")
                 async with self.solr_controller.acquire_session() as session:
                     try:
-                        current_app.logger.info("GET_RESPONSE: Got session %s" %session)
+                        current_app.logger.info(
+                            "GET_RESPONSE: Got session %s" % session
+                        )
                         async with session.get(
                             solr_uri, json={"params": parameters}
-                    ) as response:
+                        ) as response:
                             return await asyncio.wait_for(response.json(), timeout=None)
                     except asyncio.TimeoutError as e:
                         self.solr_controller.release_session(session)
@@ -257,7 +257,7 @@ def convert_vector_response_to_dictionary(term_vectors, result_dict):
             try:
                 word_list = article[3]
             except Exception as e:
-                #current_app.logger.debug("WRONG WORD_LIST: %s" % article)
+                # current_app.logger.debug("WRONG WORD_LIST: %s" % article)
                 continue
 
             article_dict = {}
