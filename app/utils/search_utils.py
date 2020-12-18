@@ -82,14 +82,14 @@ class DatabaseSearch:
             parameters[key] = value
 
         async with session.get(solr_uri, json={"params": parameters}) as response:
-            # current_app.logger.debug("SOLR_URI %s" % solr_uri)
-            ##		current_app.logger.debug("parameters %s" % parameters)
-            # current_app.logger.debug("response.status: %s" % response.status)
+            #current_app.logger.debug("SOLR_URI %s" % solr_uri)
+            #current_app.logger.debug("parameters %s" % parameters)
+            #current_app.logger.debug("response.status: %s" % response.status)
 
             if response.status == 401:
                 raise Unauthorized
             response = await response.json()
-            # current_app.logger.debug("RESPONSE in search_utils: %s" %response)
+            #current_app.logger.debug("RESPONSE in search_utils: %s" %response)
 
         if retrieve in ["tokens", "stems"]:
             num_results = response["response"]["numFound"]

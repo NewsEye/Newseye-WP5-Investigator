@@ -85,6 +85,10 @@ class GenerateTimeSeries(AnalysisUtility):
             output_type="timeseries",
         )
 
+    async def get_input_data(self):
+        return await self.search_database(self.task.search_query, retrieve="facets")
+
+    
     async def make_result(self):
         # This is example of the function, which would be trickier to adapt to another document structure
 
@@ -119,17 +123,9 @@ class GenerateTimeSeries(AnalysisUtility):
             q["fq"] = [*fq, "{}:{}".format(year_facet, year)]
             queries.append(q)
             years.append(year)
-        #
-        #
-        # if self.task.solr_query:
-        #     queries = [{"fq": "{}:{}".format(year_facet, item)} for item in years_in_data]
-        #     for q in queries:
-        #         q.update(original_search)
-        # elif self.task.dataset:
-        #     queries = [{"q" : item, "qf" : year_facet, 'fq':original_search["fq"]} for item in years_in_data]
-        # else:
-        #     raise NotImplementedError
 
+
+            
         query_results = await self.search_database(queries, retrieve="facets")
 
         f_counts = []
