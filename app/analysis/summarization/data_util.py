@@ -7,7 +7,6 @@ from flask import current_app
 import spacy, os
 from sklearn.metrics.pairwise import cosine_similarity
 import fasttext
-import requests
 import os.path
 
 # from google_drive_downloader import GoogleDriveDownloader as gdd
