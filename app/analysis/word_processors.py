@@ -18,7 +18,7 @@ class WordProcessor(AnalysisUtility):
                     "name": "unit",
                     "description": "which unit --- token or stem --- should be used for analysis",
                     "type": "string",
-                    "default": "stems",
+                    "default": "tokens",
                     "required": False,
                     "values": ["tokens", "stems"],
                 },
