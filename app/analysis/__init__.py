@@ -19,7 +19,7 @@ from app.analysis.data_transformation import (
     FindBestSplitFromTimeseries,
 )
 from app.analysis.name_processors import ExtractNames, TrackNameSentiment
-
+from app.analysis.embeddings_processors import ExpandQuery
 
 def initialize_processors(app):
     # adding processors to the database (if they are not there already)
@@ -38,5 +38,6 @@ def initialize_processors(app):
             FindBestSplitFromTimeseries,
             ExtractNames,
             TrackNameSentiment,
+            ExpandQuery
         ]:
             cls(initialize=True).make_processor()

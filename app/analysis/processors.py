@@ -19,7 +19,9 @@ class AnalysisUtility(Processor):
         assert len(processors) <= 1
 
         if not processors:
-            db.session.add(cls._make_processor())
+            processor = cls._make_processor()
+            current_app.logger.debug("NEW PROCESSOR: %s" %processor)
+            db.session.add(processor)
             db.session.commit()
 
     @classmethod
@@ -101,20 +103,19 @@ class AnalysisUtility(Processor):
                     try:
                         return await self.get_input_data(self.input_task.task_result)
                     except Exception as e:
-                        raise e
-                        # current_app.logger.debug(
-                        #    "!!!!!!!!Don't know how to use previous_task_result for %s Result: %s Exception: %s"
-                        #    % (self.processor.name, self.input_task.task_result, e)
-                        # )
-                        # pass  # try to call get_input_data in a standard way, without parameters
+                        #raise e
+                        current_app.logger.debug(
+                           "!!!!!!!!Don't know how to use previous_task_result for %s Result: %s Exception: %s"
+                           % (self.processor.name, self.input_task.task_result, e)
+                        )
+                        ## TODO: get rid of this 'pass', this is counter-intuitive behaviour
+                        pass  # try to call get_input_data in a standard way, without parameters
+                        
         return await self.get_input_data()
 
     async def get_input_data(self, previous_task_result=None):
         if previous_task_result:
-            raise NotImplementedError(
-                "Don't know how to use previous_task_result for %s Result: %s"
-                % (self.processor.name, previous_task_result)
-            )
+            return previous_task_result.result
         else:
             return await self.search_database(self.task.search_query, retrieve="all")
 
