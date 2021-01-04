@@ -19,7 +19,7 @@ def get_dataset(dataset):
             dataset_name=dataset_name, user=user
         ).one_or_none()
 
-    if not dataset or not uptodate(dataset):
+    if not dataset or (not user=="PRA" and not uptodate(dataset)):
         current_app.logger.debug("REQUESTING...")
         request_dataset(dataset_name, user)
     return Dataset.query.filter_by(dataset_name=dataset_name).first()
