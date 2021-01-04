@@ -207,7 +207,7 @@ class TaskPlanner(object):
         elif len(related_processors) > 1:
             # TODO: input processor parameter
             current_app.logger.debug(
-                "More than one prerequisite task for %s: %s choose randomly"
+                "More than one prerequisite task for %s: %s choosen randomly"
                 % (task.processor.input_type, " ".join(related_processors))
             )
             return random.choice(related_processors)
