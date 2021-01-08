@@ -20,7 +20,7 @@ class AnalysisUtility(Processor):
 
         if not processors:
             processor = cls._make_processor()
-            current_app.logger.debug("NEW PROCESSOR: %s" %processor)
+            current_app.logger.debug("NEW PROCESSOR: %s" % processor)
             db.session.add(processor)
             db.session.commit()
 
@@ -103,14 +103,14 @@ class AnalysisUtility(Processor):
                     try:
                         return await self.get_input_data(self.input_task.task_result)
                     except Exception as e:
-                        #raise e
+                        # raise e
                         current_app.logger.debug(
-                           "!!!!!!!!Don't know how to use previous_task_result for %s Result: %s Exception: %s"
-                           % (self.processor.name, self.input_task.task_result, e)
+                            "!!!!!!!!Don't know how to use previous_task_result for %s Result: %s Exception: %s"
+                            % (self.processor.name, self.input_task.task_result, e)
                         )
                         ## TODO: get rid of this 'pass', this is counter-intuitive behaviour
                         pass  # try to call get_input_data in a standard way, without parameters
-                        
+
         return await self.get_input_data()
 
     async def get_input_data(self, previous_task_result=None):
@@ -143,16 +143,15 @@ class AnalysisUtility(Processor):
         # convert all numerical lists and dict values into distributions (0-1)
         return assessment.recoursive_distribution(self.result)
 
-
     async def get_languages(self):
         # not optimal: extract facets already does this
         # don't know how to use to results...
-        facets = await self.search_database(
-            self.task.search_query, retrieve="facets"
-            )
+        facets = await self.search_database(self.task.search_query, retrieve="facets")
         for facet in facets["facets"]:
             if facet["name"] == "language_ssi":
                 return {
-                    i["label"]:i["hits"] for i in facet["items"]
-                    if i["label"] in ["fi", "de", "fr"] # no support for swedish at the moment
+                    i["label"]: i["hits"]
+                    for i in facet["items"]
+                    if i["label"]
+                    in ["fi", "de", "fr"]  # no support for swedish at the moment
                 }

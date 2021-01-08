@@ -13,8 +13,8 @@ import numpy as np
 from scipy.stats import entropy
 import itertools
 
-class TopicProcessor(AnalysisUtility):
 
+class TopicProcessor(AnalysisUtility):
     async def get_input_data(self):
         self.language = self.task.parameters.get("language")
         if not self.language:
@@ -22,21 +22,22 @@ class TopicProcessor(AnalysisUtility):
             self.language = max(languages, key=languages.get)
         return await self.get_doc_topic_vectors(self.task.search_query, self.language)
 
-
-
     async def get_doc_topic_vectors(self, query, language):
-        query['fl'] = "id, topics_fsim, language_ssi"
+        query["fl"] = "id, topics_fsim, language_ssi"
         res = await self.search_database(query)
         doc_ids = []
         topics = []
         for doc in res["docs"]:
-            if "topics_fsim" in doc and doc["language_ssi"]==language:
+            if "topics_fsim" in doc and doc["language_ssi"] == language:
                 doc_ids.append(doc["id"])
                 topics.append(doc["topics_fsim"])
-        return {"doc_ids":doc_ids,
-                "topic_weights":list(np.mean(topics, axis=0)),
-                "doc_weights":topics}        
-            
+        return {
+            "doc_ids": doc_ids,
+            "topic_weights": list(np.mean(topics, axis=0)),
+            "doc_weights": topics,
+        }
+
+
 class TopicModelDocumentLinking(TopicProcessor):
     @classmethod
     def _make_processor(cls):
@@ -60,21 +61,21 @@ class TopicModelDocumentLinking(TopicProcessor):
                     "default": None,
                     "required": False,
                 },
-#                {
-#                    "name": "model_name",
-#                    "description": "The name of the topic model to use.",
-#                    "values": [
-#                        "LDA-FR",
-#                        "LDA-FI",
-#                        "LDA-DE",
-#                        "DTM-FR",
-#                        "DTM-FI",
-#                        "DTM-DE",
-#                    ],
-#                    "type": "string",
-#                    "default": None,
-#                    "required": True,
-#                },
+                #                {
+                #                    "name": "model_name",
+                #                    "description": "The name of the topic model to use.",
+                #                    "values": [
+                #                        "LDA-FR",
+                #                        "LDA-FI",
+                #                        "LDA-DE",
+                #                        "DTM-FR",
+                #                        "DTM-FI",
+                #                        "DTM-DE",
+                #                    ],
+                #                    "type": "string",
+                #                    "default": None,
+                #                    "required": True,
+                #                },
             ],
             input_type="dataset",
             output_type="dataset",
@@ -83,9 +84,9 @@ class TopicModelDocumentLinking(TopicProcessor):
     async def make_result(self):
         payload = {
             "model_type": "lda",
-            "lang":self.language,
+            "lang": self.language,
             "num_docs": self.task.parameters.get("num_docs"),
-            "topics_distrib":self.input_data["topic_weights"]
+            "topics_distrib": self.input_data["topic_weights"],
         }
         response = await self.request_result_from_tm(
             payload,
@@ -109,7 +110,6 @@ class TopicModelDocumentLinking(TopicProcessor):
         )
         response["documents"] = response.pop("similar_docs")
         return response
-    
 
     @staticmethod
     async def request_result_with_retry(
@@ -136,8 +136,6 @@ class TopicModelDocumentLinking(TopicProcessor):
                     "Task {} cannot finish in {} seconds".format(task_uuid, total_delay)
                 )
 
-    
-    
     async def estimate_interestingness(self):
         return {"documents": [1 - dist for dist in self.result["distance"]]}
 
@@ -163,9 +161,8 @@ class QueryTopicModel(TopicProcessor):
             output_type="topic_analysis",
         )
 
-    
     async def make_result(self):
-        current_app.logger.debug("INPUT_DATA: %s" %self.input_data)
+        current_app.logger.debug("INPUT_DATA: %s" % self.input_data)
         return self.input_data
 
     async def estimate_interestingness(self):
@@ -217,14 +214,14 @@ class TopicModelDocsetComparison(TopicProcessor):
                     "default": 3,
                     "required": False,
                 },
-                #{
+                # {
                 #    "name": "model_type",
                 #    "values": ["LDA", "DTM"],
                 #    "description": "The type of the topic model to use",
                 #    "type": "string",
                 #    "default": "lda",
                 #    "required": False,
-                #},
+                # },
             ],
             input_type="collection_pair",
             output_type="comparison",
@@ -268,27 +265,36 @@ class TopicModelDocsetComparison(TopicProcessor):
         return collection
 
     async def make_result(self):
-        return  {
-            "mean_jsd" : np.round(self.compute_jsd(
-                self.input_data[0]["topic_weights"],
-                self.input_data[1]["topic_weights"]), 3),
-            "internal_jsd1" : np.round(self.compute_internal_jsd(
-                self.input_data[0]["doc_weights"]), 3),
-            "internal_jsd2" : np.round(self.compute_internal_jsd(
-                self.input_data[1]["doc_weights"]), 3),
-            "cross_jsd" : np.round(self.compute_cross_jsd(
-                self.input_data[0]["doc_weights"],
-                self.input_data[1]["doc_weights"]), 3),
-            "shared_topics" : self.get_shared_topics(
-                self.input_data[0]["topic_weights"],
-                self.input_data[1]["topic_weights"]),
+        return {
+            "mean_jsd": np.round(
+                self.compute_jsd(
+                    self.input_data[0]["topic_weights"],
+                    self.input_data[1]["topic_weights"],
+                ),
+                3,
+            ),
+            "internal_jsd1": np.round(
+                self.compute_internal_jsd(self.input_data[0]["doc_weights"]), 3
+            ),
+            "internal_jsd2": np.round(
+                self.compute_internal_jsd(self.input_data[1]["doc_weights"]), 3
+            ),
+            "cross_jsd": np.round(
+                self.compute_cross_jsd(
+                    self.input_data[0]["doc_weights"], self.input_data[1]["doc_weights"]
+                ),
+                3,
+            ),
+            "shared_topics": self.get_shared_topics(
+                self.input_data[0]["topic_weights"], self.input_data[1]["topic_weights"]
+            ),
             "distinct_topics1": self.get_distinct_topics(
-                self.input_data[0]["topic_weights"],
-                self.input_data[1]["topic_weights"]),
+                self.input_data[0]["topic_weights"], self.input_data[1]["topic_weights"]
+            ),
             "distinct_topics2": self.get_distinct_topics(
-                self.input_data[1]["topic_weights"],
-                self.input_data[0]["topic_weights"])
-            }
+                self.input_data[1]["topic_weights"], self.input_data[0]["topic_weights"]
+            ),
+        }
 
     def compute_jsd(self, list1, list2):
         p = np.array(list1)
@@ -298,8 +304,10 @@ class TopicModelDocsetComparison(TopicProcessor):
 
     def compute_internal_jsd(self, vecs):
         vecs = np.array(vecs)
-        divs = [self.compute_jsd(vecs[topic_pair[0]], vecs[topic_pair[1]])
-                for topic_pair in itertools.combinations(range(vecs.shape[0]), 2)]
+        divs = [
+            self.compute_jsd(vecs[topic_pair[0]], vecs[topic_pair[1]])
+            for topic_pair in itertools.combinations(range(vecs.shape[0]), 2)
+        ]
         return np.mean(divs)
 
     def compute_cross_jsd(self, vecs1, vecs2):
@@ -309,34 +317,45 @@ class TopicModelDocsetComparison(TopicProcessor):
     def get_shared_topics(self, vec1, vec2):
         mult_vec = np.multiply(np.array(vec1), np.array(vec2))
         top_shared = (-mult_vec).argsort()
-        top_shared = top_shared[:self.task.parameters["num_topics"]]
-        return [int(t)+1 for t in top_shared]
+        top_shared = top_shared[: self.task.parameters["num_topics"]]
+        return [int(t) + 1 for t in top_shared]
 
     def get_distinct_topics(self, vec1, vec2):
         corpus0_topic_ranks = [t for t in np.argsort(-np.array(vec1))]
         corpus1_topic_ranks = [t for t in np.argsort(-np.array(vec2))]
 
-        rank_difference = [corpus1_topic_ranks.index(corpus0_topic_ranks[i]) - i
-                                   for i in range(len(corpus0_topic_ranks))]    
+        rank_difference = [
+            corpus1_topic_ranks.index(corpus0_topic_ranks[i]) - i
+            for i in range(len(corpus0_topic_ranks))
+        ]
         num_topics = self.task.parameters["num_topics"]
-        return [int(t)+1 for _, t in sorted(
-            zip(np.array(rank_difference[:num_topics]),
-                corpus0_topic_ranks[:num_topics]),
-            reverse=True)]
-                            
-            
+        return [
+            int(t) + 1
+            for _, t in sorted(
+                zip(
+                    np.array(rank_difference[:num_topics]),
+                    corpus0_topic_ranks[:num_topics],
+                ),
+                reverse=True,
+            )
+        ]
+
     async def estimate_interestingness(self):
         # jsd is already normalized between 0 and 1
-        interestingness = {k:v for k,v in self.result.items() if isinstance(v, float)}
+        interestingness = {k: v for k, v in self.result.items() if isinstance(v, float)}
 
         # shared and distinct topics should not overlap. if they fo this means not enough information
         sh = self.result["shared_topics"]
         d1 = self.result["distinct_topics1"]
         d2 = self.result["distinct_topics2"]
-        interestingness["shared_topics"] = (len(sh) - len(set.intersection(set(sh), set(d1+d2))))/len(sh)
-        interestingness["distinct_topics1"] = (len(d1) - len(set.intersection(set(sh), set(sh+d2))))/len(d1)
-        interestingness["distinct_topics2"] = (len(d2) - len(set.intersection(set(sh), set(sh+d1))))/len(d2)
+        interestingness["shared_topics"] = (
+            len(sh) - len(set.intersection(set(sh), set(d1 + d2)))
+        ) / len(sh)
+        interestingness["distinct_topics1"] = (
+            len(d1) - len(set.intersection(set(sh), set(sh + d2)))
+        ) / len(d1)
+        interestingness["distinct_topics2"] = (
+            len(d2) - len(set.intersection(set(sh), set(sh + d1)))
+        ) / len(d2)
 
         return interestingness
-
-    
