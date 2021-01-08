@@ -28,19 +28,7 @@ class ExpandQuery(AnalysisUtility):
 
 
     async def get_input_data(self, previous_task_result):
-        # not optimal: extract facets already does this
-        # don't know how to use to results...
-        facets = await self.search_database(
-            self.task.search_query, retrieve="facets"
-            )
-        for facet in facets["facets"]:
-            if facet["name"] == "language_ssi":
-                languages = {
-                    i["label"]:i["hits"] for i in facet["items"]
-                    if i["label"] in ["fi", "de", "fr"] # no support for swedish at the moment
-                }
-                break
-        return {"langs":languages,
+        return {"langs":self.get_languages(),
                 "words":list(previous_task_result.result["vocabulary"].keys())[:self.task.parameters["max_number"]]} # not sure how many this API could handle...
 
 

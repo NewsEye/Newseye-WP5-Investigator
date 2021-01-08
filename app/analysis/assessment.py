@@ -72,6 +72,12 @@ def js_divergence(p, q):
     return kl_divergence(p, M) / 2 + kl_divergence(q, M) / 2
 
 
+
+def compute_jsd(p, q):
+    m = (p + q) / 2
+    return (entropy(p, m) + entropy(q, m)) / 2
+
+
 def normalized_kl_divergence(p, q):
     p, q = ensure_distributions(p, q)
     return kl_divergence(p.dist, q.dist) / (np.log2(q.number_of_outcomes) - q.entropy())

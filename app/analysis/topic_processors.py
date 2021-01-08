@@ -9,29 +9,96 @@ from werkzeug.exceptions import BadRequest, RequestTimeout
 from flask import current_app
 import random
 from app.utils.dataset_utils import get_dataset
-
+import numpy as np
+from scipy.stats import entropy
+import itertools
 
 class TopicProcessor(AnalysisUtility):
-    async def get_search_documents(self, search_query):
-        search = await self.search_database(
-            search_query, retrieve="docids", max_return_value=10000
-        )  # Hack to avoid "payload too big" problem in TM API
-        return search
 
     async def get_input_data(self):
-        if self.task.dataset:
-            return [d.document.solr_id for d in self.task.dataset.documents]
-        search = await self.get_search_documents(self.task.search_query)
-        return [d["id"] for d in search["docs"]]
+        self.language = self.task.parameters.get("language")
+        if not self.language:
+            languages = await self.get_languages()
+            self.language = max(languages, key=languages.get)
+        return await self.get_doc_topic_vectors(self.task.search_query, self.language)
+
+
+
+    async def get_doc_topic_vectors(self, query, language):
+        query['fl'] = "id, topics_fsim, language_ssi"
+        res = await self.search_database(query)
+        doc_ids = []
+        topics = []
+        for doc in res["docs"]:
+            if "topics_fsim" in doc and doc["language_ssi"]==language:
+                doc_ids.append(doc["id"])
+                topics.append(doc["topics_fsim"])
+        return {"doc_ids":doc_ids,
+                "topic_weights":list(np.mean(topics, axis=0)),
+                "doc_weights":topics}        
+            
+class TopicModelDocumentLinking(TopicProcessor):
+    @classmethod
+    def _make_processor(cls):
+        return Processor(
+            name=cls.__name__,
+            import_path=cls.__module__,
+            description="Find similar documents using topic models",
+            parameter_info=[
+                {
+                    "name": "num_docs",
+                    "description": "Number of document IDs to return",
+                    "type": "integer",
+                    "default": 3,
+                    "required": False,
+                },
+                {
+                    "name": "language",
+                    "description": "Language for which the model is needed. One topic model is build for one language; models are not aligned across languages. If language is not specified the majority language in the collection will be used. Documents in other languages will be ignored.",
+                    "type": "string",
+                    "values": ["FR", "DE", "FI"],
+                    "default": None,
+                    "required": False,
+                },
+#                {
+#                    "name": "model_name",
+#                    "description": "The name of the topic model to use.",
+#                    "values": [
+#                        "LDA-FR",
+#                        "LDA-FI",
+#                        "LDA-DE",
+#                        "DTM-FR",
+#                        "DTM-FI",
+#                        "DTM-DE",
+#                    ],
+#                    "type": "string",
+#                    "default": None,
+#                    "required": True,
+#                },
+            ],
+            input_type="dataset",
+            output_type="dataset",
+        )
+
+    async def make_result(self):
+        payload = {
+            "model_type": "lda",
+            "lang":self.language,
+            "num_docs": self.task.parameters.get("num_docs"),
+            "topics_distrib":self.input_data["topic_weights"]
+        }
+        response = await self.request_result_from_tm(
+            payload,
+            "{}/doc-linking-by-distribution".format(Config.TOPIC_MODEL_URI),
+            "{}/doc-linking-results".format(Config.TOPIC_MODEL_URI),
+        )
+        return response
 
     async def request_result_from_tm(
         self, payload, request_uri, result_uri, parameters={}, max_delay=False
     ):
         response = requests.post(request_uri, json=payload)
         uuid = response.json().get("task_uuid")
-        current_app.logger.debug(
-            "PAYLOAD: %s RESPONSE: %s RESULT_UUID: %s" % (payload, response, uuid)
-        )
         if not uuid:
             raise ValueError(
                 "Invalid response from the Topic Model API: {}".format(response)
@@ -40,7 +107,9 @@ class TopicProcessor(AnalysisUtility):
         response = await self.request_result_with_retry(
             result_uri, uuid, max_delay=max_delay, parameters=parameters
         )
+        response["documents"] = response.pop("similar_docs")
         return response
+    
 
     @staticmethod
     async def request_result_with_retry(
@@ -67,56 +136,8 @@ class TopicProcessor(AnalysisUtility):
                     "Task {} cannot finish in {} seconds".format(task_uuid, total_delay)
                 )
 
-
-class TopicModelDocumentLinking(TopicProcessor):
-    @classmethod
-    def _make_processor(cls):
-        return Processor(
-            name=cls.__name__,
-            import_path=cls.__module__,
-            description="Find similar documents using topic models",
-            parameter_info=[
-                {
-                    "name": "num_docs",
-                    "description": "Number of document IDs to return",
-                    "type": "integer",
-                    "default": 3,
-                    "required": False,
-                },
-                {
-                    "name": "model_name",
-                    "description": "The name of the topic model to use.",
-                    "values": [
-                        "LDA-FR",
-                        "LDA-FI",
-                        "LDA-DE",
-                        "DTM-FR",
-                        "DTM-FI",
-                        "DTM-DE",
-                    ],
-                    "type": "string",
-                    "default": None,
-                    "required": True,
-                },
-            ],
-            input_type="dataset",
-            output_type="dataset",
-        )
-
-    async def make_result(self):
-        payload = {
-            "model_name": self.task.parameters.get("model_name"),
-            "num_docs": self.task.parameters.get("num_docs"),
-            "documents": self.input_data,
-        }
-        response = await self.request_result_from_tm(
-            payload,
-            "{}/doc-linking".format(Config.TOPIC_MODEL_URI),
-            "{}/doc-linking-results".format(Config.TOPIC_MODEL_URI),
-        )
-
-        return response
-
+    
+    
     async def estimate_interestingness(self):
         return {"documents": [1 - dist for dist in self.result["distance"]]}
 
@@ -130,31 +151,8 @@ class QueryTopicModel(TopicProcessor):
             description="Queries the selected topic model.",
             parameter_info=[
                 {
-                    "name": "model_name",
-                    "description": "The name of the topic model to use. If topic_name is specified, 'model_type' and 'language' are not used.",
-                    "values": [
-                        "LDA-FR",
-                        "LDA-FI",
-                        "LDA-DE",
-                        "DTM-FR",
-                        "DTM-FI",
-                        "DTM-DE",
-                    ],
-                    "type": "string",
-                    "default": None,
-                    "required": False,
-                },
-                {
-                    "name": "model_type",
-                    "description": "The type of the topic model to use",
-                    "type": "string",
-                    "values": ["LDA", "DTM"],
-                    "default": None,
-                    "required": False,
-                },
-                {
                     "name": "language",
-                    "description": "Language for which the model is needed",
+                    "description": "Language for which the model is needed. One topic model is build for one language; models are not aligned across languages. If language is not specified the majority language in the collection will be used. Documents in other languages will be ignored.",
                     "type": "string",
                     "values": ["FR", "DE", "FI"],
                     "default": None,
@@ -165,69 +163,14 @@ class QueryTopicModel(TopicProcessor):
             output_type="topic_analysis",
         )
 
-    # NOT USED: TM has only one lda and one dtm model per language
-    async def find_model(self, language):
-        # this is not relevant anymore
-        # we will have only 1 model for each language/pair type
-        available_models = []
-        for model_type in Config.TOPIC_MODEL_TYPES:
-            response = requests.get(
-                "{}/{}/list-models".format(Config.TOPIC_MODEL_URI, model_type)
-            )
-            available_models += [
-                (model_type, model["name"])
-                for model in response.json()
-                if model["lang"] == language
-            ]
-        # for now: random choice
-        # later on: something more clever
-        return random.choice(available_models)
-
+    
     async def make_result(self):
-        model_name = self.task.parameters.get("model_name")
-        model_type = self.task.parameters.get("model_type")
-        language = self.task.parameters.get("language")
-
-        if model_name is None:
-            if self.task.parameters.get("language") is None:
-                raise KeyError
-            elif self.task.parameters.get("model_type") is None:
-                # TODO: random selection between lda and dtm
-                model_type = "lda"
-            else:
-                model_name = (model_type + "_" + language).upper()
-
-        payload = {
-            "model_name": model_name,
-            "documents": self.input_data,
-        }
-
-        response_data = await self.request_result_from_tm(
-            payload,
-            "{}/query-tm".format(Config.TOPIC_MODEL_URI),
-            "{}/query-results".format(Config.TOPIC_MODEL_URI),
-        )
-        # If the lists are stored as strings, fix them into proper lists
-        if isinstance(response_data["topic_weights"], str):
-            response_data = {
-                key: (json.loads(value) if isinstance(value, str) else value)
-                for key, value in response_data.items()
-            }
-        response_data["model_name"] = self.task.parameters["model_name"]
-        return response_data
+        current_app.logger.debug("INPUT_DATA: %s" %self.input_data)
+        return self.input_data
 
     async def estimate_interestingness(self):
-        """
-        Example:
-               {
-               "topic_coherence": 0.0,
-               "topic_weights": [0.06,0.1,0.09,0.02,0.1,0.11,0.01,0.11,0.11,0.29],
-               "doc_weights": [[0.06,0.13,0.08,0.02,0.11,0.05,0.02,0.12,0.14,0.26],[0.07,0.09,0.08,0.01,0.07,0.19,0.01,0.08,0.09,0.31],[0.05,0.09,0.1,0.02,0.11,0.1,0.01,0.14,0.09,0.3]]
-               }
-        """
         # coefficients might change when we have more examples
         return {
-            "topic_coherence": 0.0,
             "topic_weights": assessment.find_large_numbers_from_lists(
                 self.result["topic_weights"], coefficient=1.8
             ),
@@ -261,7 +204,7 @@ class TopicModelDocsetComparison(TopicProcessor):
                 },
                 {
                     "name": "language",
-                    "description": "Language of the documents. Only documents in this language will be used.",
+                    "description": "Language of the documents. Only documents in this language will be used. Both collections should have at least one document in this language. Comparisons across languages is not supported",
                     "values": ["FR", "DE", "FI"],
                     "type": "string",
                     "default": None,
@@ -269,19 +212,19 @@ class TopicModelDocsetComparison(TopicProcessor):
                 },
                 {
                     "name": "num_topics",
-                    "description": "How many topics to return for comparison types 'shared_topics' and 'distinct_topics'",
+                    "description": "How many topics to return for comparison types 'shared_topics' and 'distinct_topics'. Default 3",
                     "type": "integer",
-                    "default": None,
+                    "default": 3,
                     "required": False,
                 },
-                {
-                    "name": "model_type",
-                    "values": ["LDA", "DTM"],
-                    "description": "The type of the topic model to use",
-                    "type": "string",
-                    "default": "lda",
-                    "required": False,
-                },
+                #{
+                #    "name": "model_type",
+                #    "values": ["LDA", "DTM"],
+                #    "description": "The type of the topic model to use",
+                #    "type": "string",
+                #    "default": "lda",
+                #    "required": False,
+                #},
             ],
             input_type="collection_pair",
             output_type="comparison",
@@ -306,8 +249,7 @@ class TopicModelDocsetComparison(TopicProcessor):
 
         return collections
 
-    @staticmethod
-    async def get_collection(collection, language):
+    async def get_collection(self, collection, language):
         # takes input collection and return a list of documents
 
         if "dataset" in collection:
@@ -322,88 +264,79 @@ class TopicModelDocsetComparison(TopicProcessor):
                 )
             )
 
-        search = await self.get_search_documents(search_query)
-        collection = [d["id"] for d in search["docs"] if d["language_ssi"] == language]
-
+        collection = await self.get_doc_topic_vectors(search_query, language)
         return collection
 
     async def make_result(self):
-        result = {}
-        for attempt in range(3):
+        return  {
+            "mean_jsd" : np.round(self.compute_jsd(
+                self.input_data[0]["topic_weights"],
+                self.input_data[1]["topic_weights"]), 3),
+            "internal_jsd1" : np.round(self.compute_internal_jsd(
+                self.input_data[0]["doc_weights"]), 3),
+            "internal_jsd2" : np.round(self.compute_internal_jsd(
+                self.input_data[1]["doc_weights"]), 3),
+            "cross_jsd" : np.round(self.compute_cross_jsd(
+                self.input_data[0]["doc_weights"],
+                self.input_data[1]["doc_weights"]), 3),
+            "shared_topics" : self.get_shared_topics(
+                self.input_data[0]["topic_weights"],
+                self.input_data[1]["topic_weights"]),
+            "distinct_topics1": self.get_distinct_topics(
+                self.input_data[0]["topic_weights"],
+                self.input_data[1]["topic_weights"]),
+            "distinct_topics2": self.get_distinct_topics(
+                self.input_data[1]["topic_weights"],
+                self.input_data[0]["topic_weights"])
+            }
 
-            comparisons = [
-                self.query_tm_comparison(i[0], i[1], n, max_delay=150)
-                for n, i in enumerate(Config.TOPIC_MODEL_COMPARISON_TYPE.items())
-                if i[0] not in result and i[0] + "1" not in result
-            ]
+    def compute_jsd(self, list1, list2):
+        p = np.array(list1)
+        q = np.array(list2)
+        m = (p + q) / 2
+        return (entropy(p, m) + entropy(q, m)) / 2
 
-            current_app.logger.debug("COMPARISONS: %s" % comparisons)
-            if not comparisons:
-                # all done
-                break
-            # else try once again with (hopefully) less parallel tasks
-            comparison_results = await asyncio.gather(
-                *comparisons, return_exceptions=True
-            )
-            for res in comparison_results:
-                if not isinstance(res, RequestTimeout):
-                    result.update(res)
+    def compute_internal_jsd(self, vecs):
+        vecs = np.array(vecs)
+        divs = [self.compute_jsd(vecs[topic_pair[0]], vecs[topic_pair[1]])
+                for topic_pair in itertools.combinations(range(vecs.shape[0]), 2)]
+        return np.mean(divs)
 
-                    current_app.logger.debug(
-                        "ATTEMPT: %d RESULT: %s" % (attempt, result)
-                    )
+    def compute_cross_jsd(self, vecs1, vecs2):
+        divs = [self.compute_jsd(v1, v2) for v1 in vecs1 for v2 in vecs2]
+        return np.mean(divs)
 
-        if not result:
-            raise RequestTimeout("No results could be obtained in reasonable time")
+    def get_shared_topics(self, vec1, vec2):
+        mult_vec = np.multiply(np.array(vec1), np.array(vec2))
+        top_shared = (-mult_vec).argsort()
+        top_shared = top_shared[:self.task.parameters["num_topics"]]
+        return [int(t)+1 for t in top_shared]
 
-        return result
+    def get_distinct_topics(self, vec1, vec2):
+        corpus0_topic_ranks = [t for t in np.argsort(-np.array(vec1))]
+        corpus1_topic_ranks = [t for t in np.argsort(-np.array(vec2))]
 
-    async def query_tm_comparison(
-        self, comparison_type, accept_num_topics=False, postpone=0, max_delay=False
-    ):
-        await asyncio.sleep(2 * postpone)  # HACK to avoid task uuid collision
-
-        model_type = self.task.parameters.get("model_type")
-        payload = {
-            "model_name": "-".join(
-                [model_type, self.task.parameters.get("language")]
-            ).upper(),
-            "docs1": self.input_data[0],
-            "docs2": self.input_data[1],
-            "comparison_type": comparison_type,
-        }
-        if accept_num_topics and self.task.parameters.get("num_topics"):
-            payload["num_topics"] = self.task.parameters.get("num_topics")
-
-        response = await self.request_result_from_tm(
-            payload,
-            "{}/docset-comparison".format(Config.TOPIC_MODEL_URI),
-            "{}/docset-results".format(Config.TOPIC_MODEL_URI),
-            parameters={"compare_type": comparison_type},
-            max_delay=max_delay,
-        )
-
-        return response
-
-    async def _estimate_interestingness(self):
-        # function with underscore computes 'overall' interestingness as well
+        rank_difference = [corpus1_topic_ranks.index(corpus0_topic_ranks[i]) - i
+                                   for i in range(len(corpus0_topic_ranks))]    
+        num_topics = self.task.parameters["num_topics"]
+        return [int(t)+1 for _, t in sorted(
+            zip(np.array(rank_difference[:num_topics]),
+                corpus0_topic_ranks[:num_topics]),
+            reverse=True)]
+                            
+            
+    async def estimate_interestingness(self):
         # jsd is already normalized between 0 and 1
-        interestingness = {}
-        numerical_results = []
+        interestingness = {k:v for k,v in self.result.items() if isinstance(v, float)}
 
-        for k, v in self.result.items():
-            if isinstance(v, float):
-                interestingness[k] = v
-                numerical_results.append(v)
-            else:
-                interestingness[k] = 1
+        # shared and distinct topics should not overlap. if they fo this means not enough information
+        sh = self.result["shared_topics"]
+        d1 = self.result["distinct_topics1"]
+        d2 = self.result["distinct_topics2"]
+        interestingness["shared_topics"] = (len(sh) - len(set.intersection(set(sh), set(d1+d2))))/len(sh)
+        interestingness["distinct_topics1"] = (len(d1) - len(set.intersection(set(sh), set(sh+d2))))/len(d1)
+        interestingness["distinct_topics2"] = (len(d2) - len(set.intersection(set(sh), set(sh+d1))))/len(d2)
 
-        if "mean_jsd" in interestingness:
-            interestingness["overall"] = interestingness["mean_jsd"]
-        elif numerical_results:
-            interestingness["overall"] = max(numerical_results)
-        else:
-            interestingness["overall"] = 0.5
-
-        current_app.logger.debug("INTERESTINGNESS: %s" % interestingness)
         return interestingness
+
+    
