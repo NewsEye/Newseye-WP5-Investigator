@@ -6,6 +6,7 @@ import asyncio
 import requests
 from config import Config
 from collections import Counter
+from werkzeug.exceptions import NotFound
 
 
 class ExpandQuery(AnalysisUtility):
@@ -30,7 +31,7 @@ class ExpandQuery(AnalysisUtility):
 
     async def get_input_data(self, previous_task_result):
         return {
-            "langs": self.get_languages(),
+            "langs": await self.get_languages(),
             "words": list(previous_task_result.result["vocabulary"].keys())[
                 : self.task.parameters["max_number"]
             ],
@@ -71,13 +72,18 @@ class ExpandQuery(AnalysisUtility):
             existed_words = self.task.search_query["q"].split()
         else:
             existed_words = []
-
+            
         res = [r for r in res if len(r) > 3 and not r in existed_words]
 
+        try:
+            assert(res)
+        except:
+            raise NotFound("Nothing found for this query. Try to change input parameters")
+        
         total = len(queries)
         selected = Counter(res).most_common(self.task.parameters["max_number"])
         selected = {s[0]: s[1] / total for s in selected}
-
+        
         current_app.logger.debug("SELECTED: %s" % selected)
 
         if self.task.dataset:
@@ -85,6 +91,8 @@ class ExpandQuery(AnalysisUtility):
         elif self.task.search_query:
             query = self.task.search_query
 
+            
+            
         query["mm"] = 1
         query["q"] = " OR ".join(selected.keys())
 
