@@ -73,7 +73,7 @@ class ExtractNames(NameProcessor):
             entity,
             {
                 k.replace("label_", "").replace("_ssi", ""): v
-                for k, v in res["docs"][0].items()
+                for k, v in res[0].items()
             },
         )
 
