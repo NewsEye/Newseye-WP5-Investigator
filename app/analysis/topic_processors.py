@@ -20,6 +20,8 @@ class TopicProcessor(AnalysisUtility):
         if not self.language:
             languages = await self.get_languages()
             self.language = max(languages, key=languages.get)
+        else:
+            self.language = self.language.lower()
         return await self.get_doc_topic_vectors(self.task.search_query, self.language)
 
     async def get_doc_topic_vectors(self, query, language):
@@ -232,7 +234,7 @@ class TopicModelDocsetComparison(TopicProcessor):
     async def get_input_data(self):
         collection1 = self.task.parameters.get("collection1")
         collection2 = self.task.parameters.get("collection2")
-        language = self.task.parameters.get("language")
+        language = self.task.parameters.get("language").lower()
         collections = await asyncio.gather(
             self.get_collection(collection1, language),
             self.get_collection(collection2, language),
