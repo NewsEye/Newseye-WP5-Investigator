@@ -27,10 +27,12 @@ class TopicProcessor(AnalysisUtility):
         res = await self.search_database(query)
         doc_ids = []
         topics = []
-        for doc in res["docs"]:
+        
+        for doc in res:
             if "topics_fsim" in doc and doc["language_ssi"] == language:
                 doc_ids.append(doc["id"])
                 topics.append(doc["topics_fsim"])
+        
         return {
             "doc_ids": doc_ids,
             "topic_weights": list(np.mean(topics, axis=0)),
@@ -162,7 +164,7 @@ class QueryTopicModel(TopicProcessor):
         )
 
     async def make_result(self):
-        current_app.logger.debug("INPUT_DATA: %s" % self.input_data)
+        #current_app.logger.debug("INPUT_DATA: %s" % self.input_data)
         return self.input_data
 
     async def estimate_interestingness(self):

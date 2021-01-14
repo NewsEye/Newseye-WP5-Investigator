@@ -13,7 +13,7 @@ class DatabaseSearch:
         self.solr_controller = solr_controller
 
     async def search(self, queries, **kwargs):
-        # current_app.logger.debug("QUERIES: %s" % queries)
+        current_app.logger.debug("QUERIES: %s" % queries)
         return_list = isinstance(queries, list)
         if not isinstance(queries, list):
             queries = [queries]
@@ -91,16 +91,19 @@ class DatabaseSearch:
                 # Otherwise just overwrite
                 parameters[key] = value
 
+
+                
         async with session.get(solr_uri, json={"params": parameters}) as response:
             # current_app.logger.debug("SOLR_URI %s" % solr_uri)
             # current_app.logger.debug("parameters %s" % parameters)
             # current_app.logger.debug("response.status: %s" % response.status)
-
+            # current_app.logger.debug("RETRIEVE: %s" %retrieve)
             if response.status == 401:
                 raise Unauthorized
             response = await response.json()
-            # current_app.logger.debug("RESPONSE in search_utils: %s" %response)
-
+            
+            
+            
         if retrieve in ["tokens", "stems"]:
             num_results = response["response"]["numFound"]
             current_app.logger.debug("NUM_RESULTS %d" % num_results)
@@ -150,7 +153,7 @@ class DatabaseSearch:
             return result_dict
 
         # NAMES:
-        if retrieve in ["names"] and "rows" not in query.keys():
+        if retrieve in ["names", "all"] and "rows" not in query.keys():
             num_results = response["response"]["numFound"]
             # Set a limit for the maximum number of documents to fetch at one go to 100000
             parameters["rows"] = min(num_results, max_return_value)
