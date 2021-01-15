@@ -19,7 +19,12 @@ AVAILABLE_FACETS = {
 }
 
 
-class ExtractFacets(AnalysisUtility):
+class FacetProcessor(AnalysisUtility):
+    async def get_input_data(self):
+        return await self.search_database(self.task.search_query, retrieve="facets")
+    
+
+class ExtractFacets(FacetProcessor):
     @classmethod
     def _make_processor(cls):
         return Processor(
@@ -30,12 +35,11 @@ class ExtractFacets(AnalysisUtility):
             input_type="dataset",
             output_type="facet_list",
         )
-
+    
     async def make_result(self):
         """ Extract all facet values found in the input data and the number of occurrences for each."""
         facets = {}
         available_facets = {v: k for k, v in AVAILABLE_FACETS.items()}
-        current_app.logger.debug("AVAILABLE_FACETS: %s" % available_facets)
         for feature in self.input_data[FACETS_KEY]:
             values = {}
             for item in feature[FACET_ITEMS_KEY]:
@@ -63,7 +67,7 @@ class ExtractFacets(AnalysisUtility):
         return facets
 
 
-class GenerateTimeSeries(AnalysisUtility):
+class GenerateTimeSeries(FacetProcessor):
     @classmethod
     def _make_processor(cls):
         return Processor(
@@ -84,9 +88,6 @@ class GenerateTimeSeries(AnalysisUtility):
             input_type="dataset",
             output_type="timeseries",
         )
-
-    async def get_input_data(self):
-        return await self.search_database(self.task.search_query, retrieve="facets")
 
     async def make_result(self):
         # This is example of the function, which would be trickier to adapt to another document structure
