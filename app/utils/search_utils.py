@@ -13,7 +13,7 @@ class DatabaseSearch:
         self.solr_controller = solr_controller
 
     async def search(self, queries, **kwargs):
-        current_app.logger.debug("QUERIES: %s" % queries)
+        #current_app.logger.debug("QUERIES: %s" % queries)
         return_list = isinstance(queries, list)
         if not isinstance(queries, list):
             queries = [queries]
