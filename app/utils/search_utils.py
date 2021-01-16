@@ -13,7 +13,7 @@ class DatabaseSearch:
         self.solr_controller = solr_controller
 
     async def search(self, queries, **kwargs):
-        #current_app.logger.debug("QUERIES: %s" % queries)
+        # current_app.logger.debug("QUERIES: %s" % queries)
         return_list = isinstance(queries, list)
         if not isinstance(queries, list):
             queries = [queries]
@@ -91,8 +91,6 @@ class DatabaseSearch:
                 # Otherwise just overwrite
                 parameters[key] = value
 
-
-                
         async with session.get(solr_uri, json={"params": parameters}) as response:
             # current_app.logger.debug("SOLR_URI %s" % solr_uri)
             # current_app.logger.debug("parameters %s" % parameters)
@@ -101,9 +99,7 @@ class DatabaseSearch:
             if response.status == 401:
                 raise Unauthorized
             response = await response.json()
-            
-            
-            
+
         if retrieve in ["tokens", "stems"]:
             num_results = response["response"]["numFound"]
             current_app.logger.debug("NUM_RESULTS %d" % num_results)

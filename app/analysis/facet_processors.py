@@ -22,7 +22,7 @@ AVAILABLE_FACETS = {
 class FacetProcessor(AnalysisUtility):
     async def get_input_data(self):
         return await self.search_database(self.task.search_query, retrieve="facets")
-    
+
 
 class ExtractFacets(FacetProcessor):
     @classmethod
@@ -35,7 +35,7 @@ class ExtractFacets(FacetProcessor):
             input_type="dataset",
             output_type="facet_list",
         )
-    
+
     async def make_result(self):
         """ Extract all facet values found in the input data and the number of occurrences for each."""
         facets = {}

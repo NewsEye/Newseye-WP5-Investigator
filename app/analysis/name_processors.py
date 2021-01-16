@@ -71,10 +71,7 @@ class ExtractNames(NameProcessor):
 
         return (
             entity,
-            {
-                k.replace("label_", "").replace("_ssi", ""): v
-                for k, v in res[0].items()
-            },
+            {k.replace("label_", "").replace("_ssi", ""): v for k, v in res[0].items()},
         )
 
     async def get_input_data(self):
