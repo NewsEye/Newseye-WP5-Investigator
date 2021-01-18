@@ -74,7 +74,8 @@ class Summarization(AnalysisUtility):
         """
 
         texts = defaultdict(list)
-        for article in self.input_data["docs"]:
+
+        for article in self.input_data:
             lang = article["language_ssi"]
             text = article["all_text_t" + lang + "_siv"]
             texts[lang].append(text)
