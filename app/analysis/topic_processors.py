@@ -18,23 +18,24 @@ class TopicProcessor(AnalysisUtility):
     async def get_input_data(self):
         self.language = self.task.parameters.get("language")
         if not self.language:
+            # no support for Swedish at the moment
             languages = await self.get_languages()
+            languages = {l:c for l,c in languages.items() if l != "se"}
             self.language = max(languages, key=languages.get)
         else:
             self.language = self.language.lower()
-        return await self.get_doc_topic_vectors(self.task.search_query, self.language)
+        return await self.get_doc_topic_vectors()
 
-    async def get_doc_topic_vectors(self, query, language):
+    async def get_doc_topic_vectors(self):
+        query = self.task.search_query
         query["fl"] = "id, topics_fsim, language_ssi"
         res = await self.search_database(query)
         doc_ids = []
         topics = []
-
         for doc in res:
-            if "topics_fsim" in doc and doc["language_ssi"] == language:
+            if "topics_fsim" in doc and doc["language_ssi"] == self.language:
                 doc_ids.append(doc["id"])
                 topics.append(doc["topics_fsim"])
-
         return {
             "doc_ids": doc_ids,
             "topic_weights": list(np.mean(topics, axis=0)),

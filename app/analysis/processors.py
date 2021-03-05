@@ -145,13 +145,11 @@ class AnalysisUtility(Processor):
 
     async def get_languages(self):
         # not optimal: extract facets already does this
-        # don't know how to use to results...
+        
         facets = await self.search_database(self.task.search_query, retrieve="facets")
         for facet in facets["facets"]:
             if facet["name"] == "language_ssi":
                 return {
                     i["label"]: i["hits"]
                     for i in facet["items"]
-                    if i["label"]
-                    in ["fi", "de", "fr"]  # no support for swedish at the moment
                 }

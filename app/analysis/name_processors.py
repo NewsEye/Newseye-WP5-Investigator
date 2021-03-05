@@ -312,7 +312,7 @@ class TrackNameSentiment(NameProcessor):
         end_y = self.input_data["end_year"]
         for ent, ts in self.input_data["entity_timeseries"].items():
             # tot = np.sum(ts)
-            # MORE WIGHT TO NON-NEUTRAL:
+            # MORE WEIGHT TO NON-NEUTRAL:
             tot = sum(ts[:, 0]) * 10 + sum(ts[:, 1]) + sum(ts[:, 2]) * 10
 
             for i, y in enumerate(range(start_y, end_y + 1)):

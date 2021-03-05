@@ -21,7 +21,7 @@ class Summarization(AnalysisUtility):
                 {
                     "name": "summary_length",
                     "type": "integer",
-                    "default": 40,
+                    "default": 20,
                     "description": "Summary length",
                     "required": False,
                 },
@@ -74,8 +74,9 @@ class Summarization(AnalysisUtility):
         """
 
         texts = defaultdict(list)
+        #current_app.logger.debug("SELF.INPUT_DATA: %s" %self.input_data)
 
-        for article in self.input_data:
+        for article in self.input_data:    
             lang = article["language_ssi"]
             text = article["all_text_t" + lang + "_siv"]
             texts[lang].append(text)
