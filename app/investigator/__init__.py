@@ -12,13 +12,25 @@ processorsets = {
         {"name": "GenerateTimeSeries", "parameters": {}},
         {"name": "ExtractNames", "parameters": {}},
     ],
-    "SPLIT": [
-        {"name": "SplitByFacet", "parameters": {"facet": "LANGUAGE"}},
-        {"name": "SplitByFacet", "parameters": {"facet": "PUB_YEAR"}},
-        {"name": "SplitByFacet", "parameters": {"facet": "NEWSPAPER_NAME"}},
+    "SPLIT_BY_LANGUAGE": [
+        {"name": "SplitByFacet", "parameters": {"facet": "LANGUAGE"}}
     ],
     "SUMMARIZATION": [{"name": "Summarization", "parameters": {}}],
-    "TOPIC_MODEL": [{"name": "QueryTopicModel", "parameters": "LANG"}],
+
+    "MONOLINGUAL_BIG": [
+        {"name": "QueryTopicModel", "parameters": {}},
+        {"name": "SplitByFacet", "parameters": {"facet": "NEWSPAPER_NAME"}},
+    ],
+
+    "SPLIT_BY_SOURCE": [
+        {"name": "SplitByFacet", "parameters": {"facet": "NEWSPAPER_NAME"}},
+    ],
+    
+    "EXPAND_QUERY": [{"name": "ExpandQuery", "parameters": {"max_number": 10}}],
+
+    "FIND_BEST_SPLIT": [{"name": "FindBestSplitFromTimeseries", "parameters": {}}],
+
+    "COMPARE_NAMES" : [{"name": "Comparison", "source": "ExtractNames"}]
 }
 
 

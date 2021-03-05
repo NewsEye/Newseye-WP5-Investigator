@@ -715,12 +715,20 @@ class Collection(db.Model):
             return solr_query.search_query
 
     def dict(self):
-        return {
-            "collection_no": self.collection_no,
-            "collection_type": self.data_type,
-            "search_query": self.search_query(),
-            "origin": self.origin,
-        }
+        if self.data_type=="dataset":
+            return {
+                "collection_no": self.collection_no,
+                "collection_type": self.data_type,
+                "dataset": Dataset.query.filter_by(id=self.data_id).one().dataset_name,
+                "origin": self.origin
+            }
+        else:
+            return {
+                "collection_no": self.collection_no,
+                "collection_type": self.data_type,
+                "search_query": self.search_query(),
+                "origin": self.origin,
+            }
 
 
 # Needed by flask_login
