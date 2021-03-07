@@ -12,6 +12,7 @@ PROCESSORSETS = {
         {"name": "GenerateTimeSeries", "parameters": {}},
         {"name": "ExtractNames", "parameters": {}},
     ],
+    "EXTRACT_WORDS": [{"name": "ExtractWords", "parameters": {"unit": "tokens"}}],
     "SPLIT_BY_LANGUAGE": [
         {"name": "SplitByFacet", "parameters": {"facet": "LANGUAGE"}}
     ],

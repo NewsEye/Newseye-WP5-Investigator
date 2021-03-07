@@ -31,6 +31,18 @@ class NameProcessor(AnalysisUtility):
             "fq": "{!terms f=article_id_ssi}" + ",".join([d_id for d_id in docids]),
         }
 
+    async def get_name(self, entity):
+        query = {
+            "fl": "label_fi_ssi,label_fr_ssi,label_sv_ssi,label_de_ssi,label_en_ssi",
+            "fq": "id:%s" % entity,
+        }
+        res = await self.search_database(query)
+
+        return (
+            entity,
+            {k.replace("label_", "").replace("_ssi", ""): v for k, v in res[0].items()},
+        )
+
         return await self.search_database(query, retrieve="names")
 
 
@@ -60,18 +72,6 @@ class ExtractNames(NameProcessor):
                     "values": ["salience", "stance"],
                 },
             ],
-        )
-
-    async def get_name(self, entity):
-        query = {
-            "fl": "label_fi_ssi,label_fr_ssi,label_sv_ssi,label_de_ssi,label_en_ssi",
-            "fq": "id:%s" % entity,
-        }
-        res = await self.search_database(query)
-
-        return (
-            entity,
-            {k.replace("label_", "").replace("_ssi", ""): v for k, v in res[0].items()},
         )
 
     async def get_input_data(self):
@@ -170,6 +170,9 @@ class TrackNameSentiment(NameProcessor):
 
         # non-optimal, this query has been done already...
         mentions = await self.query_mentions_for_collection()
+
+        if not mentions:
+            return
 
         mentions = [
             m
@@ -308,10 +311,16 @@ class TrackNameSentiment(NameProcessor):
                 sentiment = ts[i][2] - ts[i][0]
                 ent_sentiment[ent][y] = sentiment / sum(ts[i]) if sentiment else 0.0
 
-            ent_sentiment[ent]["names"] = self.input_data["entity_info"][ent].get(
-                "names"
-            )
-
+            try:
+                ent_sentiment[ent]["names"] = self.input_data["entity_info"][ent].get(
+                    "names"
+                )
+            except KeyError as err:
+                current_app.logger.debug(
+                    "Unknown entity in TrackNameSentiment: %s" % ent
+                )
+                name = await self.get_name(ent)
+                ent_sentiment[ent]["names"] = name[1]
         return dict(ent_sentiment)
 
     async def estimate_interestingness(self):

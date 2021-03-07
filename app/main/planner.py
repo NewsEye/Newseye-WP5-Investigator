@@ -59,7 +59,7 @@ class TaskPlanner(object):
 
         await asyncio.gather(*[self.execute_and_store(task) for task in tasks])
 
-    async def result_exists(self, task):
+    def result_exists(self, task):
         # ToDo: Add timeouts for the results: timestamps are already stored, simply rerun the query if the timestamp
         ##  is too old.
         related_tasks = Task.query.filter(
@@ -96,7 +96,7 @@ class TaskPlanner(object):
         )
         if not task.force_refresh:
             # search for similar tasks, reuse results
-            if await self.result_exists(task):
+            if self.result_exists(task):
                 current_app.logger.info(
                     "NOT RUNNING %s [%s], result exists"
                     % (task.processor.name, task.uuid)

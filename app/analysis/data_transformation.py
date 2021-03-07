@@ -343,6 +343,8 @@ class Comparison(AnalysisUtility):
             return self.make_topic_dict(data)
         elif self.data_type == "timeseries":
             return self.make_timeseries_dict(data)
+        elif self.data_type == "name_list":
+            return self.make_name_dict(data)
         else:
             current_app.logger.debug("DATA: %s" % data)
             raise NotImplementedError("Unknown data_type: %s" % self.data_type)
@@ -366,3 +368,7 @@ class Comparison(AnalysisUtility):
     @staticmethod
     def make_timeseries_dict(generate_timeseries_output):
         return generate_timeseries_output["absolute_counts"]
+
+    @staticmethod
+    def make_name_dict(name_list):
+        return {k: v["salience"] for k, v in name_list.items()}

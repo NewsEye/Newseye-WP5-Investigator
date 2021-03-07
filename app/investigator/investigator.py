@@ -20,6 +20,7 @@ from app.investigator import PROCESSORSETS, PROCESSOR_PRIORITY
 from flask import current_app
 import asyncio
 from math import log2
+from numpy import mean
 from collections import defaultdict
 
 
@@ -61,9 +62,16 @@ class Investigator:
         """
         self.run.root_action_id = self.action_id
 
-        # for now: always start with description
-        # later on processorset could be infered from user parameters
-        await self.action(self.initialize, processorset="DESCRIPTION")
+        if self.strategy == "elaboration":
+            # for now: always start with description
+            # later on processorset could be infered from user parameters
+            processorset = "DESCRIPTION"
+        elif self.strategy == "expansion":
+            # critical to strart expansion
+            processorset = "EXTRACT_WORDS"
+        else:
+            raise NotImplementedError("Unknown global strategy %s" % self.strategy)
+        await self.action(self.initialize, processorset=processorset)
 
     async def act(self):
         """
@@ -127,7 +135,7 @@ class Investigator:
         self.paths.append(init_path)
 
         why, action = self.add_processorset_into_q(
-            processorset, self.root_collection, "initialization"
+            processorset, self.root_collection, "initialization", context_priority=0.0
         )
         init_path.append_action(self.root_collection, why, action)
 
@@ -278,11 +286,11 @@ class Investigator:
         if isinstance(why, list):
             processorsets = list(set([w["processorset"] for w in why]))
             if len(processorsets) > 1:
-                current_app.logger.debug("COLLECTIONS: %s" % last_action["collections"])
-                current_app.logger.debug("LAST_ACTION WHY: %s" % why)
-                current_app.logger.debug(
-                    "EARLIER_ACTION WHY: %s" % path.actions[-2]["why"]
-                )
+                # current_app.logger.debug("COLLECTIONS: %s" % last_action["collections"])
+                # current_app.logger.debug("LAST_ACTION WHY: %s" % why)
+                # current_app.logger.debug(
+                #    "EARLIER_ACTION WHY: %s" % path.actions[-2]["why"]
+                # )
                 if "COMPARE_TOPICS" in processorsets:
                     # Cannot understand why this is happenning
                     # need debug and refactor
@@ -487,8 +495,6 @@ class Investigator:
                     )
                     path.append_action(new_collections, whys, actions)
 
-                    current_app.logger.debug("PATH LAST ACTION: %s" % path.actions[-1])
-
                     return whys, actions
 
             elif last_processorset in [
@@ -649,19 +655,24 @@ class Investigator:
                 actions = []
                 for collection in collections:
                     w, a = self._add_processorset_into_q(
-                        processorset, collection, reason, source_uuid=source_uuid
+                        processorset,
+                        collection,
+                        reason,
+                        source_uuid=source_uuid,
+                        **kwargs
                     )
                     whys.append(w)
                     actions.append(a)
                 return whys, actions
         else:
             return self._add_processorset_into_q(
-                processorset, collections, reason, source_uuid=source_uuid
+                processorset, collections, reason, source_uuid=source_uuid, **kwargs
             )
 
     def _add_processorset_into_q(
-        self, processorset, collection, reason, source_uuid=None
+        self, processorset, collection, reason, source_uuid=None, context_priority=None
     ):
+
         tasks = self.make_tasks(processorset, collection, source_uuid)
         self.task_queue.add_tasks(tasks)
         why = {"processorset": processorset, "reason": reason}
@@ -878,22 +889,20 @@ class TaskQueue:
         self.planner = planner
 
     def add_tasks(self, tasks, context_priority=None):
-        # context_priority depends on investigator situation, currently not used
         for task in tasks:
             if self.planner.result_exists(task):
                 # costs (almost) nothing
                 priority = 0
 
             else:
-
                 processor = task.processor.name
                 self.processor_count[processor] += 1
+                # take pre-defined priority for each processor
+                priority = PROCESSOR_PRIORITY[processor]
+
                 if context_priority:
-                    priority = context_priority
-                else:
-                    # if priority not given specifically by investigator
-                    # take pre-defined priority for each processor
-                    priority = PROCESSOR_PRIORITY[processor]
+                    # context_priority depends on investigator situation
+                    priority *= context_priority
 
                 if self.processor_count[processor] >= 2:
                     # to ensure diversity of results: after first two
@@ -901,9 +910,19 @@ class TaskQueue:
                     # important processors start showing in the results
                     priority = priority * log2(self.processor_count[processor])
 
-                if task.source_uuid:
-                    input_task = Task.query.filter_by(uuid=task.source_uuid)
-                    input_task_interestingness = input_task.interestingness
+                parent_uuids = task.parent_uuid
+                if parent_uuids:
+                    input_tasks = [
+                        Task.query.filter_by(uuid=parent_uuid).first()
+                        for parent_uuid in parent_uuids
+                    ]
+                    input_task_interestingness = mean(
+                        [
+                            input_task.interestingness
+                            for input_task in input_tasks
+                            if input_task
+                        ]
+                    )
                     if input_task_interestingness:
                         if input_task_interestingness == 0:
                             priority * 10

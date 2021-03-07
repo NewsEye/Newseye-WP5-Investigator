@@ -87,15 +87,6 @@ class AnalysisUtility(Processor):
             "images": self.images,
         }
 
-    @staticmethod
-    def get_input_task(task):
-        input_task_uuid = task.source_uuid
-        if input_task_uuid:
-            input_task = Task.query.filter_by(uuid=input_task_uuid).first()
-        else:
-            input_task = None
-        return input_task
-
     async def _get_input_data(self):
         current_app.logger.debug("PARENT UUID: %s" % self.task.parent_uuid)
         parent_uuids = self.task.parent_uuid
@@ -128,7 +119,7 @@ class AnalysisUtility(Processor):
         return await self.get_input_data()
 
     async def get_input_data(self, previous_task_result=None):
-        if previous_task_result:
+        if previous_task_result and not (task.processor.input_type == dataset):
             return previous_task_result.result
         else:
             return await self.search_database(self.task.search_query, retrieve="all")
