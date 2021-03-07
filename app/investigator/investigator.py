@@ -151,7 +151,7 @@ class Investigator:
         """
         tasks = self.selected_tasks
         await self.planner.execute_and_store_tasks(tasks)
-        #current_app.logger.debug("TASKS %s" % tasks)
+        # current_app.logger.debug("TASKS %s" % tasks)
 
         # append to previously done tasks
         self.done_tasks += self.task_list(tasks)
@@ -161,7 +161,7 @@ class Investigator:
             t for t in tasks if t.task_status == "finished"
         ]  # may be "failed"
 
-        #current_app.logger.debug("SELF.EXECUTED_TASKS: %s" % self.executed_tasks)
+        # current_app.logger.debug("SELF.EXECUTED_TASKS: %s" % self.executed_tasks)
 
         why = {"status": "finished"}
         action = {"execute_tasks": self.task_list(self.executed_tasks)}
@@ -256,7 +256,7 @@ class Investigator:
                 tasks = action["tasks_added_to_q"]
             else:
                 tasks = None
-                
+
         if tasks:
             uuids = [t["uuid"] for t in tasks]
             for u in uuids:
@@ -440,17 +440,15 @@ class Investigator:
                         "DESCRIPTION", new_collections, "new collection"
                     )
                     path.append_action(new_collections, whys, actions)
-                    
+
                     language = list(collection.collection_languages().keys())[0]
                     if language == "se":
                         # no support for TM
                         why, action = self.add_processorset_into_q(
-                            "COMPARE_NAMES",
-                            new_collections,
-                            "language")
+                            "COMPARE_NAMES", new_collections, "language"
+                        )
                         why["language"] = "se"
 
-    
                     else:
                         # in the old path: tm comparison
                         why, action = self.add_processorset_into_q(
@@ -531,7 +529,7 @@ class Investigator:
         elif not (False in [p.finished for p in self.paths]):
             if self.task_queue.taskq == []:
                 self.to_stop = {"taskq": "empty", "paths": "all finished"}
-        current_app.logger.info("RUN.TO_STOP: %s" %self.to_stop)
+        current_app.logger.info("RUN.TO_STOP: %s" % self.to_stop)
         return self.to_stop
 
     def update_status(self, status):
@@ -903,16 +901,15 @@ class TaskQueue:
                     # important processors start showing in the results
                     priority = priority * log2(self.processor_count[processor])
 
-
                 if task.source_uuid:
-                    input_task = Task.query.filter_by(uuid = task.source_uuid)
+                    input_task = Task.query.filter_by(uuid=task.source_uuid)
                     input_task_interestingness = input_task.interestingness
                     if input_task_interestingness:
                         if input_task_interestingness == 0:
                             priority * 10
                         else:
                             priority = priority / input_task_interestingness
-                    
+
             self.add_task(task, priority=priority)
 
     def add_task(self, task, priority=0):
@@ -939,7 +936,7 @@ class TaskQueue:
         raise KeyError("pop from an empty priority queue")
 
     def pop_tasks_with_lowest_priority(self):
-        #current_app.logger.debug("self.taskq: %s" % self.taskq)
+        # current_app.logger.debug("self.taskq: %s" % self.taskq)
         if not self.taskq:
             return None
         tasks = []
