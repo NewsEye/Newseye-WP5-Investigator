@@ -529,10 +529,9 @@ class Investigator:
         if self.run.user_parameters.get("describe"):
             self.to_stop = {"user_parameters": "describe"}
         elif not (False in [p.finished for p in self.paths]):
-            self.to_stop = {"paths": "all finished"}
-        elif self.task_queue.taskq == []:
-            self.to_stop = {"taskq": "empty"}
-        current_app.logger.INFO("RUN.TO_STOP: %s" %self.to_stop)
+            if self.task_queue.taskq == []:
+                self.to_stop = {"taskq": "empty", "paths": "all finished"}
+        current_app.logger.info("RUN.TO_STOP: %s" %self.to_stop)
         return self.to_stop
 
     def update_status(self, status):
@@ -903,6 +902,17 @@ class TaskQueue:
                     # calls priorities starts incresing, thus slower/less
                     # important processors start showing in the results
                     priority = priority * log2(self.processor_count[processor])
+
+
+                if task.source_uuid:
+                    input_task = Task.query.filter_by(uuid = task.source_uuid)
+                    input_task_interestingness = input_task.interestingness
+                    if input_task_interestingness:
+                        if input_task_interestingness == 0:
+                            priority * 10
+                        else:
+                            priority = priority / input_task_interestingness
+                    
             self.add_task(task, priority=priority)
 
     def add_task(self, task, priority=0):
