@@ -88,7 +88,9 @@ def investigator_run(args):
 def run_thread(app, user_id, run_uuid, solr_controller, user_args):
     with app.app_context():
         planner = TaskPlanner(User.query.get(user_id), solr_controller)
-        investigator = Investigator(run_uuid, planner)
         current_app.logger.debug("USER_ARGS: %s" % user_args)
+        investigator = Investigator(
+            run_uuid, planner, user_args["parameters"].get("strategy", "elaboration")
+        )
         asyncio.run(investigator.initialize_run(user_args))
         asyncio.run(investigator.act())

@@ -25,7 +25,8 @@ from collections import defaultdict
 
 
 class Investigator:
-    def __init__(self, run_uuid, planner, strategy="elaboration"):
+    #    def __init__(self, run_uuid, planner, strategy="elaboration"):
+    def __init__(self, run_uuid, planner, strategy):
         # planner, which executes tasks
         self.planner = planner
         self.user = self.planner.user
@@ -67,8 +68,8 @@ class Investigator:
             # later on processorset could be infered from user parameters
             processorset = "DESCRIPTION"
         elif self.strategy == "expansion":
-            # critical to strart expansion
-            processorset = "EXTRACT_WORDS"
+            # critical to start expansion
+            processorset = "QUICK_DESCRIPTION"
         else:
             raise NotImplementedError("Unknown global strategy %s" % self.strategy)
         await self.action(self.initialize, processorset=processorset)
@@ -158,6 +159,11 @@ class Investigator:
         task execution
         """
         tasks = self.selected_tasks
+        if not tasks:
+            action = {}
+            why = {"selected_tasks": "empty"}
+            return why, action
+
         await self.planner.execute_and_store_tasks(tasks)
         # current_app.logger.debug("TASKS %s" % tasks)
 
@@ -312,9 +318,15 @@ class Investigator:
         current_app.logger.debug("~~~~~~~~~~~LAST_PROCESSORSET %s" % last_processorset)
 
         if path.strategy == "expansion":
-            if last_processorset == "DESCRIPTION":
+            if len(collections) > 1:
+                raise NotImplementedError(
+                    "More than 1 collection in expansion path: %s" % path
+                )
+            collection = collections[0]
+
+            if last_processorset in ["DESCRIPTION", "QUICK_DESCRIPTION"]:
                 why, action = self.start_expansion(
-                    collection, "%s path strategy" % path.strategy
+                    path, collection, "%s path strategy" % path.strategy
                 )
             elif last_processorset == "EXPAND_QUERY":
                 # check GLOBAL strategy, i.e. initial goal of investigation
@@ -323,11 +335,18 @@ class Investigator:
                     # if initial goal was to find more documents then
                     # we could continue investigate this new dataset with more tasks
                     path.strategy = "elaboration"
-                    collection = self.make_collection_from_expanded_query(last_action)
-                    why, action = self.add_processorset_into_q(
-                        "DESCRIPTION", collection, "new collection"
+                    new_collection = self.make_collection_from_expanded_query(
+                        last_action
                     )
-                    path.append_action(collection, why, action)
+                    if new_collection:
+                        why, action = self.add_processorset_into_q(
+                            "DESCRIPTION", new_collection, "new collection"
+                        )
+                    else:
+                        path.finished = True
+                        action = {}
+                        why = {"reason": "impossible to expand"}
+                    path.append_action(new_collection, why, action)
                 elif self.strategy == "elaboration":
                     # initial goal was to investigate a particular collection
                     # we should not dig too deep into this new collection
@@ -373,6 +392,7 @@ class Investigator:
                 if len(collections) == 1:
                     collection = collections[0]
                     why, action = await self.proceed_after_description(collection, path)
+
                     path.append_action(collection, why, action)
                     whys.append(why)
                     actions.append(action)
@@ -380,6 +400,7 @@ class Investigator:
                     # make new path for each collection, with language specific tasks
                     for collection in collections:
                         new_path = deepcopy(path)
+
                         why, action = await self.proceed_after_description(
                             collection, new_path
                         )
@@ -387,7 +408,6 @@ class Investigator:
                         actions.append(action)
                         new_path.append_action(collection, why, action)
                         self.paths.append(new_path)
-
                     # make name comparison
                     why, action = self.add_processorset_into_q(
                         "COMPARE_NAMES", collections, "crosslingual comparison"
@@ -427,9 +447,8 @@ class Investigator:
 
                 if len(new_collections) == 1:
                     if last_processorset == "SPLIT_BY_YEAR":
-                        path.finished = True
-                        action = {}
-                        why = {"reason": "impossible to split"}
+                        reason = "impossible to split"
+                        why, action = self.start_expansion(path, collection, reason)
 
                     elif last_processorset == "FIND_BEST_SPLIT":
                         why, action = self.add_processorset_into_q(
@@ -807,10 +826,35 @@ class Investigator:
                 return task.task_result, task.uuid
 
     def make_collection_from_expanded_query(self, last_action):
-        raise NotImplementedError(
-            "MAKE_COLLECTION_FROM_EXPANDED_QUERY: Don't know how to make collection from this action: %s"
-            % last_action
+        tasks = last_action["action"]["tasks_added_to_q"]
+        assert len(tasks) == 1
+
+        task_uuid = tasks[0]["uuid"]
+        task = Task.query.filter_by(uuid=task_uuid).first()
+        assert task.processor.name == "ExpandQuery"
+        task_result = task.task_result
+
+        if not task_result:
+            return
+
+        collection = RunCollection(
+            self.user,
+            self.run.id,
+            task_uuid,
+            self.planner.solr_controller,
+            task_result.result["query"],
         )
+
+        # for storing in db
+        # self.run.collections.append(collection.dict())
+        # NB: append does not work, only +, don't know why
+        self.run.collections = self.run.collections + [collection.dict()]
+
+        # for using in this run:
+        self.collections.update({collection.collection_no: collection})
+
+        db.session.commit()
+        return collection
 
     def make_collections_from_split(
         self, split, origin, data_type, number=None, outliers=False
@@ -876,6 +920,8 @@ class Investigator:
 
     @staticmethod
     def task_list(tasks):
+        if not tasks:
+            return []
         return [task.dict(style="investigator") for task in tasks]
 
 

@@ -48,7 +48,7 @@ class Investigator(Resource):
         type=dict,
         default={},
         location="json",
-        help="A JSON object containing some parameters.",
+        help="A JSON object containing some parameters. Currently only one parameter is implemented: 'strategy', which could be either 'elaboration' or 'expansion'. Default 'elaboration'.",
     )
 
     ## TODO: force_refresh: what should be rerun and to which extend?

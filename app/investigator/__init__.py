@@ -12,7 +12,10 @@ PROCESSORSETS = {
         {"name": "GenerateTimeSeries", "parameters": {}},
         {"name": "ExtractNames", "parameters": {}},
     ],
-    "EXTRACT_WORDS": [{"name": "ExtractWords", "parameters": {"unit": "tokens"}}],
+    "QUICK_DESCRIPTION": [
+        {"name": "ExtractWords", "parameters": {"unit": "tokens"}},
+        {"name": "ExtractFacets", "parameters": {}},
+    ],
     "SPLIT_BY_LANGUAGE": [
         {"name": "SplitByFacet", "parameters": {"facet": "LANGUAGE"}}
     ],
@@ -25,7 +28,7 @@ PROCESSORSETS = {
         {"name": "SplitByFacet", "parameters": {"facet": "NEWSPAPER_NAME"}},
     ],
     "SPLIT_BY_YEAR": [{"name": "SplitByFacet", "parameters": {"facet": "PUB_YEAR"}},],
-    "EXPAND_QUERY": [{"name": "ExpandQuery", "parameters": {"max_number": 10}}],
+    "EXPAND_QUERY": [{"name": "ExpandQuery", "parameters": {"max_number": 5}}],
     "FIND_BEST_SPLIT": [{"name": "FindBestSplitFromTimeseries", "parameters": {}}],
     "COMPARE_NAMES": [{"name": "Comparison", "source": "ExtractNames"}],
     "COMPARE_TOPICS": [{"name": "Comparison", "source": "TOPICS"}],

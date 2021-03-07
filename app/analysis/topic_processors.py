@@ -351,11 +351,14 @@ class TopicModelDocsetComparison(TopicProcessor):
             )
         ]
 
-    async def estimate_interestingness(self):
+    async def _estimate_interestingness(self):
         # jsd is already normalized between 0 and 1
         interestingness = {k: v for k, v in self.result.items() if isinstance(v, float)}
+        interestingness.update(
+            {"overall": assessment.recoursive_max(interestingness)}
+        )  # taking into account only aggregated measures
 
-        # shared and distinct topics should not overlap. if they fo this means not enough information
+        # shared and distinct topics should not overlap. if they do this means not enough information
         sh = self.result["shared_topics"]
         d1 = self.result["distinct_topics1"]
         d2 = self.result["distinct_topics2"]
@@ -363,10 +366,10 @@ class TopicModelDocsetComparison(TopicProcessor):
             len(sh) - len(set.intersection(set(sh), set(d1 + d2)))
         ) / len(sh)
         interestingness["distinct_topics1"] = (
-            len(d1) - len(set.intersection(set(sh), set(sh + d2)))
+            len(d1) - len(set.intersection(set(d1), set(sh + d2)))
         ) / len(d1)
         interestingness["distinct_topics2"] = (
-            len(d2) - len(set.intersection(set(sh), set(sh + d1)))
+            len(d2) - len(set.intersection(set(d2), set(sh + d1)))
         ) / len(d2)
 
         return interestingness

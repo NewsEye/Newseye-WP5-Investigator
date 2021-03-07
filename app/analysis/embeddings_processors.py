@@ -86,7 +86,7 @@ class ExpandQuery(AnalysisUtility):
         selected = Counter(res).most_common(self.task.parameters["max_number"])
         selected = {s[0]: s[1] / total for s in selected}
 
-        current_app.logger.debug("SELECTED: %s" % selected)
+        # current_app.logger.debug("SELECTED: %s" % selected)
 
         if self.task.dataset:
             query = Config.SOLR_PARAMETERS["default"]
@@ -94,7 +94,9 @@ class ExpandQuery(AnalysisUtility):
             query = self.task.search_query
 
         query["mm"] = 1
-        query["q"] = " OR ".join(selected.keys())
+        # query["q"] = " OR ".join(selected.keys())
+
+        query["q"] = " ".join(selected.keys())
 
         return {"query": query, "words": selected}
 
