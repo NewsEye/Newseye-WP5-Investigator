@@ -24,7 +24,7 @@ class SolrController:
                 current_entry = copy.copy(self.global_counter)
 
             while self.session_no >= self.max_session_no:
-                current_app.logger.info(
+                current_app.logger.debug(
                     "%d SLEEP SESSION_NO: %d" % (current_entry, self.session_no)
                 )
                 await asyncio.sleep((randint(10, 60)))

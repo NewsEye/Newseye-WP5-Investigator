@@ -91,19 +91,19 @@ class DatabaseSearch:
                 # Otherwise just overwrite
                 parameters[key] = value
 
-        #current_app.logger.debug("!!! SEARCH PARAMETERS: %s" %parameters)
+        # current_app.logger.debug("!!! SEARCH PARAMETERS: %s" %parameters)
 
         async with session.get(solr_uri, json={"params": parameters}) as response:
-            #current_app.logger.debug("SOLR_URI %s" % solr_uri)
-            #current_app.logger.debug("parameters %s" % parameters)
-            #current_app.logger.debug("response.status: %s" % response.status)
-            #current_app.logger.debug("RETRIEVE: %s" %retrieve)
+            # current_app.logger.debug("SOLR_URI %s" % solr_uri)
+            # current_app.logger.debug("parameters %s" % parameters)
+            # current_app.logger.debug("response.status: %s" % response.status)
+            # current_app.logger.debug("RETRIEVE: %s" %retrieve)
             if response.status == 401:
                 raise Unauthorized
             response = await response.json()
 
-        #current_app.logger.debug("!!! RESPONSE: %s" %response)    
-            
+        # current_app.logger.debug("!!! RESPONSE: %s" %response)
+
         if retrieve in ["tokens", "stems"]:
             num_results = response["response"]["numFound"]
             current_app.logger.debug("NUM_RESULTS %d" % num_results)

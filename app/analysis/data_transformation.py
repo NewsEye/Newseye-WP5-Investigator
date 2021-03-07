@@ -283,16 +283,17 @@ class Comparison(AnalysisUtility):
             )
 
         if isinstance(list(dicts[0].values())[0], dict):
-            return {k:self.compare_dicts([dicts[0].get(k, {}), dicts[1].get(k, {})])
-                    for k in set(list(dicts[0].keys())+list(dicts[1].keys()))}
-
+            return {
+                k: self.compare_dicts([dicts[0].get(k, {}), dicts[1].get(k, {})])
+                for k in set(list(dicts[0].keys()) + list(dicts[1].keys()))
+            }
 
         else:
             return self.compare_dicts(dicts)
 
     @staticmethod
     def compare_dicts(dicts):
-        assessment.align_dicts(dicts[0], dicts[1], default_value=assessment.EPSILON)     
+        assessment.align_dicts(dicts[0], dicts[1], default_value=assessment.EPSILON)
         return {
             "jensen_shannon_divergence": assessment.dict_js_divergence(
                 dicts[0], dicts[1]
@@ -310,15 +311,25 @@ class Comparison(AnalysisUtility):
     async def _estimate_interestingness(self):
         if "jensen_shannon_divergence" in self.result:
             interestingness = self.estimate_interestingness(self.result)
-            interestingness.update({"overall": self.result["jensen_shannon_divergence"]})
+            interestingness.update(
+                {"overall": self.result["jensen_shannon_divergence"]}
+            )
         else:
-            #nested dict
+            # nested dict
 
-            interestingness = {k:self.estimate_interestingness(v) for k,v in self.result.items()}
-            interestingness.update({"overall":
-                                    np.mean(
-                                        [v["jensen_shannon_divergence"]
-                                         for v in interestingness.values()])})
+            interestingness = {
+                k: self.estimate_interestingness(v) for k, v in self.result.items()
+            }
+            interestingness.update(
+                {
+                    "overall": np.mean(
+                        [
+                            v["jensen_shannon_divergence"]
+                            for v in interestingness.values()
+                        ]
+                    )
+                }
+            )
         return interestingness
 
     def make_dict(self, data):
@@ -333,7 +344,7 @@ class Comparison(AnalysisUtility):
         elif self.data_type == "timeseries":
             return self.make_timeseries_dict(data)
         else:
-            current_app.logger.debug("DATA: %s" %data)
+            current_app.logger.debug("DATA: %s" % data)
             raise NotImplementedError("Unknown data_type: %s" % self.data_type)
 
     @staticmethod
@@ -355,4 +366,3 @@ class Comparison(AnalysisUtility):
     @staticmethod
     def make_timeseries_dict(generate_timeseries_output):
         return generate_timeseries_output["absolute_counts"]
-        

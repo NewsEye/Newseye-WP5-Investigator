@@ -97,8 +97,9 @@ class TaskPlanner(object):
         if not task.force_refresh:
             # search for similar tasks, reuse results
             if await self.result_exists(task):
-                current_app.logger.debug(
-                    "NOT RUNNING %s, result exists" % task.processor.name
+                current_app.logger.info(
+                    "NOT RUNNING %s [%s], result exists"
+                    % (task.processor.name, task.uuid)
                 )
                 task.task_status = "finished"
                 task.task_finished = datetime.utcnow()

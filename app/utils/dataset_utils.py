@@ -10,7 +10,7 @@ import json
 
 
 def get_dataset(dataset):
-    #current_app.logger.debug("DATASET!!!!!!: %s type: %s" %(dataset, type(dataset)))
+    # current_app.logger.debug("DATASET!!!!!!: %s type: %s" %(dataset, type(dataset)))
     if isinstance(dataset, Dataset):
         dataset_name, user = dataset.dataset_name, dataset.user
     else:

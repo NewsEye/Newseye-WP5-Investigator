@@ -20,27 +20,27 @@ class TopicProcessor(AnalysisUtility):
         if not self.language:
             # no support for Swedish at the moment
             languages = await self.get_languages()
-            languages = {l:c for l,c in languages.items() if l != "se"}
+            languages = {l: c for l, c in languages.items() if l != "se"}
             self.language = max(languages, key=languages.get)
         else:
             self.language = self.language.lower()
-        return await self.get_doc_topic_vectors()
+        return await self.get_doc_topic_vectors(self.task.search_query, self.language)
 
-    async def get_doc_topic_vectors(self):
-        query = self.task.search_query
+    async def get_doc_topic_vectors(self, query, language):
         query["fl"] = "id, topics_fsim, language_ssi"
         res = await self.search_database(query)
         doc_ids = []
         topics = []
         for doc in res:
-            if "topics_fsim" in doc and doc["language_ssi"] == self.language:
+            if "topics_fsim" in doc and doc["language_ssi"] == language:
                 doc_ids.append(doc["id"])
                 topics.append(doc["topics_fsim"])
-        return {
-            "doc_ids": doc_ids,
-            "topic_weights": list(np.mean(topics, axis=0)),
-            "doc_weights": topics,
-        }
+        if topics:
+            return {
+                "doc_ids": doc_ids,
+                "topic_weights": list(np.mean(topics, axis=0)),
+                "doc_weights": topics,
+            }
 
 
 class TopicModelDocumentLinking(TopicProcessor):
@@ -241,13 +241,19 @@ class TopicModelDocsetComparison(TopicProcessor):
             self.get_collection(collection2, language),
         )
 
-        for i in [0, 1]:
-            if not collections[i]:
-                raise BadRequest(
-                    "Documents in language {} not found for collection {}".format(
-                        language, i + 1
-                    )
+        if not collections[0]:
+            raise BadRequest(
+                "Documents with topics in language {} not found for collection1: {}".format(
+                    language, self.task.parameters.get("collection1")
                 )
+            )
+
+        if not collections[1]:
+            raise BadRequest(
+                "Documents in language {} not found for collection2: {}".format(
+                    language, self.task.parameters.get("collection2")
+                )
+            )
 
         return collections
 

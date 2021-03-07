@@ -165,7 +165,10 @@ class TrackNameSentiment(NameProcessor):
         )
 
     async def get_input_data(self, previous_task_result):
-        # non-optimal, this query has been run already...
+
+        # current_app.logger.debug("PREVIOUS_TASK_RESULT.RESULT %s" %previous_task_result.result)
+
+        # non-optimal, this query has been done already...
         mentions = await self.query_mentions_for_collection()
 
         mentions = [
@@ -176,15 +179,20 @@ class TrackNameSentiment(NameProcessor):
         ]
         docids = set([m["article_id_ssi"] for m in mentions])
 
+        # current_app.logger.debug("MENTIONS: %s" %len(mentions))
+        # current_app.logger.debug("DOCIDS: %s" %len(docids))
+
         # query year for each doc --- is it possible to avoid somehow???
         query = {
             "q": "*:*",
             "fq": "{!terms f=id}" + ",".join([docid for docid in docids]),
             "fl": "year_isi, id",
         }
+
         res = await self.search_database(query, retrieve="docids")
         doc_to_year = {r["id"]: int(r["year_isi"]) for r in res["docs"]}
         years = list(doc_to_year.values())
+
         min_y, max_y = min(years), max(years)
 
         # for each entity: create an array 3 sentiments times years

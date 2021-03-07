@@ -64,10 +64,23 @@ class AnalysisUtility(Processor):
 
     async def __call__(self, task):
         self.task = task
-        self.input_data = await self._get_input_data()
-        self.result = await self.make_result()
-        self.images = await self.make_images()
-        self.interestingness = await self._estimate_interestingness()
+
+        try:
+            self.input_data = await self._get_input_data()
+        except BadRequest as e:
+            current_app.logger.info("BadRequest: {0}".format(e))
+            self.input_data = None
+
+        if self.input_data:
+            self.result = await self.make_result()
+            self.interestingness = await self._estimate_interestingness()
+            self.images = await self.make_images()
+        else:
+            current_app.logger.info("DATA UNVAILABLE FOR TASK %s" % task)
+            self.result = {}
+            self.interestingness = {"overall": 0.0}
+            self.images = None
+
         return {
             "result": self.result,
             "interestingness": self.interestingness,
@@ -100,6 +113,7 @@ class AnalysisUtility(Processor):
                                 % self.input_task.uuid
                             )
                 if len(parent_uuids) == 1:
+                    current_app.logger.debug("PARENT_UUIDS: %s" % parent_uuids)
                     try:
                         return await self.get_input_data(self.input_task.task_result)
                     except Exception as e:
@@ -134,9 +148,18 @@ class AnalysisUtility(Processor):
         Currently: maximum of all numbers found in interestingness dictionary.
         """
         interestingness = await self.estimate_interestingness()
-        # maximum of all numbers
-        # a temporal solution
-        interestingness.update({"overall": assessment.recoursive_max(interestingness)})
+        if isinstance(interestingness, float):
+            interestingness = {"overall": interestingness}
+        elif isinstance(interestingness, dict):
+            # maximum of all numbers
+            # a temporal solution
+            interestingness.update(
+                {"overall": assessment.recoursive_max(interestingness)}
+            )
+        else:
+            raise TypeError(
+                "Unexpected interestingness type: %s" % type(interestingness)
+            )
         return interestingness
 
     async def estimate_interestingness(self):
@@ -145,11 +168,8 @@ class AnalysisUtility(Processor):
 
     async def get_languages(self):
         # not optimal: extract facets already does this
-        
+
         facets = await self.search_database(self.task.search_query, retrieve="facets")
         for facet in facets["facets"]:
             if facet["name"] == "language_ssi":
-                return {
-                    i["label"]: i["hits"]
-                    for i in facet["items"]
-                }
+                return {i["label"]: i["hits"] for i in facet["items"]}

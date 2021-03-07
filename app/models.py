@@ -308,9 +308,16 @@ class Task(db.Model):
 
         elif style == "investigator":
             if self.task_result:
-                ret.update(
-                    {"interestingness": self.task_result.interestingness["overall"]}
-                )
+                if isinstance(self.task_result.interestingness, float):
+                    current_app.logger.info(
+                        "Unexpected interestingness in task %s: %s"
+                        % (self.uuid, self.task_result.interestingness)
+                    )
+                    ret.update({"interestingness": self.task_result.interestingness})
+                else:
+                    ret.update(
+                        {"interestingness": self.task_result.interestingness["overall"]}
+                    )
             if self.parents:
                 ret.update({"parents": [str(p.uuid) for p in self.parents]})
             ret.update({"collections": [c.collection_no for c in self.collections]})
@@ -525,6 +532,8 @@ class InvestigatorRun(db.Model):
 
     collections = db.Column(db.JSON, default=[])
 
+    #    paths = db.Column(db.JSON, default=[])
+
     def data_dict(self):
         if self.root_dataset:
             return {"dataset": self.root_dataset.dataset_name}
@@ -715,12 +724,12 @@ class Collection(db.Model):
             return solr_query.search_query
 
     def dict(self):
-        if self.data_type=="dataset":
+        if self.data_type == "dataset":
             return {
                 "collection_no": self.collection_no,
                 "collection_type": self.data_type,
                 "dataset": Dataset.query.filter_by(id=self.data_id).one().dataset_name,
-                "origin": self.origin
+                "origin": self.origin,
             }
         else:
             return {
