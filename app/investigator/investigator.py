@@ -554,7 +554,7 @@ class Investigator:
         elif not (False in [p.finished for p in self.paths]):
             if self.task_queue.taskq == []:
                 self.to_stop = {"taskq": "empty", "paths": "all finished"}
-        current_app.logger.info("RUN.TO_STOP: %s" % self.to_stop)
+        current_app.logger.info("RUN.TO_STOP: %s %s" % (self.run.uuid, self.to_stop))
         return self.to_stop
 
     def update_status(self, status):
