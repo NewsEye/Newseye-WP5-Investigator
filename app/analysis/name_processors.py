@@ -31,6 +31,8 @@ class NameProcessor(AnalysisUtility):
             "fq": "{!terms f=article_id_ssi}" + ",".join([d_id for d_id in docids]),
         }
 
+        return await self.search_database(query, retrieve="names")
+
     async def get_name(self, entity):
         query = {
             "fl": "label_fi_ssi,label_fr_ssi,label_sv_ssi,label_de_ssi,label_en_ssi",
@@ -43,7 +45,7 @@ class NameProcessor(AnalysisUtility):
             {k.replace("label_", "").replace("_ssi", ""): v for k, v in res[0].items()},
         )
 
-        return await self.search_database(query, retrieve="names")
+        
 
 
 class ExtractNames(NameProcessor):
