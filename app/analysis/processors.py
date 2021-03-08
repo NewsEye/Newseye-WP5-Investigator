@@ -76,7 +76,7 @@ class AnalysisUtility(Processor):
             self.interestingness = await self._estimate_interestingness()
             self.images = await self.make_images()
         else:
-            current_app.logger.info("DATA UNVAILABLE FOR TASK %s" % task)
+            current_app.logger.info("DATA UNAVAILABLE FOR TASK %s" % task)
             self.result = {}
             self.interestingness = {"overall": 0.0}
             self.images = None
