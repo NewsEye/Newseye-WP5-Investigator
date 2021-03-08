@@ -78,7 +78,7 @@ class Summarization(AnalysisUtility):
 
         for article in self.input_data:
             lang = article["language_ssi"]
-            text = article["all_text_t" + lang + "_siv"]
+            text = article["all_text_t" + lang + "_siv"].replace("-\n", "").replace("\n", " ")
             texts[lang].append(text)
 
         # summarization done only for documents in the same language
@@ -107,16 +107,20 @@ class Summarization(AnalysisUtility):
             if len(s.split()) >= self.task.parameters["minimal_sentence_length"]
         ]  # remove short sentences
 
+        # current_app.logger.debug("DOCUMENT: %s" %document)
+
         # -------- Clean sentences -------- #
         clean_document = data_util.clean_document(document, nlp)
 
         # current_app.logger.debug("CLEAN DOCUMENT %s" %clean_document)
 
         # -------- Replace text by word embeddings -------- #
-        # mebddings type could be a parameter (instead of just fast text)
+        # embddings type could be a parameter (instead of just fast text)
         document_embeddings = data_util.embeddings_representation(
             clean_document, "fasttext", nlp=nlp, language=lang
         )
+
+        # current_app.logger.debug("DOCUMENT_EMBEDDINGS I: %s" %document_embeddings)
 
         # -------- Sentence embeddings -------- #
         document_embeddings = [
@@ -125,6 +129,8 @@ class Summarization(AnalysisUtility):
             )
             for sentence in document_embeddings
         ]
+
+        # current_app.logger.debug("DOCUMENT_EMBEDDINGS II: %s" %document_embeddings)
 
         # -------- Summary generation -------- #
         if self.task.parameters["ts_approach"] == "mmr":

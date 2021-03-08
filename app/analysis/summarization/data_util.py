@@ -12,6 +12,7 @@ import os.path
 # from google_drive_downloader import GoogleDriveDownloader as gdd
 import gzip, shutil
 import urllib.request
+import numpy as np
 
 
 def load_document(path):
@@ -83,6 +84,7 @@ def embeddings_representation(document, type_embeddings, nlp, language):
         if not os.path.exists("./data/cc." + language + ".300.bin"):
             download_decompress("./data/cc." + language + ".300.bin", language)
         model = fasttext.load_model("./data/cc." + language + ".300.bin")
+    # TODO: newseye
     document_embeddings = []
     for sentence in document:
         sentence_embedding = []
@@ -103,13 +105,11 @@ def sentence_representation(sentence, type):
 
 def similar_to_summary(sentences, candidate, summary, similarity_threshold):
     for s in summary:
-        if (
-            cosine_similarity(
-                sentences[candidate].reshape(1, len(sentences[candidate])),
-                sentences[s].reshape(1, len(sentences[s])),
-            )[0, 0]
-            > similarity_threshold
-        ):
+        similarity = cosine_similarity(
+            sentences[candidate].reshape(1, len(sentences[candidate])),
+            sentences[s].reshape(1, len(sentences[s])),
+        )[0, 0]
+        if similarity > similarity_threshold:
             return True
     return False
 
@@ -126,8 +126,12 @@ def summary_generation(
     scores = []
     for score, indice in ranked_sentences:
         if type_summary == "ai":
-            if not similar_to_summary(sentences, indice, summary, similarity_threshold):
-                if summary_length >= len(document[indice].split()):
+            if isinstance(sentences[indice], np.ndarray) and summary_length >= len(
+                document[indice].split()
+            ):
+                if not similar_to_summary(
+                    sentences, indice, summary, similarity_threshold
+                ):
                     summary.append(indice)
                     scores.append(score)
                     summary_length -= len(document[indice].split())
