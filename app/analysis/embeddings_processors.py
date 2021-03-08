@@ -7,7 +7,7 @@ import requests
 from config import Config
 from collections import Counter
 from werkzeug.exceptions import NotFound
-
+from string import punctuation
 
 class ExpandQuery(AnalysisUtility):
     @classmethod
@@ -33,7 +33,7 @@ class ExpandQuery(AnalysisUtility):
         return {
             "langs": await self.get_languages(),
             "words": list(previous_task_result.result["vocabulary"].keys())[
-                : self.task.parameters["max_number"]
+                : self.task.parameters["max_number"]*2
             ],
         }  # not sure how many this API could handle...
 
@@ -47,6 +47,10 @@ class ExpandQuery(AnalysisUtility):
         else:
             return []
 
+    @staticmethod
+    def word_makes_sense(word):
+        return len(word) > 3 and not any(char.isdigit() or char in punctuation for char in word)
+        
     async def make_result(self):
 
         langs = self.input_data["langs"]
@@ -54,9 +58,9 @@ class ExpandQuery(AnalysisUtility):
         langs = [l for l in langs if langs[l] / max_langs > 0.25]
 
         queries = [
-            {"lang": l, "word": word, "num_words": self.task.parameters["max_number"]}
+            {"lang": l, "word": word, "num_words": self.task.parameters["max_number"]*2}
             for word in self.input_data["words"]
-            if len(word) > 3
+            if self.word_makes_sense(word)
             for l in langs
         ]
 
@@ -73,7 +77,7 @@ class ExpandQuery(AnalysisUtility):
         else:
             existed_words = []
 
-        res = [r for r in res if len(r) > 3 and not r in existed_words]
+        res = [r for r in res if self.word_makes_sense(r) and not r in existed_words]
 
         try:
             assert res
