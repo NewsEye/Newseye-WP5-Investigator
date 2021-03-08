@@ -45,8 +45,6 @@ class NameProcessor(AnalysisUtility):
             {k.replace("label_", "").replace("_ssi", ""): v for k, v in res[0].items()},
         )
 
-        
-
 
 class ExtractNames(NameProcessor):
     @classmethod
