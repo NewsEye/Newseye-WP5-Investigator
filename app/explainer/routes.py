@@ -3,7 +3,7 @@ from flask_restplus import Resource
 from app.auth import AuthParser
 from app.explainer import ns
 from app.explainer.explainer_utils import make_explanation, get_formats, get_languages
-
+from werkzeug.exceptions import NotFound, BadRequest, InternalServerError
 from flask import current_app
 
 
@@ -27,10 +27,12 @@ class Explain(Resource):
         Retrieve an explanation generated from the task results.
         """
         args = self.parser.parse_args()
-        current_app.logger.debug("ARGS: %s" % args)
-        explanation = make_explanation(args)
-        current_app.logger.debug("EXPLANATION: %s" % explanation)
-        return explanation
+        try:
+            return make_explanation(args)
+        except BadRequest:
+            raise
+        except Exception as e:
+            raise InternalServerError
 
 
 
@@ -57,10 +59,10 @@ class Explain(Resource):
         current_app.logger.debug("args: %s" % args)
 
         try:
-            return "Explanation for run %s task %s is not ready"            
-        except BadRequest:
-            raise
+            return make_explanation(args)
         except Exception as e:
+            if e.__class__ in [BadRequest, NotFound]:
+                raise e
             raise InternalServerError
 
        

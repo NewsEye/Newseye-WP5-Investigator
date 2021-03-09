@@ -250,6 +250,16 @@ class Task(db.Model):
         "Collection", secondary=task_collection_relation, back_populates="tasks"
     )
 
+    task_explanations = db.relationship("TaskExplanation", back_populates="task")
+
+    def explanation(self, language="en", format="ul"):
+        if self.task_explanations:
+            return get_explanation(
+                self.task_explanations, language=language, format=format
+            )
+
+
+    
     def __repr__(self):
         if self.dataset:
             return "<Task id: {}, processor: {}, dataset: {}, status: {}>".format(
@@ -510,6 +520,29 @@ class Explanation(db.Model):
             self.id, self.explanation_content, self.generation_error
         )
 
+
+class TaskExplanation(db.Model):
+    __tablename__ = "task_explanation"
+    id = db.Column(db.Integer, primary_key=True)
+
+    task_id = db.Column(db.Integer, db.ForeignKey("task.id"))
+    task = db.relationship(
+        "Task", back_populates="task_explanations", foreign_keys=[task_id]
+    )
+
+    explanation_language = db.Column(db.String(255))
+    explanation_format = db.Column(db.String(255))
+    explanation_content = db.Column(db.JSON)
+    generation_error = db.Column(db.String(255))
+
+    explanation_generated = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return "<Explanation id: {} explanation_content: {} generation_error: {} ".format(
+            self.id, self.explanation_content, self.generation_error
+        )
+
+    
 
 class InvestigatorRun(db.Model):
     # TODO: make explicit relations w other tables
