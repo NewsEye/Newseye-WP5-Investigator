@@ -67,7 +67,7 @@ def generate_report(record, report_language, report_format, need_links=True):
     data = [t.dict("reporter") for t in tasks]
 
     # current_app.logger.debug("DATA: %s" %json.dumps(data))
-    current_app.logger.debug("NEED LINKS: %s" % need_links)
+    # current_app.logger.debug("NEED LINKS: %s" % need_links)
 
     payload = {
         "language": report_language,
@@ -76,14 +76,17 @@ def generate_report(record, report_language, report_format, need_links=True):
         "links": json.dumps(need_links),
     }
 
-    # current_app.logger.debug("PAYLOAD: %s" % json.dumps(payload))
+    #current_app.logger.debug("PAYLOAD: %s" % json.dumps(payload))
+    #json.dump(payload, open("reporter_payload.json", "w"))
+        
 
+    
     headers = {"content-type": "application/json"}
     response = requests.post(Config.REPORTER_URI + "/report", payload)
 
     try:
         report = response.json()
-    except:
+    except Exception as e:
         return {"error": "%s: %s" % (response.status_code, response.reason)}
 
     report = Report(

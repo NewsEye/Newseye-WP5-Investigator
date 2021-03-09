@@ -64,9 +64,11 @@ class AnalysisUtility(Processor):
 
     async def __call__(self, task):
         self.task = task
-
+        self.updated_parameters = {}
+        
         try:
             self.input_data = await self._get_input_data()
+
         except BadRequest as e:
             current_app.logger.info("BadRequest: {0}".format(e))
             self.input_data = None
@@ -85,6 +87,7 @@ class AnalysisUtility(Processor):
             "result": self.result,
             "interestingness": self.interestingness,
             "images": self.images,
+            "updated_parameters": self.updated_parameters
         }
 
     async def _get_input_data(self):

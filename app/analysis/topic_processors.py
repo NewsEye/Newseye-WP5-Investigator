@@ -2,7 +2,7 @@ import asyncio
 import requests
 import json
 from config import Config
-from app.models import Processor
+from app.models import Processor, Task
 from app.analysis.processors import AnalysisUtility
 from app.analysis import assessment
 from werkzeug.exceptions import BadRequest, RequestTimeout
@@ -12,7 +12,7 @@ from app.utils.dataset_utils import get_dataset
 import numpy as np
 from scipy.stats import entropy
 import itertools
-
+from app import db
 
 class TopicProcessor(AnalysisUtility):
     async def get_input_data(self):
@@ -24,6 +24,8 @@ class TopicProcessor(AnalysisUtility):
             self.language = max(languages, key=languages.get)
         else:
             self.language = self.language.lower()
+
+        self.updated_parameters = {"language":self.language}
         return await self.get_doc_topic_vectors(self.task.search_query, self.language)
 
     async def get_doc_topic_vectors(self, query, language):
@@ -167,7 +169,6 @@ class QueryTopicModel(TopicProcessor):
         )
 
     async def make_result(self):
-        # current_app.logger.debug("INPUT_DATA: %s" % self.input_data)
         return self.input_data
 
     async def estimate_interestingness(self):

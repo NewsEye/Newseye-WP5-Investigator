@@ -276,6 +276,7 @@ def store_results(tasks, task_results, set_to_finished=True, interestingness=0.0
                 result=result["result"],
                 interestingness=result["interestingness"],
                 images=result["images"],
+                updated_parameters=result["updated_parameters"],
                 last_updated=datetime.utcnow(),
                 tasks=[task],
             )

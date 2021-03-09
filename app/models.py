@@ -295,9 +295,11 @@ class Task(db.Model):
             ret.update({"task_finished": http_date(self.task_finished)})
 
         if style == "status":
-            pass
+            return ret
 
-        elif style == "result":
+        ret["parameters"] = self.update_task_parameters()
+            
+        if style == "result":
             ret.update({"task_result": self.result_with_interestingness_and_images})
 
         elif style == "reporter":
@@ -324,6 +326,7 @@ class Task(db.Model):
             data_dict = self.data_dict()
             if data_dict:
                 ret.update(data_dict)
+                
         return ret
 
     @property
@@ -357,6 +360,15 @@ class Task(db.Model):
                 need_links=need_links,
             )
 
+    def update_task_parameters(self):
+        parameters = self.parameters
+        if self.task_result and self.task_result.updated_parameters:
+            for k,v in self.task_result.updated_parameters.items():
+                parameters[k]=v
+        return parameters
+        
+    
+        
     @property
     def result_with_interestingness(self):
         if self.task_result:
@@ -397,6 +409,10 @@ class Result(db.Model):
     last_updated = db.Column(db.DateTime, default=datetime.utcnow)
     result_reports = db.relationship("Report", back_populates="result")
 
+    # parameters updated in processor:
+    # e.g. language in topic modelling
+    updated_parameters = db.Column(db.JSON)
+    
     def __repr__(self):
         return "<Result id: {} date: {} tasks: {} >".format(
             self.id, self.last_updated, self.tasks
