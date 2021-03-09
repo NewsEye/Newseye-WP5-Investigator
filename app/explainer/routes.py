@@ -33,6 +33,39 @@ class Explain(Resource):
         return explanation
 
 
+
+    post_parser = AuthParser()
+    
+    post_parser.add_argument(
+        "language",
+        default="en",
+        help="The language the explanation should be written in.",
+    )
+    post_parser.add_argument(
+        "format", default="ul", help="The format of the body of the explanation."
+    )
+    post_parser.add_argument("run", help="run uuid")
+    
+    post_parser.add_argument("task", help="task uuid")
+
+    @login_required
+    @ns.expect(post_parser)
+    def post(self):
+        args = self.post_parser.parse_args()
+        args.pop("Authorization")
+
+        current_app.logger.debug("args: %s" % args)
+
+        try:
+            return "Explanation for run %s task %s is not ready"            
+        except BadRequest:
+            raise
+        except Exception as e:
+            raise InternalServerError
+
+       
+    
+
 @ns.route("/languages")
 class LanguageList(Resource):
     @login_required

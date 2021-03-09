@@ -39,7 +39,7 @@ class Config(object):
     }
 
     PROCESSOR_EXCEPTION_LIST = [
-        "TopicModelDocsetComparison"
+        "TopicModelDocsetComparison", "Comparison"
     ]  # processors that don't have an input dataset or source_uuid
     # should this be a field in the db?
 

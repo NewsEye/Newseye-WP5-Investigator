@@ -282,7 +282,11 @@ class Task(db.Model):
             return {
                 k: v for k, v in self.parameters.items() if k.startswith("collection")
             }
-
+        else:
+            collection.logger.info("Cannot produce data dict for %s" %self.uuid)
+            current_app.logger.debug("SELF: %s" %self)
+            current_app.logger.debug("PROCESSOR: %s" %self.processor.name)
+        
     def dict(self, style="status"):
         ret = {
             "uuid": str(self.uuid),

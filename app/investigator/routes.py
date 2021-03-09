@@ -63,9 +63,9 @@ class Investigator(Resource):
     @login_required
     @ns.expect(post_parser)
     @ns.response(
-        200, "The task has been executed, and the results are ready for retrieval"
+        200, "The experiment has been executed, and the results are ready for retrieval"
     )
-    @ns.response(202, "The task has been accepted, and is still running.")
+    @ns.response(202, "The experiment has been accepted, and is still running.")
     def post(self):
         """
         Start a new investigator, and return its basic information to the user. Source data should be defined using either the search_query OR the source_uuid parameter.
