@@ -25,7 +25,7 @@ class TopicProcessor(AnalysisUtility):
         else:
             self.language = self.language.lower()
 
-        self.updated_parameters = {"language":self.language}
+        self.updated_parameters = {"language":self.language.upper()}
         return await self.get_doc_topic_vectors(self.task.search_query, self.language)
 
     async def get_doc_topic_vectors(self, query, language):
