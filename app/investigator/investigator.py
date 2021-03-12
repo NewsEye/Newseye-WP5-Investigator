@@ -326,8 +326,9 @@ class Investigator:
 
             if last_processorset in ["DESCRIPTION", "QUICK_DESCRIPTION"]:
                 why, action = self.start_expansion(
-                    path, collection, "%s path strategy" % path.strategy
+                    path, collection, "path strategy"
                 )
+                why["strategy"] = path.strategy
             elif last_processorset == "EXPAND_QUERY":
                 # check GLOBAL strategy, i.e. initial goal of investigation
 
