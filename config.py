@@ -99,8 +99,8 @@ class Config(object):
             "ps": 2,
             "tie": 0.01,
             "tv.all": True,
-            "tv.fl": "all_text_tfr_siv all_text_tfi_siv all_text_tde_siv all_text_tse_siv",
-            "fl": "nothing",  # non-existing field to retrun nothing; otherwise all text will be returned
+            #"tv.fl": "all_text_tfr_siv all_text_tfi_siv all_text_tde_siv all_text_tse_siv",
+            #"fl": "nothing",  # non-existing field to retrun nothing; otherwise all text will be returned
             "defType": "edismax",
         },
         "tokens": {
@@ -108,8 +108,8 @@ class Config(object):
             "ps": 2,
             "tie": 0.01,
             "tv.all": True,
-            "tv.fl": "all_text_unstemmed_tfr_siv all_text_unstemmed_tfi_siv all_text_unstemmed_tde_siv all_text_unstemmed_tse_siv",
-            "fl": "nothing",  # non-existing field to retrun nothing; otherwise all text will be returned
+            #"tv.fl": "all_text_unstemmed_tfr_siv all_text_unstemmed_tfi_siv all_text_unstemmed_tde_siv all_text_unstemmed_tse_siv",
+            #"fl": "nothing",  # non-existing field to retrun nothing; otherwise all text will be returned
             "defType": "edismax",
         },
         "words": {
