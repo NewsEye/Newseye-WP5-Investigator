@@ -258,8 +258,6 @@ class Task(db.Model):
                 self.task_explanations, language=language, format=format
             )
 
-
-    
     def __repr__(self):
         if self.dataset:
             return "<Task id: {}, processor: {}, dataset: {}, status: {}>".format(
@@ -293,10 +291,10 @@ class Task(db.Model):
                 k: v for k, v in self.parameters.items() if k.startswith("collection")
             }
         else:
-            collection.logger.info("Cannot produce data dict for %s" %self.uuid)
-            current_app.logger.debug("SELF: %s" %self)
-            current_app.logger.debug("PROCESSOR: %s" %self.processor.name)
-        
+            collection.logger.info("Cannot produce data dict for %s" % self.uuid)
+            current_app.logger.debug("SELF: %s" % self)
+            current_app.logger.debug("PROCESSOR: %s" % self.processor.name)
+
     def dict(self, style="status"):
         ret = {
             "uuid": str(self.uuid),
@@ -312,7 +310,7 @@ class Task(db.Model):
             return ret
 
         ret["parameters"] = self.update_task_parameters()
-            
+
         if style == "result":
             ret.update({"task_result": self.result_with_interestingness_and_images})
 
@@ -340,7 +338,7 @@ class Task(db.Model):
             data_dict = self.data_dict()
             if data_dict:
                 ret.update(data_dict)
-                
+
         return ret
 
     @property
@@ -377,12 +375,10 @@ class Task(db.Model):
     def update_task_parameters(self):
         parameters = self.parameters
         if self.task_result and self.task_result.updated_parameters:
-            for k,v in self.task_result.updated_parameters.items():
-                parameters[k]=v
+            for k, v in self.task_result.updated_parameters.items():
+                parameters[k] = v
         return parameters
-        
-    
-        
+
     @property
     def result_with_interestingness(self):
         if self.task_result:
@@ -426,7 +422,7 @@ class Result(db.Model):
     # parameters updated in processor:
     # e.g. language in topic modelling
     updated_parameters = db.Column(db.JSON)
-    
+
     def __repr__(self):
         return "<Result id: {} date: {} tasks: {} >".format(
             self.id, self.last_updated, self.tasks
@@ -542,7 +538,6 @@ class TaskExplanation(db.Model):
             self.id, self.explanation_content, self.generation_error
         )
 
-    
 
 class InvestigatorRun(db.Model):
     # TODO: make explicit relations w other tables

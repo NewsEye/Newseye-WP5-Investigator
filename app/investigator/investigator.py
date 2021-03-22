@@ -325,9 +325,7 @@ class Investigator:
             collection = collections[0]
 
             if last_processorset in ["DESCRIPTION", "QUICK_DESCRIPTION"]:
-                why, action = self.start_expansion(
-                    path, collection, "path strategy"
-                )
+                why, action = self.start_expansion(path, collection, "path strategy")
                 why["strategy"] = path.strategy
             elif last_processorset == "EXPAND_QUERY":
                 # check GLOBAL strategy, i.e. initial goal of investigation
@@ -834,7 +832,7 @@ class Investigator:
         task = Task.query.filter_by(uuid=task_uuid).first()
         assert task.processor.name == "ExpandQuery"
         task_result = task.task_result
-        #current_app.logger.debug("TASK_RESULT: %s" %task_result.result)
+        # current_app.logger.debug("TASK_RESULT: %s" %task_result.result)
         if not task_result.result:
             return
 

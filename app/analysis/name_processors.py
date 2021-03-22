@@ -40,17 +40,24 @@ class NameProcessor(AnalysisUtility):
         }
         res = await self.search_database(query, retrieve="name_info")
 
-        #current_app.logger.debug("RES: %s" %res)
-        
+        for i in range(10):
+            if res:
+                break
+            else:
+                res = await self.search_database(query, retrieve="name_info")
+
         if res:
-            entity_info = {k.replace("label_", "").replace("_ssi", ""): v for k, v in res[0].items()}
+            entity_info = {
+                k.replace("label_", "").replace("_ssi", ""): v
+                for k, v in res[0].items()
+            }
         else:
+            current_app.logger.info("CANNOT get names for entity %s" % entity)
             entity_info = {}
-            
-        return (
-            entity,
-            entity_info
-        )
+
+        # current_app.logger.debug("QUERY: %s RES: %s" %(query, res))
+
+        return (entity, entity_info)
 
 
 class ExtractNames(NameProcessor):
@@ -85,12 +92,12 @@ class ExtractNames(NameProcessor):
         return await self.query_mentions_for_collection()
 
     async def make_result(self):
-        #current_app.logger.debug("INPUT_DATA: %s" %self.input_data)
+        # current_app.logger.debug("INPUT_DATA: %s" %self.input_data)
 
         doc_mentions = defaultdict(list)
 
         for mention in self.input_data:
-            #current_app.logger.debug("MENTION: %s" %mention)
+            # current_app.logger.debug("MENTION: %s" %mention)
             doc_mentions[mention["article_id_ssi"]].append(
                 {
                     "ent": mention["linked_entity_ssi"] or mention["mention_ssi"],
@@ -146,7 +153,9 @@ class ExtractNames(NameProcessor):
             if max_number and count == max_number:
                 break
 
-        names = await asyncio.gather(*get_name_calls, return_exceptions=(not current_app.debug))
+        names = await asyncio.gather(
+            *get_name_calls, return_exceptions=(not current_app.debug)
+        )
         for ent in names:
             result[ent[0]]["names"] = ent[1]
 
@@ -154,7 +163,9 @@ class ExtractNames(NameProcessor):
 
     async def estimate_interestingness(self):
         return {
-            ent: {"salience": res["salience"], "stance": abs(res["salience"])} if res else 0.0
+            ent: {"salience": res["salience"], "stance": abs(res["salience"])}
+            if res
+            else 0.0
             for ent, res in self.result.items()
         }
 

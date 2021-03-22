@@ -14,6 +14,7 @@ from scipy.stats import entropy
 import itertools
 from app import db
 
+
 class TopicProcessor(AnalysisUtility):
     async def get_input_data(self):
         self.language = self.task.parameters.get("language")
@@ -25,7 +26,7 @@ class TopicProcessor(AnalysisUtility):
         else:
             self.language = self.language.lower()
 
-        self.updated_parameters = {"language":self.language.upper()}
+        self.updated_parameters = {"language": self.language.upper()}
         return await self.get_doc_topic_vectors(self.task.search_query, self.language)
 
     async def get_doc_topic_vectors(self, query, language):
@@ -367,10 +368,10 @@ class TopicModelDocsetComparison(TopicProcessor):
             len(sh) - len(set.intersection(set(sh), set(d1 + d2)))
         ) / len(sh)
         interestingness["distinct_topics1"] = (
-            len(d1) - len(set.intersection(set(d1), set(sh + d2)))
+            len(d1) - len(set.intersection(set(d1), set(sh)))
         ) / len(d1)
         interestingness["distinct_topics2"] = (
-            len(d2) - len(set.intersection(set(d2), set(sh + d1)))
+            len(d2) - len(set.intersection(set(d2), set(sh)))
         ) / len(d2)
 
         return interestingness

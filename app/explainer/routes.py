@@ -34,10 +34,8 @@ class Explain(Resource):
         except Exception as e:
             raise InternalServerError
 
-
-
     post_parser = AuthParser()
-    
+
     post_parser.add_argument(
         "language",
         default="en",
@@ -47,7 +45,7 @@ class Explain(Resource):
         "format", default="ul", help="The format of the body of the explanation."
     )
     post_parser.add_argument("run", help="run uuid")
-    
+
     post_parser.add_argument("task", help="task uuid")
 
     @login_required
@@ -65,8 +63,6 @@ class Explain(Resource):
                 raise e
             raise InternalServerError
 
-       
-    
 
 @ns.route("/languages")
 class LanguageList(Resource):

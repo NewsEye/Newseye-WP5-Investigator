@@ -65,10 +65,10 @@ class AnalysisUtility(Processor):
     async def __call__(self, task):
         self.task = task
         self.updated_parameters = {}
-        
+
         try:
             self.input_data = await self._get_input_data()
-            #current_app.logger.debug("SELF.INPUT_DATA: %s" %self.input_data)
+            # current_app.logger.debug("SELF.INPUT_DATA: %s" %self.input_data)
         except BadRequest as e:
             current_app.logger.info("BadRequest: {0}".format(e))
             self.input_data = None
@@ -94,7 +94,7 @@ class AnalysisUtility(Processor):
             "result": self.result,
             "interestingness": self.interestingness,
             "images": self.images,
-            "updated_parameters": self.updated_parameters
+            "updated_parameters": self.updated_parameters,
         }
 
     async def _get_input_data(self):
@@ -120,7 +120,12 @@ class AnalysisUtility(Processor):
                     except Exception as e:
                         current_app.logger.debug(
                             "!!!!!!!!Don't know how to use previous_task_result for %s Task %s Result: %s Exception: %s"
-                            % (self.processor.name, self.input_task.uuid, self.input_task.task_result, e)
+                            % (
+                                self.processor.name,
+                                self.input_task.uuid,
+                                self.input_task.task_result,
+                                e,
+                            )
                         )
                         ## raise e
                         ## TODO: get rid of this 'pass', this is counter-intuitive behaviour

@@ -39,7 +39,8 @@ class Config(object):
     }
 
     PROCESSOR_EXCEPTION_LIST = [
-        "TopicModelDocsetComparison", "Comparison"
+        "TopicModelDocsetComparison",
+        "Comparison",
     ]  # processors that don't have an input dataset or source_uuid
     # should this be a field in the db?
 
@@ -99,8 +100,8 @@ class Config(object):
             "ps": 2,
             "tie": 0.01,
             "tv.all": True,
-            #"tv.fl": "all_text_tfr_siv all_text_tfi_siv all_text_tde_siv all_text_tse_siv",
-            #"fl": "nothing",  # non-existing field to retrun nothing; otherwise all text will be returned
+            # "tv.fl": "all_text_tfr_siv all_text_tfi_siv all_text_tde_siv all_text_tse_siv",
+            # "fl": "nothing",  # non-existing field to retrun nothing; otherwise all text will be returned
             "defType": "edismax",
         },
         "tokens": {
@@ -108,8 +109,8 @@ class Config(object):
             "ps": 2,
             "tie": 0.01,
             "tv.all": True,
-            #"tv.fl": "all_text_unstemmed_tfr_siv all_text_unstemmed_tfi_siv all_text_unstemmed_tde_siv all_text_unstemmed_tse_siv",
-            #"fl": "nothing",  # non-existing field to retrun nothing; otherwise all text will be returned
+            # "tv.fl": "all_text_unstemmed_tfr_siv all_text_unstemmed_tfi_siv all_text_unstemmed_tde_siv all_text_unstemmed_tse_siv",
+            # "fl": "nothing",  # non-existing field to retrun nothing; otherwise all text will be returned
             "defType": "edismax",
         },
         "words": {
@@ -122,7 +123,7 @@ class Config(object):
         },
         "pages": {"qs": 1, "ps": 2, "tie": 0.01, "fl": "member_ids_ssim",},
         "names": {"wt": "json"},
-        "name_info": {}
+        "name_info": {},
     }
 
     SUPPORTED_LANGUAGES = ["fi", "de", "fr"]

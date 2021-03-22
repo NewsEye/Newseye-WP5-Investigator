@@ -78,7 +78,11 @@ class Summarization(AnalysisUtility):
 
         for article in self.input_data:
             lang = article["language_ssi"]
-            text = article["all_text_t" + lang + "_siv"].replace("-\n", "").replace("\n", " ")
+            text = (
+                article["all_text_t" + lang + "_siv"]
+                .replace("-\n", "")
+                .replace("\n", " ")
+            )
             texts[lang].append(text)
 
         # summarization done only for documents in the same language

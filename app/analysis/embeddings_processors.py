@@ -30,8 +30,6 @@ class ExpandQuery(AnalysisUtility):
             ],
         )
 
-
-
     async def get_input_data(self, previous_task_result):
         self.previous_result = previous_task_result.result["vocabulary"]
         return {
@@ -88,23 +86,29 @@ class ExpandQuery(AnalysisUtility):
             existed_words = []
 
         # current_app.logger.debug("RES: %s" %res)
-            
+
         res = [r for r in res if self.word_makes_sense(r) and not r in existed_words]
 
-        
         try:
             assert res
         except:
-            current_app.logger.info("Embeddings are useful for this query. Leaning to tf-idf"
+            current_app.logger.info(
+                "Embeddings are useful for this query. Leaning to tf-idf"
             )
-            selected = [(w,v[2]) for w,v in self.previous_result.items() if self.word_makes_sense(w)]
-            
+            selected = [
+                (w, v[2])
+                for w, v in self.previous_result.items()
+                if self.word_makes_sense(w)
+            ]
+
             if not selected:
                 raise NotFound("This query impossible to expand, try something else")
-            
-            selected = {w[0]:w[1] for w in selected[:self.task.parameters["max_number"]]}
+
+            selected = {
+                w[0]: w[1] for w in selected[: self.task.parameters["max_number"]]
+            }
             selected = assessment.recoursive_distribution(selected)
-        
+
         else:
             total = len(queries)
             selected = Counter(res).most_common(self.task.parameters["max_number"])
