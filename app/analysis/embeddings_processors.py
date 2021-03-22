@@ -30,10 +30,13 @@ class ExpandQuery(AnalysisUtility):
             ],
         )
 
+
+
     async def get_input_data(self, previous_task_result):
+        self.previous_result = previous_task_result.result["vocabulary"]
         return {
             "langs": await self.get_languages(),
-            "words": list(previous_task_result.result["vocabulary"].keys())[
+            "words": list(self.previous_result.keys())[
                 : self.task.parameters["max_number"] * 3
             ],
         }  # not sure how many this API could handle...
@@ -88,16 +91,24 @@ class ExpandQuery(AnalysisUtility):
             
         res = [r for r in res if self.word_makes_sense(r) and not r in existed_words]
 
+        
         try:
             assert res
         except:
-            raise NotFound(
-                "Nothing found for this query. Try to change input parameters"
+            current_app.logger.info("Embeddings are useful for this query. Leaning to tf-idf"
             )
-
-        total = len(queries)
-        selected = Counter(res).most_common(self.task.parameters["max_number"])
-        selected = {s[0]: s[1] / total for s in selected}
+            selected = [(w,v[2]) for w,v in self.previous_result.items() if self.word_makes_sense(w)]
+            
+            if not selected:
+                raise NotFound("This query impossible to expand, try something else")
+            
+            selected = {w[0]:w[1] for w in selected[:self.task.parameters["max_number"]]}
+            selected = assessment.recoursive_distribution(selected)
+        
+        else:
+            total = len(queries)
+            selected = Counter(res).most_common(self.task.parameters["max_number"])
+            selected = {s[0]: s[1] / total for s in selected}
 
         # current_app.logger.debug("SELECTED: %s" % selected)
 
