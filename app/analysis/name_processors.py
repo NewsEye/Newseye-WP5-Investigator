@@ -38,11 +38,18 @@ class NameProcessor(AnalysisUtility):
             "fl": "label_fi_ssi,label_fr_ssi,label_sv_ssi,label_de_ssi,label_en_ssi",
             "fq": "id:%s" % entity,
         }
-        res = await self.search_database(query)
+        res = await self.search_database(query, retrieve="name_info")
 
+        current_app.logger.debug("RES: %s" %res)
+        
+        if res:
+            entity_info = {k.replace("label_", "").replace("_ssi", ""): v for k, v in res[0].items()}
+        else:
+            entity_info = {}
+            
         return (
             entity,
-            {k.replace("label_", "").replace("_ssi", ""): v for k, v in res[0].items()},
+            entity_info
         )
 
 
@@ -139,7 +146,7 @@ class ExtractNames(NameProcessor):
             if max_number and count == max_number:
                 break
 
-        names = await asyncio.gather(*get_name_calls)
+        names = await asyncio.gather(*get_name_calls, return_exceptions=(not current_app.debug))
         for ent in names:
             result[ent[0]]["names"] = ent[1]
 
@@ -147,7 +154,7 @@ class ExtractNames(NameProcessor):
 
     async def estimate_interestingness(self):
         return {
-            ent: {"salience": res["salience"], "stance": abs(res["salience"])}
+            ent: {"salience": res["salience"], "stance": abs(res["salience"])} if res else 0.0
             for ent, res in self.result.items()
         }
 

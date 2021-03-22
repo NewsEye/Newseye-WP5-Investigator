@@ -40,9 +40,6 @@ class DatabaseSearch:
         retrieve="all",
         max_return_value=Config.SOLR_MAX_RETURN_VALUES,
     ):
-
-        #### TODO: "all" returns only first 10 rows, is it ok?
-
         #### TODO: store queries and outputs, check if output exists, and reuse
 
         # 	current_app.logger.debug(
@@ -69,10 +66,13 @@ class DatabaseSearch:
 
         solr_uri = Config.SOLR_URI + solr_index
 
-        # First read the default parameters for the query
-        parameters = {
-            key: value for key, value in Config.SOLR_PARAMETERS["default"].items()
-        }
+        if "retrieve" == "name_info":
+            parameters = {}
+        else:
+            # First read the default parameters for the query
+            parameters = {
+                key: value for key, value in Config.SOLR_PARAMETERS["default"].items()
+            }
 
         # If parameters specific to the chosen retrieve value are found, they override the defaults
         if retrieve in Config.SOLR_PARAMETERS.keys():
@@ -91,8 +91,8 @@ class DatabaseSearch:
                 # Otherwise just overwrite
                 parameters[key] = value
 
-        # current_app.logger.debug("!!! SEARCH PARAMETERS: %s" %parameters)
-
+        #current_app.logger.debug("!!! SEARCH PARAMETERS: %s" %parameters)
+        
         async with session.get(solr_uri, json={"params": parameters}) as response:
             # current_app.logger.debug("SOLR_URI %s" % solr_uri)
             # current_app.logger.debug("parameters %s" % parameters)
@@ -152,8 +152,22 @@ class DatabaseSearch:
 
             return result_dict
 
+
+        
         # NAMES:
+        if retrieve == "name_info":
+            return response["response"]["docs"]
+
         if retrieve in ["names", "all"] and "rows" not in query.keys():
+
+
+            #current_app.logger.debug("***QUERY: %s" %query)
+            #current_app.logger.debug("RETRIEVE: %s" %retrieve)
+            #
+            #current_app.logger.debug("RESPONSE: %s" %response)
+            #
+            #current_app.logger.debug("!!! SEARCH PARAMETERS: %s" %parameters)
+            
             num_results = response["response"]["numFound"]
             # Set a limit for the maximum number of documents to fetch at one go to 100000
             parameters["rows"] = min(num_results, max_return_value)
@@ -197,11 +211,14 @@ class DatabaseSearch:
 
             return result
 
-            async with session.get(solr_uri, json={"params": parameters}) as response:
-                if response.status == 401:
-                    raise Unauthorized
-                response = await response.json()
-
+#            async with session.get(solr_uri, json={"params": parameters}) as response:
+#                if response.status == 401:
+#                    raise Unauthorized
+#                response = await response.json()
+#
+        
+                
+                
         # For retrieving docids, retrieve all of them, unless the number of rows is specified in the query
 
         if retrieve in ["docids"] and "rows" not in query.keys():

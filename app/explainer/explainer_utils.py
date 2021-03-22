@@ -148,6 +148,8 @@ def request_explanation(data, explanation_format, explanation_language, run_uuid
         "data": data,
         "run_uuid": str(run_uuid)
     }
+
+    # current_app.logger.debug("PAYLOAD: %s" %json.dumps(payload))
     
     response = requests.post(
         Config.EXPLAINER_URI + "/report/json", data=json.dumps(payload)
