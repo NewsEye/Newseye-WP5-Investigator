@@ -834,8 +834,8 @@ class Investigator:
         task = Task.query.filter_by(uuid=task_uuid).first()
         assert task.processor.name == "ExpandQuery"
         task_result = task.task_result
-
-        if not task_result:
+        #current_app.logger.debug("TASK_RESULT: %s" %task_result.result)
+        if not task_result.result:
             return
 
         collection = RunCollection(
