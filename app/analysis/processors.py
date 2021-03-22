@@ -127,7 +127,7 @@ class AnalysisUtility(Processor):
                                 e,
                             )
                         )
-                        ## raise e
+                        #raise e
                         ## TODO: get rid of this 'pass', this is counter-intuitive behaviour
                         pass  # try to call get_input_data in a standard way, without parameters
 

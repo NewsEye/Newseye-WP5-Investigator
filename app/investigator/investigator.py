@@ -1,3 +1,4 @@
+
 import heapq
 import itertools
 from app import db
@@ -390,11 +391,16 @@ class Investigator:
 
                 if len(collections) == 1:
                     collection = collections[0]
-                    why, action = await self.proceed_after_description(collection, path)
-
-                    path.append_action(collection, why, action)
-                    whys.append(why)
-                    actions.append(action)
+                    try:
+                        why, action = await self.proceed_after_description(collection, path)
+                    except ValueError:
+                        path.finished = True
+                        action = {}
+                        why = {"reason": "not enough data"}
+                    else:
+                        path.append_action(collection, why, action)
+                        whys.append(why)
+                        actions.append(action)
                 else:
                     # make new path for each collection, with language specific tasks
                     for collection in collections:
@@ -629,11 +635,12 @@ class Investigator:
 
     async def proceed_after_description(self, collection, path):
         size = await collection.collection_size()
-        if collection.data_type != "dataset" and size < 10:
+        if size == 0:
+            raise ValueError("Collection is empty: %s" %collection)
+        languages = collection.collection_languages()
+        if not languages or (collection.data_type != "dataset" and size < 10):
             why, action = self.start_expansion(path, collection, "not enough data")
-
         else:
-            languages = collection.collection_languages()
             if len(languages) == 1:
                 # start language-specific tasks
                 why, action = await self.add_language_specific_tasks_to_collection(

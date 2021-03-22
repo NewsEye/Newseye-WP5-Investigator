@@ -52,7 +52,7 @@ class NameProcessor(AnalysisUtility):
                 for k, v in res[0].items()
             }
         else:
-            current_app.logger.info("CANNOT get names for entity %s" % entity)
+            current_app.logger.error("CANNOT get names for entity %s" % entity)
             entity_info = {}
 
         # current_app.logger.debug("QUERY: %s RES: %s" %(query, res))

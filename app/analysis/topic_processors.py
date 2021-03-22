@@ -285,19 +285,19 @@ class TopicModelDocsetComparison(TopicProcessor):
                     self.input_data[1]["topic_weights"],
                 ),
                 3,
-            ),
+            ) or 0.0,
             "internal_jsd1": np.round(
                 self.compute_internal_jsd(self.input_data[0]["doc_weights"]), 3
-            ),
+            ) or 0.0,
             "internal_jsd2": np.round(
                 self.compute_internal_jsd(self.input_data[1]["doc_weights"]), 3
-            ),
+            ) or 0.0,
             "cross_jsd": np.round(
                 self.compute_cross_jsd(
                     self.input_data[0]["doc_weights"], self.input_data[1]["doc_weights"]
                 ),
                 3,
-            ),
+            ) or 0.0,
             "shared_topics": self.get_shared_topics(
                 self.input_data[0]["topic_weights"], self.input_data[1]["topic_weights"]
             ),

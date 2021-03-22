@@ -254,6 +254,21 @@ class Comparison(AnalysisUtility):
             output_type="comparison",
         )
 
+    @staticmethod
+    def get_collection(task):
+        if task.dataset_id:
+            collection = {"dataset": {"name": task.dataset.dataset_name,
+                                      "user": task.dataset.user}}
+        elif task.solr_query_id:
+            collection = {"search_query": task.solr_query.search_query}
+
+
+        else:
+            current_app.logger.error("Cannot make collection for Task %s" %task.uuid)
+            collection = None
+
+        return collection
+    
     async def get_input_data(self):
         tasks = Task.query.filter(
             Task.uuid.in_([t.uuid for t in self.task.parents])
@@ -273,6 +288,12 @@ class Comparison(AnalysisUtility):
             raise BadRequest("All input tasks must have the same output types")
         self.data_type = input_data_type[0]
 
+        self.updated_parameters = {"input_processor":tasks[0].processor.name,
+                                   "collection1":self.get_collection(tasks[0]),
+                                   "collection2":self.get_collection(tasks[1])}
+        
+        
+        
         return [task.task_result.result for task in tasks]
 
     async def make_result(self):

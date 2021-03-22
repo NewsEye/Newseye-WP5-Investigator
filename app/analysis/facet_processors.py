@@ -195,6 +195,8 @@ class GenerateTimeSeries(FacetProcessor):
             if k not in ["min", "max", "avg"]
         }
         interestingness = assessment.recoursive_distribution(counts)
+        if isinstance(interestingness, float):
+            return interestingness
         return {
             k: (
                 1 - assessment.normalized_entropy(v.values()),
