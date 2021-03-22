@@ -3,7 +3,7 @@ from app.models import Processor, Task
 from app.utils.search_utils import DatabaseSearch
 from app.analysis import assessment
 import asyncio
-from werkzeug.exceptions import BadRequest
+from werkzeug.exceptions import BadRequest, NotFound
 from flask import current_app
 
 
@@ -68,15 +68,22 @@ class AnalysisUtility(Processor):
         
         try:
             self.input_data = await self._get_input_data()
-
+            #current_app.logger.debug("SELF.INPUT_DATA: %s" %self.input_data)
         except BadRequest as e:
             current_app.logger.info("BadRequest: {0}".format(e))
             self.input_data = None
 
         if self.input_data:
-            self.result = await self.make_result()
-            self.interestingness = await self._estimate_interestingness()
-            self.images = await self.make_images()
+            try:
+                self.result = await self.make_result()
+            except NotFound as e:
+                current_app.logger.info("NotFound: {0}".format(e))
+                self.result = {}
+                self.interestingness = {"overall": 0.0}
+                self.images = None
+            else:
+                self.interestingness = await self._estimate_interestingness()
+                self.images = await self.make_images()
         else:
             current_app.logger.info("DATA UNAVAILABLE FOR TASK %s" % task)
             self.result = {}
@@ -111,11 +118,11 @@ class AnalysisUtility(Processor):
                     try:
                         return await self.get_input_data(self.input_task.task_result)
                     except Exception as e:
-                        # raise e
                         current_app.logger.debug(
-                            "!!!!!!!!Don't know how to use previous_task_result for %s Result: %s Exception: %s"
-                            % (self.processor.name, self.input_task.task_result, e)
+                            "!!!!!!!!Don't know how to use previous_task_result for %s Task %s Result: %s Exception: %s"
+                            % (self.processor.name, self.input_task.uuid, self.input_task.task_result, e)
                         )
+                        ## raise e
                         ## TODO: get rid of this 'pass', this is counter-intuitive behaviour
                         pass  # try to call get_input_data in a standard way, without parameters
 
