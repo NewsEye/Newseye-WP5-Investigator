@@ -52,9 +52,23 @@ class Document(db.Model):
     datasets = db.relationship("DocumentDatasetRelation", back_populates="document")
 
 
+dataset_alias_relation = db.Table(
+    "dataset_alias_relation",
+    db.Column("dataset_id", db.Integer, db.ForeignKey("dataset.id"), primary_key=True),
+    db.Column("alias_id", db.Integer, db.ForeignKey("dataset.id"), primary_key=True),
+    )
+    
 class Dataset(db.Model):
     __tablename__ = "dataset"
     id = db.Column(db.Integer, primary_key=True)
+
+    aliases = db.relationship(
+        "Dataset",
+        secondary = dataset_alias_relation,
+        primaryjoin=dataset_alias_relation.c.dataset_id == id,
+        secondaryjoin=dataset_alias_relation.c.alias_id == id)
+    
+    
     dataset_name = db.Column(db.String(255))
     user = db.Column(db.String(255))
     __table_args__ = (
@@ -64,7 +78,7 @@ class Dataset(db.Model):
     hash_value = db.Column(db.String(255), nullable=False)
     created_on = db.Column(db.DateTime, default=datetime.utcnow)
     tasks = db.relationship("Task", back_populates="dataset")
-
+  
     def __repr__(self):
         return "<Dataset {}, dataset_name: {}, {} documents, {} tasks>".format(
             self.id, self.dataset_name, len(self.documents), len(self.tasks)
@@ -228,10 +242,13 @@ class Task(db.Model):
     force_refresh = db.Column(db.Boolean)
 
     # created/running/finished/failed
+    #task_status = db.Column(db.String(255))
     task_status = db.Column(
-        db.Enum("created", "running", "finished", "failed", name="task_status"),
+        db.Enum("created", "running", "finished", "failed", "stopped",  name="task_status"),
         nullable=False,
     )
+
+    
     # error message for failed tasks, might be something else for other types
     status_message = db.Column(db.String(255))
 
@@ -557,8 +574,13 @@ class InvestigatorRun(db.Model):
     root_solr_query = db.relationship("SolrQuery", foreign_keys=[root_solr_query_id])
 
     user_parameters = db.Column(db.JSON)
-    run_status = db.Column(db.String(255))
+    #run_status = db.Column(db.String(255))
 
+    run_status = db.Column(
+        db.Enum("created", "running", "finished", "failed", "stopped",  name="run_status"),
+        nullable=False,
+    )
+    
     # timestamps
     run_started = db.Column(db.DateTime, default=datetime.utcnow)
     run_finished = db.Column(db.DateTime)

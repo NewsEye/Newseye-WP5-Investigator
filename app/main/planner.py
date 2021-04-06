@@ -8,7 +8,7 @@ from app.investigator.investigator import Investigator
 import warnings
 from config import Config
 import random
-
+from copy import copy
 
 class TaskPlanner(object):
     def __init__(self, user, solr_controller):
@@ -62,14 +62,33 @@ class TaskPlanner(object):
     def result_exists(self, task):
         # ToDo: Add timeouts for the results: timestamps are already stored, simply rerun the query if the timestamp
         ##  is too old.
-        related_tasks = Task.query.filter(
-            Task.processor_id == task.processor_id,
-            Task.parameters == task.parameters,
-            Task.dataset_id == task.dataset_id,
-            Task.solr_query_id == task.solr_query_id,
-            Task.task_status == "finished",
-            Task.task_results is not None,
-        ).all()
+        if task.dataset_id:
+            related_tasks = Task.query.filter(
+                Task.processor_id == task.processor_id,
+                Task.parameters == task.parameters,
+                Task.dataset_id == task.dataset_id,
+                Task.task_status == "finished",
+                Task.task_results is not None,
+            ).all()
+            for alias in task.dataset.aliases:
+                related_tasks.extend(
+                    Task.query.filter(
+                        Task.processor_id == task.processor_id,
+                        Task.parameters == task.parameters,
+                        Task.dataset_id == alias.id,
+                        Task.task_status == "finished",
+                        Task.task_results is not None,
+                    ).all()
+                )
+        else:
+            related_tasks = Task.query.filter(
+                Task.processor_id == task.processor_id,
+                Task.parameters == task.parameters,
+                Task.solr_query_id == task.solr_query_id,
+                Task.task_status == "finished",
+                Task.task_results is not None,
+            ).all()
+        current_app.logger.debug("RELATED_TASKS: %s" %related_tasks)
         related_tasks = [
             rt
             for rt in sorted(related_tasks, key=lambda t: t.task_finished)

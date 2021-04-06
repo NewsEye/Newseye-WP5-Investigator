@@ -50,9 +50,10 @@ def make_explanation(args):
 
 
 def find_object(Table, uuid):
-    current_app.logger.debug("Table: %s" % Table)
-    current_app.logger.debug("uuid: %s" % uuid)
-    obj = Table.query.filter_by(uuid=uuid, user_id=current_user.id).first()
+    #current_app.logger.debug("Table: %s" % Table)
+    #current_app.logger.debug("uuid: %s" % uuid)
+    #obj = Table.query.filter_by(uuid=uuid, user_id=current_user.id).first()
+    obj = Table.query.filter_by(uuid=uuid).first()
     if obj is None:
         raise NotFound(
             "{} {} not found for user {}".format(

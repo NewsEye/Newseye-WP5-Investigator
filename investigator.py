@@ -1,11 +1,15 @@
 from app import create_app, db
-from app.models import User, Result, Task, Report
+from app.models import User, Result, Task, Report, InvestigatorRun
+
 
 app = create_app()
 
 from app.analysis import initialize_processors
-
 initialize_processors(app)
+
+from app.utils import update_status
+update_status(app)
+
 
 
 @app.shell_context_processor

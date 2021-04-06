@@ -8,9 +8,8 @@ from app import db
 from flask import current_app
 import json
 
-
 def get_dataset(dataset):
-    # current_app.logger.debug("DATASET!!!!!!: %s type: %s" %(dataset, type(dataset)))
+    current_app.logger.debug("DATASET!!!!!!: %s type: %s" %(dataset, type(dataset)))
     if isinstance(dataset, Dataset):
         dataset_name, user = dataset.dataset_name, dataset.user
     else:
@@ -50,8 +49,8 @@ def get_hash_value(dataset_name, user):
     response = requests.request(
         "POST", url, data=payload, headers=headers, verify=False
     )
-    # current_app.logger.debug("PAYLOAD: %s" %payload)
-    # current_app.logger.debug("RESPONSE: %s" %response)
+    current_app.logger.debug("PAYLOAD: %s" %payload)
+    current_app.logger.debug("RESPONSE: %s" %response)
     for d in response.json():
         if d[0] == dataset_name:
             return str(d[1])
@@ -63,12 +62,12 @@ def request_dataset(dataset_name, user):
     payload = json.dumps({"email": user, "dataset_name": dataset_name})
 
     headers = {"content-type": "application/json", "authorization": get_token()}
-    # current_app.logger.debug("PAYLOAD: %s" %payload)
+    current_app.logger.debug("PAYLOAD: %s" %payload)
 
     response = requests.request(
         "POST", url, data=payload, headers=headers, verify=False
     )
-    # current_app.logger.debug("RESPONSE: %s" %response)
+    current_app.logger.debug("RESPONSE: %s" %response)
     if response.status_code is 404:
         raise NotFound("Dataset {} is not found for {}".format(dataset_name, user))
     make_dataset(dataset_name, user, response.json())
@@ -78,7 +77,7 @@ def make_dataset(dataset_name, user, document_list):
     dataset = Dataset.query.filter_by(
         dataset_name=dataset_name, user=user
     ).one_or_none()
-    # current_app.logger.debug("make_dataset: %s" %dataset)
+    current_app.logger.debug("make_dataset: %s" %dataset)
     if dataset:
         DocumentDatasetRelation.query.filter_by(dataset_id=dataset.id).delete()
     else:
@@ -88,8 +87,9 @@ def make_dataset(dataset_name, user, document_list):
         dataset = Dataset(dataset_name=dataset_name, user=user, hash_value=hash_value,)
         current_app.logger.debug("else: %s" % dataset)
         db.session.add(dataset)
+    
     db.session.commit()
-    # current_app.logger.debug("made_dataset: %s" %dataset)
+    current_app.logger.debug("made_dataset: %s" %dataset)
     relations = []
     for d in document_list:
         if d["type"] != "article":
@@ -105,6 +105,26 @@ def make_dataset(dataset_name, user, document_list):
     db.session.add_all(relations)
     db.session.commit()
 
+    make_aliases(dataset)
+
+    
+def make_aliases(dataset):
+    document_ids = set([d.document_id for d in dataset.documents])
+    current_app.logger.debug("DOCUMENT_IDS: %s" %document_ids)
+    all_datasets = Dataset.query.all()
+
+    for alias_dataset in all_datasets:
+        if alias_dataset.id == dataset.id:
+            continue
+        alias_doc_ids = set([d.document_id for d in alias_dataset.documents])
+        if alias_doc_ids == document_ids:
+            dataset.aliases.append(alias_dataset)
+            if not dataset.id in alias_dataset.aliases:
+               alias_dataset.aliases.append(dataset)
+        
+    db.session.commit()               
+    
+
 
 def get_document(document_id):
     document = Document.query.filter_by(solr_id=document_id).one_or_none()
@@ -113,3 +133,5 @@ def get_document(document_id):
         db.session.add(document)
         db.session.commit()
     return document
+
+

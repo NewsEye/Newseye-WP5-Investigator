@@ -295,3 +295,6 @@ def make_query_from_dataset(dataset):
         "fq": "{!terms f=id}" + ",".join([doc.solr_id for doc in dataset.documents]),
     }
     return query
+
+
+    

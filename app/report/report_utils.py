@@ -34,7 +34,8 @@ def make_report(args):
     except ValueError:
         raise NotFound
 
-    record = Table.query.filter_by(uuid=uuid, user_id=current_user.id).first()
+    #record = Table.query.filter_by(uuid=uuid, user_id=current_user.id).first()
+    record = Table.query.filter_by(uuid=uuid).first()
     if record is None:
         raise NotFound(
             "{} {} not found for user {}".format(
@@ -76,7 +77,7 @@ def generate_report(record, report_language, report_format, need_links=True):
         "links": json.dumps(need_links),
     }
 
-    # current_app.logger.debug("PAYLOAD: %s" % json.dumps(payload))
+    #current_app.logger.debug("PAYLOAD: %s" % json.dumps(payload))
     # json.dump(payload, open("reporter_payload.json", "w"))
 
     headers = {"content-type": "application/json"}
@@ -118,25 +119,25 @@ def get_formats():
     return requests.get(Config.REPORTER_URI + "/formats").json()
 
 
-def get_history(make_tree=True):
-    tasks = Task.query.filter_by(user_id=current_user.id)
-    user_history = dict(
-        zip([task.uuid for task in tasks], [task.dict(style="full") for task in tasks])
-    )
-    if not make_tree:
-        return user_history
-    tree = {"root": []}
-    if not user_history:
-        return tree
-    for task in user_history.values():
-        parent = task["hist_parent_id"]
-        if parent:
-            if "children" not in user_history[parent].keys():
-                user_history[parent]["children"] = []
-            user_history[parent]["children"].append(task)
-        else:
-            tree["root"].append(task)
-    return tree
+#def get_history(make_tree=True):
+#    tasks = Task.query.filter_by(user_id=current_user.id)
+#    user_history = dict(
+#        zip([task.uuid for task in tasks], [task.dict(style="full") for task in tasks])
+#    )
+#    if not make_tree:
+#        return user_history
+#    tree = {"root": []}
+#    if not user_history:
+#        return tree
+#    for task in user_history.values():
+#        parent = task["hist_parent_id"]
+#        if parent:
+#            if "children" not in user_history[parent].keys():
+#                user_history[parent]["children"] = []
+#            user_history[parent]["children"].append(task)
+#        else:
+#            tree["root"].append(task)
+#    return tree
 
 
 def get_parents(tasks):
