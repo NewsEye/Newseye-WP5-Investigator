@@ -23,17 +23,24 @@ import asyncio
 from math import log2
 from numpy import mean
 from collections import defaultdict
-
+from app.utils.dataset_utils import get_dataset
+from app.utils.db_utils import get_solr_query
 
 class Investigator:
-    #    def __init__(self, run_uuid, planner, strategy="elaboration"):
-    def __init__(self, run_uuid, planner, strategy):
+
+    def __init__(self, run_uuid, planner, strategy, dataset=None, search_query=None):
         # planner, which executes tasks
         self.planner = planner
         self.user = self.planner.user
         # database record which should be updated in all operations
         self.run = InvestigatorRun.query.filter_by(uuid=run_uuid).one()
 
+        if dataset:
+            self.run.root_dataset = get_dataset(dataset)
+        elif search_query:
+            self.run.root_solr_query = get_solr_query(search_query)
+        db.session.commit()
+            
         self.root_collection = RunCollection(
             self.user, self.run.id, "root", self.planner.solr_controller
         )

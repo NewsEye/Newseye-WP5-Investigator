@@ -68,7 +68,7 @@ class AnalysisUtility(Processor):
 
         try:
             self.input_data = await self._get_input_data()
-            current_app.logger.debug("SELF.INPUT_DATA: %s" %self.input_data)
+            #current_app.logger.debug("SELF.INPUT_DATA: %s" %self.input_data)
         except BadRequest as e:
             current_app.logger.info("BadRequest: {0}".format(e))
             self.input_data = None

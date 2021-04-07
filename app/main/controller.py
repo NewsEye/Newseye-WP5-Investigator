@@ -9,6 +9,7 @@ import time
 import asyncio
 from app.main.solr_controller import SolrController
 
+
 solr_controller = SolrController()
 
 
@@ -89,8 +90,28 @@ def run_thread(app, user_id, run_uuid, solr_controller, user_args):
     with app.app_context():
         planner = TaskPlanner(User.query.get(user_id), solr_controller)
         current_app.logger.debug("USER_ARGS: %s" % user_args)
-        investigator = Investigator(
-            run_uuid, planner, user_args["parameters"].get("strategy", "elaboration")
-        )
+
+        if user_args.get("dataset"):
+            
+            investigator = Investigator(
+                run_uuid,
+                planner,
+                user_args["parameters"].get("strategy", "elaboration"),
+                dataset=user_args.get("dataset")
+            )
+
+        elif user_args.get("search_query"):
+
+            investigator = Investigator(
+                run_uuid,
+                planner,
+                user_args["parameters"].get("strategy", "elaboration"),
+                dataset=user_args.get("search_query")
+            )
+
+        else:
+            raise NotImplementedError
+
+            
         asyncio.run(investigator.initialize_run(user_args))
         asyncio.run(investigator.act())

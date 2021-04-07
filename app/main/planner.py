@@ -88,7 +88,7 @@ class TaskPlanner(object):
                 Task.task_status == "finished",
                 Task.task_results is not None,
             ).all()
-        current_app.logger.debug("RELATED_TASKS: %s" %related_tasks)
+        #current_app.logger.debug("RELATED_TASKS: %s" %related_tasks)
         related_tasks = [
             rt
             for rt in sorted(related_tasks, key=lambda t: t.task_finished)

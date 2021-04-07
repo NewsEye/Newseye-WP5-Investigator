@@ -14,7 +14,7 @@ from app.models import (
 )
 from datetime import datetime
 from werkzeug.exceptions import BadRequest
-from app.utils.dataset_utils import get_dataset
+from app.utils.dataset_utils import get_hash_value, get_dataset
 from config import Config
 
 
@@ -218,11 +218,7 @@ def generate_investigator_run(args, user=current_user):
     )
 
     if args.get("dataset"):
-        investigator_run.root_dataset = get_dataset(args["dataset"])
-    elif args.get("search_query"):
-        investigator_run.root_solr_query = get_solr_query(args["search_query"])
-    else:
-        raise NotImplementedError
+        get_hash_value(args["dataset"]["name"], args["dataset"]["user"])
     check_uuid_and_commit(investigator_run)
     return investigator_run.uuid
 
