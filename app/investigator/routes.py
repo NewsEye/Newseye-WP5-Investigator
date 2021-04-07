@@ -84,7 +84,7 @@ class Investigator(Resource):
                     .first()
                     .dict(style="result")
                 )
-            elif run.run_status in ["running", "initializing", "created"]:
+            elif run.run_status in ["running", "initializing"]:
                 return run.dict(), 202
             else:
                 raise InternalServerError

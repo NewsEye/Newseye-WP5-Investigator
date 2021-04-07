@@ -106,7 +106,7 @@ def run_thread(app, user_id, run_uuid, solr_controller, user_args):
                 run_uuid,
                 planner,
                 user_args["parameters"].get("strategy", "elaboration"),
-                dataset=user_args.get("search_query")
+                search_query=user_args.get("search_query")
             )
 
         else:

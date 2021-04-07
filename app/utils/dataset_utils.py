@@ -18,8 +18,10 @@ def get_dataset(dataset):
             dataset_name=dataset_name, user=user
         ).one_or_none()
 
-    if not dataset or not user == "PRA" or not uptodate(dataset):
+    if not dataset or (not user == "PRA" and not uptodate(dataset)):
         current_app.logger.debug("REQUESTING...")
+        #current_app.logger.debug("DATASET: %s" %dataset)
+        #current_app.logger.debug("UPTODATE(DATASET): %s" %uptodate(dataset))
         request_dataset(dataset_name, user)
     return Dataset.query.filter_by(dataset_name=dataset_name).first()
 
@@ -39,7 +41,9 @@ def get_token():
 
 
 def uptodate(dataset):
-    return dataset.hash_value == get_hash_value(dataset.dataset_name, dataset.user)
+    new_hash_value = get_hash_value(dataset.dataset_name, dataset.user)
+    current_app.logger.debug("DATASET.HASH_VALUE: %s NEW_HASH_VALUE: %s" %(dataset.hash_value, new_hash_value))
+    return dataset.hash_value == new_hash_value 
 
 
 def get_hash_value(dataset_name, user):
@@ -67,7 +71,7 @@ def request_dataset(dataset_name, user):
     response = requests.request(
         "POST", url, data=payload, headers=headers, verify=False
     )
-    current_app.logger.debug("RESPONSE: %s" %response)
+    current_app.logger.debug("REQUEST_DATASET RESPONSE: %s" %response)
     if response.status_code is 404:
         raise NotFound("Dataset {} is not found for {}".format(dataset_name, user))
     make_dataset(dataset_name, user, response.json())
@@ -80,6 +84,7 @@ def make_dataset(dataset_name, user, document_list):
     current_app.logger.debug("make_dataset: %s" %dataset)
     if dataset:
         DocumentDatasetRelation.query.filter_by(dataset_id=dataset.id).delete()
+        dataset.hash_value = get_hash_value(dataset_name, user)
     else:
         hash_value = (
             dataset_name if user == "PRA" else get_hash_value(dataset_name, user)
@@ -110,7 +115,6 @@ def make_dataset(dataset_name, user, document_list):
     
 def make_aliases(dataset):
     document_ids = set([d.document_id for d in dataset.documents])
-    current_app.logger.debug("DOCUMENT_IDS: %s" %document_ids)
     all_datasets = Dataset.query.all()
 
     for alias_dataset in all_datasets:
