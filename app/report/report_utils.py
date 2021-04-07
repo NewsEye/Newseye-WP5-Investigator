@@ -64,10 +64,10 @@ def generate_report(record, report_language, report_format, need_links=True):
     else:
         task_uuids = [task["uuid"] for task in record.result]
         tasks = Task.query.filter(Task.uuid.in_(task_uuids)).all()
-        if len(tasks) > 10:
+        if len(tasks) > 6:
             current_app.logger.debug("Too many tasks: %d" %len(tasks))
-            tasks = sorted(tasks, key=lambda t: t.task_result.interestingness["overall"], reverse=True)[:10]
-            current_app.logger.debug("Using top-10: %s" %[(t, t.task_result.interestingness["overall"]) for t in tasks])
+            tasks = sorted(tasks, key=lambda t: t.task_result.interestingness["overall"], reverse=True)[:6]
+            current_app.logger.debug("Using top-6: %s" %[(t, t.task_result.interestingness["overall"]) for t in tasks])
         
     data = [t.dict("reporter") for t in tasks]
 
