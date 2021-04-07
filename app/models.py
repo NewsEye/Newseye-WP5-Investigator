@@ -617,7 +617,10 @@ class InvestigatorRun(db.Model):
             "run_status": self.run_status,
             "run_started": http_date(self.run_started),
         }
-        ret.update(self.data_dict())
+
+        if self.run_status != "created":
+            ret.update(self.data_dict())
+            
         if self.run_status == "finished":
             ret.update({"run_finished": http_date(self.run_finished)})
 

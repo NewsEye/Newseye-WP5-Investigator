@@ -75,13 +75,13 @@ def investigator_run(args):
     t.setDaemon(False)
     t.start()
 
-    while (
-        InvestigatorRun.query.filter(
-            InvestigatorRun.uuid == run_uuid, InvestigatorRun.run_status == "created"
-        ).count()
-        > 0
-    ):
-        time.sleep(0.1)
+#    while (
+#        InvestigatorRun.query.filter(
+#            InvestigatorRun.uuid == run_uuid, InvestigatorRun.run_status == "created"
+#        ).count()
+#        > 0
+#    ):
+#        time.sleep(0.1)
 
     return InvestigatorRun.query.filter(InvestigatorRun.uuid == run_uuid).one_or_none()
 
