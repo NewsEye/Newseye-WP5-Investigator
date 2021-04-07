@@ -9,7 +9,7 @@ from flask import current_app
 import json
 
 def get_dataset(dataset):
-    current_app.logger.debug("DATASET!!!!!!: %s type: %s" %(dataset, type(dataset)))
+    #current_app.logger.debug("DATASET!!!!!!: %s type: %s" %(dataset, type(dataset)))
     if isinstance(dataset, Dataset):
         dataset_name, user = dataset.dataset_name, dataset.user
     else:
@@ -19,7 +19,7 @@ def get_dataset(dataset):
         ).one_or_none()
 
     if not dataset or (not user == "PRA" and not uptodate(dataset)):
-        current_app.logger.debug("REQUESTING...")
+        current_app.logger.info("REQUESTING NEW DATASET!!!")
         #current_app.logger.debug("DATASET: %s" %dataset)
         #current_app.logger.debug("UPTODATE(DATASET): %s" %uptodate(dataset))
         request_dataset(dataset_name, user)
@@ -42,7 +42,7 @@ def get_token():
 
 def uptodate(dataset):
     new_hash_value = get_hash_value(dataset.dataset_name, dataset.user)
-    current_app.logger.debug("DATASET.HASH_VALUE: %s NEW_HASH_VALUE: %s" %(dataset.hash_value, new_hash_value))
+    #current_app.logger.debug("DATASET.HASH_VALUE: %s NEW_HASH_VALUE: %s" %(dataset.hash_value, new_hash_value))
     return dataset.hash_value == new_hash_value 
 
 
