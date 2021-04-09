@@ -114,6 +114,7 @@ def make_dataset(dataset_name, user, document_list):
 
     
 def make_aliases(dataset):
+    # TODO: copy aliases once one dataset is found
     document_ids = set([d.document_id for d in dataset.documents])
     all_datasets = Dataset.query.all()
 

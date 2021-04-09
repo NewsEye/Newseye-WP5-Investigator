@@ -200,17 +200,21 @@ class TrackNameSentiment(NameProcessor):
         ]
         docids = set([m["article_id_ssi"] for m in mentions])
 
-        # current_app.logger.debug("MENTIONS: %s" %len(mentions))
+        current_app.logger.debug("MENTIONS: %s" %len(mentions))
         # current_app.logger.debug("DOCIDS: %s" %len(docids))
 
         # query year for each doc --- is it possible to avoid somehow???
         query = {
             "q": "*:*",
             "fq": "{!terms f=id}" + ",".join([docid for docid in docids]),
-            "fl": "year_isi, id",
+            "fl": "year_isi, id, date_created_dtsi",
         }
 
         res = await self.search_database(query, retrieve="docids")
+
+        #current_app.logger.debug("RES: %s" %res)
+        
+        
         doc_to_year = {r["id"]: int(r["year_isi"]) for r in res["docs"]}
         years = list(doc_to_year.values())
 
@@ -228,6 +232,9 @@ class TrackNameSentiment(NameProcessor):
             name_id = mention["linked_entity_ssi"] or mention["mention_ssi"]
             year = doc_to_year[mention["article_id_ssi"]]
             stance = mention["stance_fsi"]
+#            if name_id == 'entity_HumanProd_Q183644' and stance != 0.0:
+#                current_app.logger.debug("MENTION: %s" %mention)
+
             mention_data[name_id][year_index[year], stance_index[stance]] += 1
             if stance != 0.0:
                 nonneutral_count[name_id] += 1
@@ -240,6 +247,8 @@ class TrackNameSentiment(NameProcessor):
             if nonneutral_count[m] > 0
         }
 
+        #current_app.logger.debug("SELECTED_MENTIONS: %s" %selected_mentions)
+        
         return {
             "start_year": min_y,
             "end_year": max_y,
@@ -251,7 +260,7 @@ class TrackNameSentiment(NameProcessor):
             },
         }
 
-    def visualize_stance_media_evol(self, entity, plot_type):
+    def visualize_stance_media_evol(self, entity, name, plot_type):
         # current_app.logger.debug("ENTITY: %s PLOT_TYPE: %s" %(entity, plot_type))
         s = io.BytesIO()
 
@@ -277,7 +286,7 @@ class TrackNameSentiment(NameProcessor):
 
         ax.set_title(
             "Stance evolution of "
-            + entity
+            + name
             + " from "
             + str(start_year)
             + " to "
@@ -286,10 +295,11 @@ class TrackNameSentiment(NameProcessor):
         if plot_type == "line":
             max_of_max_arr = np.max(np.max(stance_arr, axis=1))
             max_arr = np.repeat(max_of_max_arr, stance_arr.shape[0])
-            visual_data = (stance_arr[:, 0] - stance_arr[:, 2]) / max_arr
+            visual_data = (stance_arr[:, 2] - stance_arr[:, 0]) / max_arr
             ax.plot(range(0, length), visual_data)
             ax.set_ylim([-1, 1])
-
+            ax.set_ylabel("Stance polarity")
+            
         elif plot_type == "bar":
             width = 0.25
             for counter, item in enumerate(stance_arr):
@@ -297,8 +307,9 @@ class TrackNameSentiment(NameProcessor):
                     ax.bar(counter + width * i, item[i], width, color=COLORS[i])
 
             ax.legend(STANCE_TYPES, loc="upper right")
-
-        ax.set_ylabel("Stance polarity")
+            ax.set_ylabel("Polarity count")
+        
+        
         ax.set_xlabel("Year")
         ax.axhline(0, color="black", lw=0.5)
 
@@ -311,10 +322,28 @@ class TrackNameSentiment(NameProcessor):
     async def make_images(self):
         images = {}
 
+
+        
         for entity in self.input_data["entity_timeseries"]:
+
+            try:
+                names = self.input_data["entity_info"][entity].get(
+                    "names"
+                )
+            except KeyError:
+                names = None
+
+            if names:
+                if "en" in names:
+                    name = names["en"]
+                else:
+                    name = list(l.values())[0]
+            else:
+                name = entity
+                
             images[entity] = {
-                "line": self.visualize_stance_media_evol(entity, "line"),
-                "bar": self.visualize_stance_media_evol(entity, "bar"),
+                "line": self.visualize_stance_media_evol(entity, name, "line"),
+                "bar": self.visualize_stance_media_evol(entity, name, "bar"),
             }
 
         return images
