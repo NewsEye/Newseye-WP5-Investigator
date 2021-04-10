@@ -216,6 +216,7 @@ class DatabaseSearch:
 
         # For retrieving docids, retrieve all of them, unless the number of rows is specified in the query
 
+        
         if retrieve in ["docids"] and "rows" not in query.keys():
             num_results = response["response"]["numFound"]
             # Set a limit for the maximum number of documents to fetch at one go to 100000
@@ -317,9 +318,11 @@ def format_facets(facet_dict):
         "linked_persons_ssim": "Person",
         "linked_locations_ssim": "Location",
         "linked_organisations_ssim": "Organizations",
+        "linked_humanprods_ssim":"Product",
         "month_isi": "Month",
         "day_isi": "Day",
     }
+
     facet_list = [
         {
             "name": name,
