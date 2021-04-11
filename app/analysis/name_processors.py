@@ -40,10 +40,11 @@ class NameProcessor(AnalysisUtility):
         }
         res = await self.search_database(query, retrieve="name_info")
 
-        for i in range(10):
+        while(True):
             if res:
                 break
             else:
+                await asyncio.sleep(20)
                 res = await self.search_database(query, retrieve="name_info")
 
         if res:
