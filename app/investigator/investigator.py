@@ -1,4 +1,3 @@
-
 import heapq
 import itertools
 from app import db
@@ -16,7 +15,7 @@ from app.models import (
     SolrQuery,
     Dataset,
 )
-
+from datetime import datetime
 from app.investigator import PROCESSORSETS, PROCESSOR_PRIORITY
 from flask import current_app
 import asyncio
@@ -552,6 +551,7 @@ class Investigator:
         stop investigations
         """
         self.update_status("finished")
+        self.run.run_finished = datetime.utcnow()
         why = self.to_stop
         action = {}
         return why, action

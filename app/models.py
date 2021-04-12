@@ -486,7 +486,11 @@ class Report(db.Model):
         return "<Report>"
 
 
-def get_report(reports, language="en", format="p", need_links=True):
+def get_report(reports, language="en", format="p", need_links=True):    
+    for r in reports:
+        current_app.logger.debug("R: r.report_language %s, r.report_format %s, need_links: %s" %(r.report_language, r.report_format, r.need_links))
+        current_app.logger.debug("r.head_generation_error %s r.body_generation_error %s" %(r.head_generation_error, r.body_generation_error))
+        
     reports = [
         r
         for r in reports

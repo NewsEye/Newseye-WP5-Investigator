@@ -9,6 +9,9 @@ from pprint import pprint
 from uuid import UUID
 from werkzeug.exceptions import NotFound, BadRequest
 
+from datetime import datetime
+
+
 # TODO: async reports
 
 
@@ -34,7 +37,6 @@ def make_report(args):
     except ValueError:
         raise NotFound
 
-    #record = Table.query.filter_by(uuid=uuid, user_id=current_user.id).first()
     record = Table.query.filter_by(uuid=uuid).first()
     if record is None:
         raise NotFound(
@@ -42,13 +44,28 @@ def make_report(args):
                 Table.__name__, uuid, current_user.username
             )
         )
+
+    current_app.logger.debug("RECORD: %s" %record)
+    
+    
     report = record.report(report_language, report_format, need_links)
-    if report:
+
+    current_app.logger.debug("REPORT: %s" %report)
+    if report and Table==InvestigatorRun:
+        if not(record.run_finished):
+            # HACK (old runs don't have proper finish date):
+            record.run_finished = datetime.utcnow()
+            db.session.commit()
+        if report.report_generated > record.run_finished:
+            current_app.logger.info("Report exists, not generating")
+        else:
+            report = generate_report(record, report_language, report_format, need_links)
+    elif report:                    
         current_app.logger.info("Report exists, not generating")
         current_app.logger.debug("REPORT: %s" % report.report_content)
     else:
         report = generate_report(record, report_language, report_format, need_links)
-        current_app.logger.debug("GENERATE: %s" % report)
+        current_app.logger.debug("!!!GENERATE: %s" % report)
 
     try:
         return report.report_content
@@ -82,7 +99,7 @@ def generate_report(record, report_language, report_format, need_links=True):
     }
 
     #current_app.logger.debug("PAYLOAD: %s" % json.dumps(payload))
-    # json.dump(payload, open("reporter_payload.json", "w"))
+    #json.dump(payload, open("reporter_payload.json", "w"))
 
     headers = {"content-type": "application/json"}
     response = requests.post(Config.REPORTER_URI + "/report", payload)
@@ -92,12 +109,16 @@ def generate_report(record, report_language, report_format, need_links=True):
     except Exception as e:
         return {"error": "%s: %s" % (response.status_code, response.reason)}
 
+    
+    #current_app.logger.debug("REPORT: %s" %report)
+    
     report = Report(
         report_language=report.get("language", report_language),
         report_format=report_format,
-        report_content={"header": report.get("header"), "body": report.get("body")},
+        report_content={"header": report.get("head"), "body": report.get("body")},
         head_generation_error=report.get("head_generation_error"),
         body_generation_error=report.get("body_generation_error"),
+        need_links=need_links
     )
 
     if isinstance(record, Task):
