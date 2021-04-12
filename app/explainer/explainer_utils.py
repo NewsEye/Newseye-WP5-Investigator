@@ -229,21 +229,29 @@ def generate_task_explanation(task, run, explanation_language, explanation_forma
     tasks_explained = []
 
     while tasks_to_explain:
+        current_app.logger.debug("!!!!START LOOP")
+        current_app.logger.debug("TASKS_TO_EXPLAIN: %s" %tasks_to_explain)
         uuid = tasks_to_explain.pop()
+        current_app.logger.debug("UUID: %s" %uuid)
+        current_app.logger.debug("TASKS EXPLAINED: %s" %tasks_explained)
         if uuid in tasks_explained or uuid == "root":
             continue
         tasks_explained.append(uuid)
+        current_app.logger.debug("NEW TASKS EXPLAINED: %s" %tasks_explained)
         try:
             current_task = Task.query.filter_by(uuid=uuid).first()
         except Exception as e:
             current_app.logger.debug("UUID: %s" % uuid)
             raise e
         task_action = task_to_action[str(uuid)]
+        current_app.logger.debug("TASK_ACTION: %s" %task_action)
 
-        task_dict = {"name": task.processor.name, "uuid": str(uuid)}
-        if task.parameters:
-            task_dict["parameters"] = task.parameters
+        task_dict = {"name": current_task.processor.name, "uuid": str(uuid)}
+        if current_task.parameters:
+            task_dict["parameters"] = current_task.parameters
 
+
+        current_app.logger.debug("TASK_DICT %s" %task_dict)    
         payload_data.append(
             {
                 "id": task_action["id"],
@@ -251,12 +259,15 @@ def generate_task_explanation(task, run, explanation_language, explanation_forma
                 "task": task_dict,
             }
         )
-
-        tasks_to_explain += [p.uuid for p in current_task.parents]
-        for c in current_task.collections:
-            tasks_to_explain += c.origin
-
-        current_app.logger.debug("TASKS_TO_EXPLAIN %s" % tasks_to_explain)
+        current_app.logger.debug("PAYLOAD_DATA: %s" %payload_data)
+        if current_task.parents:
+            tasks_to_explain += [str(p.uuid) for p in current_task.parents]
+            current_app.logger.debug("TASKS_TO_EXPLAIN + PARENTS: %s" %tasks_to_explain)
+        else:
+            for c in current_task.collections:
+                tasks_to_explain += c.origin
+        
+        current_app.logger.debug("TASKS_TO_EXPLAIN + ORIGIN: %s" %tasks_to_explain)
 
     explanation = request_explanation(
         payload_data, explanation_format, explanation_language, run.uuid
