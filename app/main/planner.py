@@ -95,6 +95,7 @@ class TaskPlanner(object):
             if rt.task_result is not None
             and rt.task_result.result
             and not rt.processor.deprecated
+            and rt.parents == task.parents
         ]
         if not related_tasks:
             return
