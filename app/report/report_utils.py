@@ -44,8 +44,8 @@ def make_report(args):
                 Table.__name__, uuid, current_user.username
             )
         )
-
-    current_app.logger.debug("RECORD: %s" %record)
+    else:
+        current_app.logger.debug("RECORD: %s" %record)
     
     
     report = record.report(report_language, report_format, need_links)
@@ -142,27 +142,6 @@ def get_languages():
 
 def get_formats():
     return requests.get(Config.REPORTER_URI + "/formats").json()
-
-
-#def get_history(make_tree=True):
-#    tasks = Task.query.filter_by(user_id=current_user.id)
-#    user_history = dict(
-#        zip([task.uuid for task in tasks], [task.dict(style="full") for task in tasks])
-#    )
-#    if not make_tree:
-#        return user_history
-#    tree = {"root": []}
-#    if not user_history:
-#        return tree
-#    for task in user_history.values():
-#        parent = task["hist_parent_id"]
-#        if parent:
-#            if "children" not in user_history[parent].keys():
-#                user_history[parent]["children"] = []
-#            user_history[parent]["children"].append(task)
-#        else:
-#            tree["root"].append(task)
-#    return tree
 
 
 def get_parents(tasks):
