@@ -30,3 +30,9 @@ def update_status(app):
             db.session.commit()
         current_app.logger.info("%s created runs updated to stopped" %len(runs))
 
+        runs = InvestigatorRun.query.filter_by(run_status="initializing").all()
+        for run in runs:
+            run.run_status = "stopped"
+            db.session.commit()
+        current_app.logger.info("%s initializing runs updated to stopped" %len(runs))
+        
