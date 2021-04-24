@@ -1,7 +1,13 @@
-# newseye-investigator
-NewsEye Investigator 
+# Work package 5
+
+Code for work package 5: Investigator and Controller.
 
 
-The code for the NewsEye Investigator and Controller, the core components for the NewsEye Personal Research Assistant. Other parts are [Reporter](https://github.com/ljleppan/newseye-reporter) and [Explainer](https://github.com/ljleppan/newseye-explainer).
 
-Repository is under development.
+PyICU requires libicu-dev Ubuntu package to work => if installing PyICU causes an error message, do
+
+>> sudo apt-get install libicu-dev
+
+and THEN
+
+pip install -r requirements.txt

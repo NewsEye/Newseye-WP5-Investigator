@@ -1,0 +1,14 @@
+__pycache__
+.idea
+*.pyc
+venv
+logs/*
+.python-version
+*~
+*bkp
+*.pickle
+dump/*
+investigator.env
+install_instructions.txt
+env
+__pycache__/*

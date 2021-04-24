@@ -1,0 +1,33 @@
+"initialization"  -- processors are part of initialization
+
+"global strategy" -- could be elaboration (analyse current dataset) or expansion (find related documents); a global strategy is set by user in the very beginning and never change
+
+"path strategy" -- again could be elaboration or expansion, but this is related to a given path; could change several times within investigator run; a current run could have several paths with different strategies
+
+"new collection" -- the investigator made a new collection (e.g. as a result of split of a previous collection) and now starts to analyse it with a set of default tools for a new collection
+
+"impossible to expand" -- the investigator tried to expand the dataset but failed; this is a reason to stop the path 
+
+"interesting results" -- results of the previous tool have high interestingness value, so we run additional tools on the same material
+
+"crosslingual comparison" -- we need to compare datasets in different languages; this limits the choice of tools, since not all of them are suitable for that
+
+"impossible to split" -- the investigator tried to split data in meaningful way, but failed
+
+"brute_force" -- brute force
+
+"language" -- the collection is in specific language, which limits tool applicability (e.g. topic modelling is not available for Swedish)
+
+"same language collections" -- several datasets in the same language, so we opt for comparison tools
+
+"nothing-to-compare" -- the investigator tried to compare results of the previous tools but failed since tasks suitable for comparison does not exist
+
+"path end" -- no idea what to do after the previous tools, just stop (stop this path, other path may still run)
+
+"not enough data" -- the collection is too small, proceed to search additional data
+
+"small_collection" -- small (but not too small) collection
+
+"big_collection" -- big collection, choose other tools
+
+"too_big_collection" -- superbig collection, just stop

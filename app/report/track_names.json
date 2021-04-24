@@ -1,0 +1,6 @@
+{
+    "links": "true",
+    "data": "[{\"uuid\": \"e10409c4-660d-4bbd-928f-25df1bfe50ad\", \"processor\": \"TrackNameSentiment\", \"parameters\": {}, \"task_status\": \"finished\", \"task_started\": \"Fri, 09 Apr 2021 15:38:34 GMT\", \"task_finished\": \"Fri, 09 Apr 2021 15:38:42 GMT\", \"task_result\": {\"result\": {\"entity_LOC_Q38\": {\"1918\": -0.26666666666666666, \"names\": {\"fi\": \"Italia\", \"de\": \"Italien\", \"en\": \"Italy\", \"fr\": \"Italie\", \"sv\": \"Italien\"}}, \"entity_LOC_Q39\": {\"1918\": -0.18181818181818182, \"names\": {\"fi\": \"Sveitsi\", \"de\": \"Schweiz\", \"en\": \"Switzerland\", \"fr\": \"Suisse\", \"sv\": \"Schweiz\"}}, \"entity_LOC_Q183\": {\"1918\": 0.1, \"names\": {\"fi\": \"Saksa\", \"de\": \"Deutschland\", \"en\": \"Germany\", \"fr\": \"Allemagne\", \"sv\": \"Tyskland\"}}, \"entity_LOC_Q1781\": {\"1918\": -0.0625, \"names\": {\"fi\": \"Budapest\", \"de\": \"Budapest\", \"en\": \"Budapest\", \"fr\": \"Budapest\", \"sv\": \"Budapest\"}}}, \"interestingness\": {\"entity_LOC_Q38\": [1, {\"1918\": 1.0}], \"entity_LOC_Q39\": [1, {\"1918\": 1.0}], \"entity_LOC_Q183\": [1, {\"1918\": 1.0}], \"entity_LOC_Q1781\": [1, {\"1918\": 1.0}], \"overall\": 1}}, \"dataset\": \"ex\"}]",
+    "format": "p",
+    "language": "en"
+}
