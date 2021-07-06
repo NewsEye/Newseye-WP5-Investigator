@@ -17,7 +17,7 @@ def get_dataset(dataset):
         dataset = Dataset.query.filter_by(
             dataset_name=dataset_name, user=user
         ).one_or_none()
-
+   
     if not dataset or (not user == "PRA" and not uptodate(dataset)):
         current_app.logger.info("REQUESTING NEW DATASET!!!")
         #current_app.logger.debug("DATASET: %s" %dataset)

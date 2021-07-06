@@ -8,7 +8,7 @@ from app.models import Task, Processor, Dataset
 from uuid import UUID
 from werkzeug.exceptions import BadRequest, InternalServerError, NotFound
 from flask import current_app
-
+import time
 
 @ns.route("/")
 class AnalysisTaskList(Resource):
@@ -86,18 +86,21 @@ class AnalysisTaskList(Resource):
 
         current_app.logger.debug("args: %s" % args)
 
-        try:
-            task = controller.execute_task(args)
-            if task.task_status == "finished":
-                return Task.query.filter_by(uuid=task.uuid).first().dict(style="result")
-            elif task.task_status == "running":
-                return task.dict(), 202
-            else:
-                raise InternalServerError
-        except BadRequest:
-            raise
-        except Exception as e:
-            raise InternalServerError
+        for trial in range(3):
+            try:
+                task = controller.execute_task(args)
+                if task.task_status == "finished":
+                    return Task.query.filter_by(uuid=task.uuid).first().dict(style="result")
+                elif task.task_status in ["running", "created"]:
+                    return task.dict(), 202
+                else:
+                    raise InternalServerError
+            except BadRequest:
+                raise
+            except Exception as e:
+                current_app.logger.debug("E!!!: %s" %e)
+                time.sleep(0.1)
+        raise InternalServerError
 
 
 @ns.route("/<string:task_uuid>")

@@ -61,7 +61,7 @@ class TaskPlanner(object):
 
     def result_exists(self, task):
         # ToDo: Add timeouts for the results: timestamps are already stored, simply rerun the query if the timestamp
-        ##  is too old.
+        ## is too old.
         if task.dataset_id:
             related_tasks = Task.query.filter(
                 Task.processor_id == task.processor_id,
@@ -118,13 +118,17 @@ class TaskPlanner(object):
         )
         if not task.force_refresh:
             # search for similar tasks, reuse results
-            if self.result_exists(task):
-                current_app.logger.info(
-                    "NOT RUNNING %s [%s], result exists"
-                    % (task.processor.name, task.uuid)
-                )
-                task.task_status = "finished"
-                task.task_finished = datetime.utcnow()
+            try:
+                if self.result_exists(task):
+                    current_app.logger.info(
+                        "NOT RUNNING %s [%s], result exists"
+                        % (task.processor.name, task.uuid)
+                    )
+                    task.task_status = "finished"
+                    task.task_finished = datetime.utcnow()
+            except:
+                pass # not optimal but if something is wrong the task will be executed once again
+            
         else:
             task.task_status = "running"
 

@@ -6,6 +6,7 @@ from threading import Lock
 import copy
 from random import randint
 from config import Config
+from multiprocessing import Manager
 
 
 class SolrController:
@@ -13,7 +14,11 @@ class SolrController:
         self.session_no = 0
         self.max_session_no = Config.SOLR_MAX_SESSIONS
 
-        self.lock = Lock()
+        self.manager = Manager() 
+        self.lock = self.manager.Lock()
+
+        #self.lock = Lock()
+        
         self.global_counter = 0
 
     @asynccontextmanager
@@ -42,6 +47,7 @@ class SolrController:
         finally:
             current_app.logger.debug("FINALLY: %s" % self.session_no)
             await self.release_session(session)
+                
 
     async def release_session(self, session):
         await session.close()
