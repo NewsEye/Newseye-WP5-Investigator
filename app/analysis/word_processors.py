@@ -62,22 +62,28 @@ class ExtractWords(WordProcessor):
         # Note: df that came from SOLR are computing using the whole
         # (multilingual) collection. Might need to do it language-wise
         # (slower?)
+
+        
         for word_dict in list(self.input_data.values()):
-            for word, info in word_dict.items():
+            for word, info in word_dict.items():                
                 df[word] = info["df"]
                 tf[word] += info["tf"]
                 total += info["tf"]
                 # abs      rel                     tf-idf
         result = {
-            word: (tf[word], tf[word] / total, tf[word] * log(total / df[word]))
+            word: (tf[word], tf[word] / total, tf[word] / log(df[word]) )
             for word in tf
         }
 
+        # for word in sorted(result, key=lambda x: (result[x][2], x), reverse=True):
+        #     current_app.logger.debug("%s df %s tf %s tfidf %s" %(word, df[word], tf[word], result[word][2]))
+            
+        
         max_number = self.task.parameters.get("max_number")
         count = 0
         vocabulary = {}
         # sort by tf-idf:
-        for k in sorted(result, key=lambda x: (result[x][2], x), reverse=True):
+        for k in sorted(result, key=lambda x: (result[x][2], result[x][0], x), reverse=True):
             vocabulary[k] = result[k]
             count += 1
             if max_number and count == max_number:
@@ -88,17 +94,9 @@ class ExtractWords(WordProcessor):
     async def estimate_interestingness(self):
         vocab = self.result["vocabulary"]
         max_value = sum([vocab[word][2] for word in vocab])
-        try:
-            return assessment.recoursive_distribution(
-                {word: exp(vocab[word][2] / max_value) for word in vocab}
-            )  # interestingness based on tf-idf, the biggest numbers highlighted
-        except OverflowError as e:
-            for word in vocab:
-                try:
-                    exp(vocab[word][2])
-                except:
-                    print("word %s vocab[word] %s" % (word, vocab[word]))
-                    raise e
+        return assessment.recoursive_distribution(
+                {word: vocab[word][0] * exp(vocab[word][2] / max_value) for word in vocab}
+        )  # interestingness based on tf-idf, the biggest numbers highlighted, frequency taken into account
 
 
 class ExtractBigrams(WordProcessor):
@@ -117,6 +115,7 @@ class ExtractBigrams(WordProcessor):
     async def make_result(self):
         word_count = defaultdict(int)
         bigram_count = defaultdict(int)
+        df = {}
         total = 0.0
         for doc_processing in asyncio.as_completed(
             [
@@ -124,28 +123,48 @@ class ExtractBigrams(WordProcessor):
                 for doc_dict in self.input_data.values()
             ]
         ):
-            doc_word_count, doc_bigram_count = await doc_processing
-
+            doc_word_count, doc_bigram_count, doc_df = await doc_processing
+            
             for word in doc_word_count:
                 word_count[word] += doc_word_count[word]
                 total += doc_word_count[word]
+                df[word] = doc_df[word]
             for bigram in doc_bigram_count:
                 bigram_count[bigram] += doc_bigram_count[bigram]
+            
+            
 
+                
         dice_score = {
             b: 2.0 * bigram_count[b] / (word_count[b[0]] + word_count[b[1]])
             for b in bigram_count
         }
 
+
+        tfidf = {w:word_count[w]/log(df[w]) for w in df}
+        
+#        for b in sorted(dice_score,
+#                        key=lambda b: (dice_score[b],
+#                                       (word_count[b[0]] + word_count[b[1]])
+#                                       tfidf[b[0]]+tfidf[b[1]]),
+#                        reverse=True):
+#            current_app.logger.debug("%s bc: %s wc1:  %s wc2: %s dice: %s tfidf1: %s tfidf2: %s" %(b, bigram_count[b], word_count[b[0]], word_count[b[1]], dice_score[b], tfidf[b[0]], tfidf[b[1]]))
+        
         res = {}
         count = 0
         max_number = self.task.parameters.get("max_number")
         # sort by dice_score:
-        for b in sorted(dice_score, key=lambda b: dice_score[b], reverse=True):
+        for b in sorted(dice_score,
+                        key=lambda b: (bigram_count[b],
+                                       dice_score[b],
+                                       tfidf[b[0]]+tfidf[b[1]]),
+
+                        reverse=True):
             res[" ".join(b)] = (
                 bigram_count[b],
                 bigram_count[b] / total,
                 dice_score[b],
+                tfidf[b[0]]+tfidf[b[1]]
             )
             count += 1
             if count == max_number:
@@ -156,22 +175,24 @@ class ExtractBigrams(WordProcessor):
     @staticmethod
     async def collect_document_counts(doc_dict):
         position_to_word = {}
+        df = {}
         for word, info in doc_dict.items():
             for pos in info["positions"]:
                 position_to_word[pos] = word
+            df[word] = info["df"]
+            
         word_list = [position_to_word[p] for p in sorted(position_to_word)]
         word_count = defaultdict(int)
         bigram_count = defaultdict(int)
-
         for i in range(len(word_list) - 1):
             word_count[word_list[i]] += 1
             bigram_count[(word_list[i], word_list[i + 1])] += 1
-        word_count[word_count[-1]] += 1
+        word_count[word_list[-1]] += 1
 
-        return word_count, bigram_count
+        return word_count, bigram_count, df
 
     async def estimate_interestingness(self):
         return assessment.recoursive_distribution(
-            #   dice_score * log(count)
-            {b: self.result[b][1] * log(self.result[b][0]) for b in self.result}
+            #   dice_score  * sum_tfidf
+            {b: self.result[b][2] * self.result[b][3]  for b in self.result}
         )
