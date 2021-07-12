@@ -86,21 +86,20 @@ class AnalysisTaskList(Resource):
 
         current_app.logger.debug("args: %s" % args)
 
-        for trial in range(3):
-            try:
-                task = controller.execute_task(args)
-                if task.task_status == "finished":
-                    return Task.query.filter_by(uuid=task.uuid).first().dict(style="result")
-                elif task.task_status in ["running", "created"]:
-                    return task.dict(), 202
-                else:
-                    raise InternalServerError
-            except BadRequest:
-                raise
-            except Exception as e:
-                current_app.logger.debug("E!!!: %s" %e)
-                time.sleep(0.1)
-        raise InternalServerError
+
+        try:
+            task = controller.execute_task(args)
+            if task.task_status == "finished":
+                return Task.query.filter_by(uuid=task.uuid).first().dict(style="result")
+            elif task.task_status in ["running", "created"]:
+                return task.dict(), 202
+            else:
+                raise InternalServerError
+        except BadRequest:
+            raise
+        except Exception as e:
+            raise InternalServerError
+
 
 
 @ns.route("/<string:task_uuid>")
