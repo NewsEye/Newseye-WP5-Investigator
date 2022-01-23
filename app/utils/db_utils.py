@@ -17,7 +17,6 @@ from werkzeug.exceptions import BadRequest
 from app.utils.dataset_utils import get_hash_value, get_dataset
 from config import Config
 
-
 def verify_data(args):
     current_app.logger.debug("ARGS: %s" % args)
 
@@ -27,10 +26,6 @@ def verify_data(args):
         and args.get("search_query") is None
         and args.get("source_uuid") is None
     ):
-
-        current_app.logger.debug(
-            "!!!!! args.get('processor') %s" % args.get("processor")
-        )
 
         raise BadRequest(
             "A 'dataset', 'search_query', or 'source_uuid' is missing for query:\n{}".format(
@@ -72,13 +67,8 @@ def verify_analysis_parameters(args):
     verify_data(args)
 
     processor = Processor.find_by_name(name=args["processor"])
-    current_app.logger.debug("PROCESSOR: %s" % processor)
-
     parameter_info = processor.parameter_info
-
     query_parameters = args.get("parameters", {})
-    current_app.logger.debug("PARAMETERS: %s" % query_parameters)
-    current_app.logger.debug("PARAMETER_INFO: %s" % parameter_info)
 
     new_parameters = {}
     for parameter in parameter_info:

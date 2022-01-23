@@ -581,7 +581,7 @@ class InvestigatorRun(db.Model):
     #run_status = db.Column(db.String(255))
 
     run_status = db.Column(
-        db.Enum("created", "running", "finished", "failed", "stopped", "initializing", name="run_status"),
+        db.Enum("created", "running", "finished", "failed", "stopped",  "initializing", name="run_status"),
         nullable=False,
     )
     

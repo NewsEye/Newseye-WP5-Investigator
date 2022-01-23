@@ -11,4 +11,3 @@ dump/*
 investigator.env
 install_instructions.txt
 env
-__pycache__/*
